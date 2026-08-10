@@ -8,17 +8,15 @@
 - 実装状態: 未着手
 - 対象: 日本国内の個人利用
 - 保存方式: 初期版はブラウザ内保存とJSONバックアップ
+- 計算結果: 税務・社会保険・投資判断を代替しない概算
 
-## 主要機能
+## 主要画面
 
-- 家計・生活費: 不定期支出の月額平準化、カテゴリ管理、同棲時の負担割合
-- 手取り計算: 給与・賞与から税・社会保険を差し引いた概算
-- NISA・iDeCo: 積立、制度上限、将来資産、iDeCoの税負担軽減額の概算
-- 総合サマリー: 法定控除後手取り、生活費後手残り、投資後手残りの統合表示
-
-## 設計文書
-
-設計文書は `docs/product/`、実装計画は `docs/tasks/` に置きます。
+- 総合サマリー
+- 家計・生活費
+- 手取り計算
+- NISA・iDeCo
+- 設定
 
 ## 技術方針
 
@@ -28,6 +26,17 @@
 - Vanilla DOM API
 - Vitest
 - ESLint / Prettier
-- バックエンドなし
+- 初期版はバックエンドなし
 
-税・社会保険・資産形成制度に関する結果は概算であり、申告、契約、投資判断を代替しません。
+## 設計正本
+
+- [要件定義](docs/product/REQUIREMENTS.md)
+- [全体設計](docs/product/ARCHITECTURE.md)
+- [データモデル](docs/product/DATA_MODEL.md)
+- [計算仕様](docs/product/CALCULATIONS.md)
+- [制度ルール運用](docs/product/RULE_GOVERNANCE.md)
+- [実装レビュー方針](docs/product/REVIEW_POLICY.md)
+- [段階リリース計画](docs/product/DELIVERY_PLAN.md)
+- [設計判断](docs/product/DECISIONS.md)
+
+実装前に共通AI開発基盤を導入し、その後はTASK単位のbranch、candidate固定、テスト、実装レビューを経てmainへ反映します。

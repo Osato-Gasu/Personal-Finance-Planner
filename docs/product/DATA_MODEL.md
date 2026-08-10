@@ -1,0 +1,249 @@
+# データモデル v0.2
+
+## 1. 基本型
+
+```ts
+type Yen = number;          // 0以上の安全な整数
+type SignedYen = number;    // 手残り等、負数を許可する安全な整数
+type BasisPoints = number;  // 0..10000
+type ISODate = string;      // YYYY-MM-DD
+type YearMonth = string;    // YYYY-MM
+type EntityId = string;
+```
+
+小数円を永続化しない。割合50.0%は`5000`として保存する。運用計算の内部小数は結果確定時に円へ丸める。
+
+## 2. AppState
+
+```ts
+interface AppState {
+  schemaVersion: number;
+  activeRoute: RouteId;
+  settings: AppSettings;
+  members: HouseholdMember[];
+  incomePlans: IncomePlan[];
+  budget: BudgetState;
+  investmentPlans: InvestmentPlan[];
+  scenarios: InvestmentScenario[];
+  links: LinkDefinition[];
+  backup: BackupMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## 3. 人物
+
+```ts
+interface HouseholdMember {
+  id: EntityId;
+  role: 'self' | 'partner';
+  displayName: string;
+  birthDate?: ISODate;
+  residencePrefecture?: string;
+  active: boolean;
+}
+```
+
+`self`は常に1件。`partner`は最大1件。同棲モード解除時もpartnerデータを削除せずinactiveにできる。
+
+## 4. 手取り計画
+
+```ts
+interface IncomePlan {
+  id: EntityId;
+  memberId: EntityId;
+  targetPeriod: YearMonth;
+  inputMode: 'annual' | 'monthly';
+  annualSalaryYen?: Yen;
+  monthlySalaryYen?: Yen;
+  bonuses: BonusInput[];
+  nonTaxableCommutingAllowanceYen: Yen;
+  previousYearIncomeYen?: Yen;
+  deductionSettings: DeductionSettings;
+  socialInsuranceSettings: SocialInsuranceSettings;
+}
+```
+
+```ts
+interface SocialInsuranceSettings {
+  healthInsuranceMode:
+    | 'kyokai-kenpo'
+    | 'manual'
+    | 'unsupported-uncomputed';
+  prefecture?: string;
+  manualAnnualPremiumYen?: Yen;
+  employmentCategory?: string;
+}
+```
+
+組合健保・共済等を`kyokai-kenpo`として保存してはならない。
+
+## 5. 家計
+
+```ts
+interface BudgetState {
+  mode: 'detailed' | 'simple';
+  globalSelfShareBasisPoints: BasisPoints;
+  simpleMonthlyExpenseYen?: Yen;
+  categories: BudgetCategory[];
+  items: ExpenseItem[];
+  incomeLinks: MemberIncomeLink[];
+}
+```
+
+```ts
+interface BudgetCategory {
+  id: EntityId;
+  name: string;
+  description?: string;
+  shareMode: 'inherit' | 'custom';
+  selfShareBasisPoints?: BasisPoints;
+  sortOrder: number;
+  active: boolean;
+}
+```
+
+```ts
+interface ExpenseItem {
+  id: EntityId;
+  categoryId?: EntityId;
+  purpose: string;
+  kind: 'living-expense' | 'asset-contribution';
+  scope: 'shared' | 'self' | 'partner';
+  amountYen: Yen;
+  cycleValue: number;
+  cycleUnit: 'day' | 'week' | 'month' | 'year';
+  occurrencesPerCycle: number;
+  shareMode: 'inherit' | 'custom';
+  selfShareBasisPoints?: BasisPoints;
+  source: ValueSource;
+  memo?: string;
+  active: boolean;
+}
+```
+
+`asset-contribution`は通常のカテゴリCRUDから手入力できない。NISA・iDeCo計画から導出する表示専用項目とする。
+
+## 6. 資産形成
+
+```ts
+interface InvestmentPlan {
+  id: EntityId;
+  memberId: EntityId;
+  startMonth: YearMonth;
+  targetMonth: YearMonth;
+  nisa: NisaPlan;
+  ideco: IdecoPlan;
+  activeScenarioId: EntityId;
+}
+```
+
+```ts
+interface NisaPlan {
+  currentBalanceYen: Yen;
+  currentBookValueYen: Yen;
+  usedLimitYen: Yen;
+  usedGrowthLimitYen: Yen;
+  monthlyTsumitateYen: Yen;
+  monthlyGrowthYen: Yen;
+  additionalPurchases: ScheduledContribution[];
+}
+```
+
+```ts
+interface IdecoPlan {
+  participantCategory: string;
+  employerPensionType?: string;
+  employerDcContributionYen?: Yen;
+  otherPensionEquivalentYen?: Yen;
+  monthlyContributionYen: Yen;
+  currentBalanceYen: Yen;
+  currentContributionTotalYen: Yen;
+  monthlyFeeYen: Yen;
+  receiptStartAge?: number;
+}
+```
+
+制度区分はUI文言ではなくrule packageが認識できる安定キーで保存する。
+
+## 7. 連携
+
+```ts
+type ValueSource =
+  | { type: 'manual' }
+  | {
+      type: 'linked';
+      sourceType:
+        | 'take-home-result'
+        | 'nisa-contribution'
+        | 'ideco-contribution';
+      sourceId: EntityId;
+      field: string;
+    };
+```
+
+```ts
+interface LinkDefinition {
+  id: EntityId;
+  targetType: string;
+  targetId: EntityId;
+  sourceType: string;
+  sourceId: EntityId;
+  field: string;
+  active: boolean;
+}
+```
+
+同一`targetType + targetId`にactive linkは1件まで。同一の資産形成`sourceType + sourceId`から導出するactive contributionも1件まで。
+
+## 8. 制度ルール
+
+```ts
+interface RuleMetadata {
+  id: string;
+  domain: RuleDomain;
+  jurisdiction: 'JP';
+  effectiveFrom: ISODate;
+  effectiveTo: ISODate | null;
+  status: 'current' | 'scheduled' | 'retired';
+  publishedAt?: ISODate;
+  verifiedAt: ISODate;
+  verifiedBy: string;
+  sourceTitle: string;
+  sourceUrl: string;
+  sourcePublisher: string;
+  sourceRetrievedAt: ISODate;
+  notes?: string;
+}
+```
+
+Rule本体はmetadataと値を分離しない。同じversioned moduleからexportする。
+
+## 9. バックアップ
+
+```ts
+interface BackupMetadata {
+  lastSuccessfulSaveAt?: string;
+  lastExportedAt?: string;
+  reminderIntervalDays: number;
+  reminderDismissedUntil?: ISODate;
+}
+```
+
+`lastExportedAt`はダウンロード開始ではなく、JSON生成とブラウザへの引渡しが成功した時点で更新する。
+
+## 10. 不変条件
+
+- entity IDは一度発行したら名称変更で変えない。
+- 参照先の存在しないactive linkを保存しない。
+- `self`は1件だけ。
+- active partnerは最大1件。
+- Yen入力は0以上の安全な整数。
+- `cycleValue`と`occurrencesPerCycle`は1以上の整数。
+- BasisPointsは0から10000。
+- custom shareには割合が必須。
+- shared費の本人額と相手額の合計は全体額と一致する。
+- 同じsourceの資産形成拠出を重複保存しない。
+- rule期間の重複を許可しない。
+- schema migration失敗時に元データを変更しない。
