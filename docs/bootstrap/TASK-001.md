@@ -1,10 +1,10 @@
 ---
 task_id: TASK-001
 title: shared v0.12.20共通AI開発基盤の導入
-status: ready
+status: completed
 priority: high
 risk_level: high
-current_phase: implementation
+current_phase: completed
 assigned_actor: Codex
 assigned_role: IMPLEMENTER
 assigned_model: 5.6 Sol

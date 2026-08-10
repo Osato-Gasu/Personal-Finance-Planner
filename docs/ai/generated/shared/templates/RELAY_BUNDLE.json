@@ -1,0 +1,55 @@
+# GENERATED FILE: DO NOT EDIT.
+# source version: 0.12.20
+# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# 直接編集禁止
+
+{
+  "schema_version": 2,
+  "status": "USER_RELAY_REQUIRED",
+  "task_id": "TASK-000",
+  "spec_revision": 1,
+  "repository": "owner/repository",
+  "branch": "codex/task-000",
+  "routing_mode": "connector_read_only",
+  "route_result": {
+    "repository": "owner/repository",
+    "requested_ref": "refs/heads/codex/task-000",
+    "resolved_commit": "0000000000000000000000000000000000000000",
+    "next_action_blob": "0000000000000000000000000000000000000000",
+    "handoff_blob": "0000000000000000000000000000000000000000",
+    "adapter_blob": "0000000000000000000000000000000000000000"
+  },
+  "relay_recipient": "Codex",
+  "relay_recipient_role": "IMPLEMENTER",
+  "result_return_to": "ChatGPT",
+  "reviewed_candidate": "0000000000000000000000000000000000000000",
+  "reviewed_handoff_head": "0000000000000000000000000000000000000000",
+  "shared_candidate": "0000000000000000000000000000000000000000",
+  "decision": "CHANGES_REQUESTED",
+  "review_stage": "implementation",
+  "next_phase": "implementation",
+  "next_actor": "Codex",
+  "next_role": "IMPLEMENTER",
+  "model": "project-resolved-model",
+  "effort": "project-resolved-effort",
+  "purpose": "complete purpose",
+  "scope": ["complete scope item"],
+  "out_of_scope": ["complete out-of-scope item"],
+  "findings": [{
+    "id": "FINDING-1",
+    "severity": "MAJOR",
+    "target": "file or contract",
+    "problem": "complete problem",
+    "evidence": "complete evidence",
+    "impact": "complete impact",
+    "required_change": "exact completion condition"
+  }],
+  "acceptance_criteria": ["complete acceptance criterion"],
+  "tests": ["complete test"],
+  "forbidden_changes": ["complete forbidden change"],
+  "independent_review": null,
+  "independent_review_result": null,
+  "finding_dispositions": null,
+  "requirements": null,
+  "created_at": "YYYY-MM-DD HH:mm:ss JST"
+}

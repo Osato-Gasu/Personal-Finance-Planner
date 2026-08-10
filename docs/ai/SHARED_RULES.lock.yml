@@ -1,0 +1,8 @@
+schema_version: 1
+source_name: ai-development-governance
+source_repository: Osato-Gasu/shared
+version: 0.12.20
+commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
+generated_root: docs/ai/generated/shared
+synced_at: 2026-08-11T04:20:02+09:00

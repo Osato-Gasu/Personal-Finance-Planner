@@ -1,0 +1,69 @@
+# GENERATED FILE: DO NOT EDIT.
+# source version: 0.12.20
+# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# 直接編集禁止
+
+# REPORT
+
+- task_id:
+- phase:
+- status:
+- baseline_commit:
+- candidate_commit:
+- product_sha256:
+- product_bytes:
+- product_blob:
+- changed_files:
+- tests_passed:
+- tests_failed:
+- build_result:
+- source_match:
+- browser_evidence:
+- network:
+- unresolved:
+- risks:
+- worktree:
+- actual_executor:
+- provider_substitution:
+- independent_review_kind:
+- review_role:
+- execution_mode:
+- repository_access:
+- review_status:
+- request_review_status:
+- review_model:
+- review_effort:
+- reviewed_candidate:
+- reviewed_spec_revision:
+- review_request_id:
+- review_started_at:
+- review_completed_at:
+- review_result:
+- review_findings_count:
+- review_finding_ids:
+- repository_write_access: available / unavailable / not_applicable
+- write_probe_method:
+- user_relay_required: true / false
+- relay_bundle_name:
+- relay_bundle_sha256:
+- relay_bundle_bytes:
+- relay_bundle_format:
+- relay_identity_verified: true / false / not_applicable
+- relay_import_result:
+- relay_recipient:
+- relay_recipient_role:
+- result_return_to:
+- canonical_relay_bundle:
+- routing_mode: local_script / connector_read_only / legacy_unspecified
+- route_repository:
+- requested_ref:
+- resolved_commit:
+- next_action_blob:
+- handoff_blob:
+- adapter_blob:
+- accepted_findings:
+- finding_dispositions:
+- relay_semantic_round_trip: verified / failed / not_applicable
+- relay_transaction_rollback: verified / failed / not_applicable
+- execution_started_at: YYYY-MM-DD HH:mm:ss JST
+- execution_finished_at: YYYY-MM-DD HH:mm:ss JST

@@ -1,0 +1,15 @@
+# GENERATED FILE: DO NOT EDIT.
+# source version: 0.12.20
+# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# 直接編集禁止
+
+status: USER_RELAY_REQUIRED
+task_id: <TASK-ID or none>
+decision: <APPROVED | CHANGES_REQUESTED | BLOCKED | NEEDS_USER_DECISION | REQUIREMENTS_DEFINED | INDEPENDENT_REVIEW_REQUESTED | INDEPENDENT_REVIEW_COMPLETED>
+relay_bundle_name: <portable bundle filename>
+relay_bundle_sha256: <64 uppercase hex>
+relay_bundle_bytes: <positive integer>
+relay_bundle_format: JSON
+relay_recipient: Codex
+relay_recipient_role: IMPLEMENTER
+result_return_to: <actor that receives the result after relay work>

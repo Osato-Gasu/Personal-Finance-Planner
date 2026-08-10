@@ -1,0 +1,45 @@
+# GENERATED FILE: DO NOT EDIT.
+# source version: 0.12.20
+# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# 直接編集禁止
+
+# NEXT_ACTION template. project generatorが値を決定します。
+schema_version: 1
+task_id: none
+feature: none
+phase: idle
+status: idle
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
+model: none
+effort: none
+session_mode: existing_or_new
+handoff_file: docs/ai/handoffs/PROJECT_REQUIREMENTS.md
+rules_version: <shared-version>
+rules_commit: <shared-commit>
+preferred_executor: Claude
+allowed_executors: Claude, ChatGPT
+executor_policy: preferred_fallback
+return_to: user
+actual_executor: ChatGPT
+provider_substitution: none
+review_kind: none
+review_role: none
+execution_mode: existing_session
+repository_access: true
+review_status: not_requested
+request_review_status: none
+review_model: none
+review_effort: none
+reviewed_candidate: none
+reviewed_spec_revision: none
+review_request_id: none
+review_started_at: none
+review_completed_at: none
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
+write_bridge: required_for_state_transition
+write_probe: required_for_chatgpt
+relay_status: none
+updated_at: YYYY-MM-DD

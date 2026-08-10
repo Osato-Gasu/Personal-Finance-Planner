@@ -1,0 +1,19 @@
+name: Governance CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate governance
+        shell: pwsh
+        run: ./tools/validate-ai-governance.ps1
