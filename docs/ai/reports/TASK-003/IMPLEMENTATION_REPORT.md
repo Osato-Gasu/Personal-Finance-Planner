@@ -1,0 +1,76 @@
+# IMPLEMENTATION REPORT — TASK-003
+
+- task_id: TASK-003
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- baseline_commit: 288f49ccaebc62040ad797126f2d5eabb4d89555
+- baseline_tree: fcb3c24f7718abc6e6b8d559bd0456b37b37715a
+- implementation_candidate: 6170b0fa1f895f8e269115fd1d4fbc9d6a3234e7
+- candidate_commit: 6170b0fa1f895f8e269115fd1d4fbc9d6a3234e7
+- candidate_tree: 9f345bc675e5a43f801790d8cc6f623af9b7fc44
+- product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
+- product_bytes: 11767
+- product_blob: 9d7509bcb8c7726903942d6dc4fb2b768cc3f654
+- changed_files: 24 from baseline
+- tests_passed: 125 unit/integration tests; 37 system Edge portable file checks; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build/test:portable
+- tests_failed: none
+- build_result: passed
+- source_match: requirements product identity matched
+- browser_evidence: system Edge file:// passed at candidate; budget input, CRUD, share priority, detail/simple mode, reload, 360px, keyboard, localStorage, console/page errors 0
+- network: npm registry dependency installation only; portable smoke observed zero runtime requests
+- unresolved: none
+- risks: 実制度値を含まないMVPであり、税・社会保険・資産形成計算を示さない
+- worktree: clean_at_candidate
+- actual_executor: Codex
+- provider_substitution: none
+- independent_review_kind: none
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol-Pro
+- review_effort: Pro
+- reviewed_candidate: 6170b0fa1f895f8e269115fd1d4fbc9d6a3234e7
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- repository_write_access: available
+- write_probe_method: clean isolated clone with local commit
+- user_relay_required: false
+- relay_bundle_name: task-003-requirements-relay.json
+- relay_bundle_sha256: 16C6697D3407F3D31EDFF3BCED7F4E34E2D66E41C889E52EA118306F8EB2DA5B
+- relay_bundle_bytes: 4689
+- relay_bundle_format: JSON
+- relay_identity_verified: true
+- relay_import_result: passed
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- canonical_relay_bundle: docs/ai/reports/TASK-003/RELAY_BUNDLE.json
+- routing_mode: local_script
+- accepted_findings: none
+- finding_dispositions: not_applicable
+- relay_semantic_round_trip: verified
+- relay_transaction_rollback: verified
+- execution_started_at: 2026-08-11 21:50:21 JST
+- workflow_run_id: 31496132454
+- workflow_head_sha: 6170b0fa1f895f8e269115fd1d4fbc9d6a3234e7
+- workflow_conclusion: success
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- changes_requested_cycles: 0
+- implementation_review_terminated: false
+- final_review: false
+- schema_migration: deterministic and idempotent v1-to-v2 with atomic persistence
+- active_link_validation: save, load, import, and migration enforce source, target, member, field, and active-target uniqueness
+- standalone_html: dist/index.html (single-file build)
+- portable_browser: msedge
+- portable_checks: 37
+- runtime_requests: 0
+- execution_finished_at: 2026-08-11 22:29:01 JST
