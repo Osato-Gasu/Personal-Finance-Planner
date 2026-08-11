@@ -95,6 +95,35 @@ describe("StorageRepository export/import transaction", () => {
     );
   });
 
+  it("rejects an import with inactive self", () => {
+    const repository = new StorageRepository(new MemoryStorage());
+    const state = createFixtureState();
+    const self = state.members.find((member) => member.role === "self");
+    if (!self) throw new Error("fixture self is missing");
+    self.active = false;
+    expect(() => repository.prepareImport(JSON.stringify(state))).toThrow(
+      "self must be active",
+    );
+  });
+
+  it("preserves persisted bytes when an invalid Store action is rejected", () => {
+    const storage = new MemoryStorage();
+    const repository = new StorageRepository(storage);
+    const current = createFixtureState();
+    repository.save(current);
+    const before = storage.getItem(STORAGE_KEY);
+    const store = new Store(current, repository);
+
+    expect(() =>
+      store.dispatch({
+        type: "rename-member",
+        memberId: "missing",
+        displayName: "不明",
+      }),
+    ).toThrow("rename member is missing");
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
   it("rejects prototype pollution keys recursively", () => {
     const repository = new StorageRepository(new MemoryStorage());
     const serialized = JSON.stringify(createFixtureState()).replace(

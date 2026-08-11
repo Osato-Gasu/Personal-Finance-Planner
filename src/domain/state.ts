@@ -131,9 +131,11 @@ export function validateAppState(state: AppState): void {
   uniqueIds(state.livingExpenses, "living expense");
   uniqueIds(state.contributionSources, "contribution source");
 
-  if (state.members.filter((member) => member.role === "self").length !== 1) {
+  const selfMembers = state.members.filter((member) => member.role === "self");
+  if (selfMembers.length !== 1) {
     throw new Error("self must occur exactly once");
   }
+  if (!selfMembers[0]?.active) throw new Error("self must be active");
   const partners = state.members.filter((member) => member.role === "partner");
   if (
     partners.length > 1 ||
@@ -314,6 +316,7 @@ export function deepFreeze<T>(value: T): Readonly<T> {
 }
 
 export function reduceState(state: AppState, action: AppAction): AppState {
+  assertActionApplicable(state, action);
   switch (action.type) {
     case "navigate":
       return { ...cloneState(state), activeRoute: action.route };
@@ -363,6 +366,71 @@ export function reduceState(state: AppState, action: AppAction): AppState {
             : { ...link },
         ),
       };
+  }
+}
+
+function assertActionApplicable(state: AppState, action: AppAction): void {
+  switch (action.type) {
+    case "navigate":
+      return;
+    case "rename-member":
+      if (!state.members.some((member) => member.id === action.memberId)) {
+        throw new Error("rename member is missing");
+      }
+      return;
+    case "set-partner-active": {
+      const member = state.members.find(
+        (candidate) => candidate.id === action.memberId,
+      );
+      if (!member || member.role !== "partner") {
+        throw new Error("set-partner-active requires an existing partner");
+      }
+      return;
+    }
+    case "update-take-home":
+      if (!state.takeHomeInputs.some((input) => input.id === action.sourceId)) {
+        throw new Error("take-home source is missing");
+      }
+      return;
+    case "add-link": {
+      if (state.links.some((link) => link.id === action.link.id)) {
+        throw new Error("link ID is already in use");
+      }
+      const target = state.incomeTargets.find(
+        (candidate) => candidate.id === action.link.targetId,
+      );
+      if (!target) throw new Error("link target is missing");
+      const source = state.takeHomeInputs.find(
+        (candidate) => candidate.id === action.link.sourceId,
+      );
+      if (!source) throw new Error("link source is missing");
+      if (target.memberId !== source.memberId) {
+        throw new Error("link source and target members must match");
+      }
+      if (!action.link.active) throw new Error("added link must be active");
+      if (
+        state.links.some(
+          (link) => link.active && link.targetId === action.link.targetId,
+        )
+      ) {
+        throw new Error("only one active link is allowed for a target");
+      }
+      return;
+    }
+    case "unlink-income":
+      if (
+        !state.incomeTargets.some((target) => target.id === action.targetId)
+      ) {
+        throw new Error("unlink target is missing");
+      }
+      if (
+        !state.links.some(
+          (link) => link.active && link.targetId === action.targetId,
+        )
+      ) {
+        throw new Error("active link is missing for unlink target");
+      }
+      return;
   }
 }
 
