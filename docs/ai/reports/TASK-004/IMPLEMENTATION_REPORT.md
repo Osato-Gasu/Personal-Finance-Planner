@@ -1,39 +1,37 @@
 # IMPLEMENTATION REPORT — TASK-004
 
 - task_id: TASK-004
-- spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- spec_revision: 2
+- phase: implementation
+- status: ready
 - baseline_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 - baseline_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-- implementation_candidate: 106868ea12ebd6766cfa89499e6b12f9b341e08e
-- candidate_commit: 106868ea12ebd6766cfa89499e6b12f9b341e08e
-- candidate_tree: 560dcd7b6f6bd0a36bc88a02198fcc6457c8e052
+- implementation_candidate: none
+- candidate_commit: none
+- candidate_tree: none
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - product_bytes: 11767
 - product_blob: 9d7509bcb8c7726903942d6dc4fb2b768cc3f654
-- changed_files: 31 from baseline
-- tests_passed: 207 unit/integration tests; 44 fixed-rule tests; 78 system Edge portable file checks; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build/test:rules/test:portable
-- tests_failed: none
-- build_result: passed
 - source_match: requirements product identity matched
-- browser_evidence: system Edge file:// passed; take-home input, calculation, bonus, live budget link, link update, unlink, reload, 360px, keyboard, localStorage, console/page errors 0
-- network: npm registry dependency installation only; portable smoke observed zero runtime requests
+- build_result: pending
+- tests_passed: pending revision 2 validation
+- tests_failed: none
+- browser_evidence: pending revision 2 candidate
+- network: pending revision 2 candidate
 - unresolved: none
-- risks: 2026年・単一勤務先・給与所得のみ・協会けんぽを対象とする概算で、住民税はmanualまたは未計算
-- worktree: clean_at_candidate
+- worktree: governance_transition_in_progress
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: none
-- review_role: ORCHESTRATOR_AND_REVIEWER
-- execution_mode: separate_session
+- review_role: none
+- execution_mode: existing_session
 - repository_access: true
-- review_status: requested
-- request_review_status: requested
-- review_model: 5.6 Sol
-- review_effort: high
-- reviewed_candidate: 106868ea12ebd6766cfa89499e6b12f9b341e08e
-- reviewed_spec_revision: 1
+- review_status: not_requested
+- request_review_status: none
+- review_model: none
+- review_effort: none
+- reviewed_candidate: none
+- reviewed_spec_revision: none
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
@@ -41,40 +39,45 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - repository_write_access: available
-- write_probe_method: clean isolated clone with local commit
+- write_probe_method: clean isolated TASK-004 worktree
 - user_relay_required: false
-- relay_bundle_name: task-004-requirements-relay.json
-- relay_bundle_sha256: E18A03D8A31605AE3BB490B59F3297F01699E9FB4453FB075FF7C3AC508B6F5B
-- relay_bundle_bytes: 8214
+- relay_bundle_name: task-004-spec-revision-2-route-fixed.json
+- relay_bundle_sha256: 60C69D9433EE56DCC2BFD7055875C5C4D715478102D451A9D290CE3468AC8206
+- relay_bundle_bytes: 16329
 - relay_bundle_format: JSON
 - relay_identity_verified: true
-- relay_import_result: passed
+- relay_import_result: not_applicable_user_approved_spec_revision
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
-- canonical_relay_bundle: docs/ai/reports/TASK-004/RELAY_BUNDLE.json
-- routing_mode: local_script
+- canonical_relay_bundle: docs/ai/reports/TASK-004/SPEC_REVISION_2_REQUIREMENTS.json
+- routing_mode: user_approved_spec_revision
 - accepted_findings: none
 - finding_dispositions: not_applicable
 - relay_semantic_round_trip: verified
-- relay_transaction_rollback: verified
-- execution_started_at: 2026-08-12 01:14:00 JST
-- workflow_run_id: 31514623846
-- workflow_head_sha: 106868ea12ebd6766cfa89499e6b12f9b341e08e
-- workflow_conclusion: success
+- relay_transaction_rollback: not_applicable_prewrite_validated
+- execution_started_at: 2026-08-12 02:47:50 JST
+- workflow_run_id: none
+- workflow_head_sha: none
+- workflow_conclusion: none
 - review_stage: implementation
 - changes_requested_cycles: 0
 - implementation_review_attempt: 1
 - implementation_review_profile: standard
 - implementation_review_terminated: false
 - final_review: false
-- schema_migration: deterministic v1/v2-to-v3 migration with unchanged old bytes, stable plan/source IDs, and v3-first no-fallback load
-- rule_package: 2026 income tax and employee social insurance with effective-period metadata and official primary sources
-- rule_coverage: 47 prefectures; health/care/additional/employment rate periods; health 50 and pension 32 remuneration grades
-- resident_tax: manual annual or unsupported-uncomputed; uncomputed never becomes a completed zero-yen result
-- standalone_html: dist/index.html (single-file build)
-- portable_browser: msedge
-- portable_checks: 78
-- runtime_requests: 0
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_finished_at: 2026-08-12 01:54:50 JST
+- execution_finished_at: pending
+
+## Spec revision 1 retained audit
+
+- relay_bundle_sha256: E18A03D8A31605AE3BB490B59F3297F01699E9FB4453FB075FF7C3AC508B6F5B
+- implementation_candidate: 106868ea12ebd6766cfa89499e6b12f9b341e08e
+- candidate_tree: 560dcd7b6f6bd0a36bc88a02198fcc6457c8e052
+- candidate_workflow_run_id: 31514623846
+- candidate_workflow_conclusion: success
+- handoff_head: 16b30a37f4f4a1eb1df0ecc901547557e4da75e7
+- handoff_tree: ba19429c542e9173a651d73e437a31aba8d9b2f6
+- handoff_workflow_run_id: 31515185142
+- handoff_workflow_conclusion: success
+- disposition: retained as historical evidence only; not approved for spec revision 2

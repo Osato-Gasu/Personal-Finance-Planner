@@ -2,9 +2,9 @@
 updated_at: 2026-08-12
 active_tasks:
   - TASK-004
-next_action: ChatGPT performs TASK-004 implementation review attempt 1 with the standard profile
+next_action: Codex implements the user-approved TASK-004 spec revision 2 from the retained spec revision 1 implementation
 ---
 
 # Current state
 
-TASK-004 implementation candidate 106868ea12ebd6766cfa89499e6b12f9b341e08e is fixed for implementation review attempt 1 after exact candidate CI success.
+TASK-004 spec revision 2 is accepted and in implementation. Review convergence is reset to attempt 1 standard with no current implementation candidate.
