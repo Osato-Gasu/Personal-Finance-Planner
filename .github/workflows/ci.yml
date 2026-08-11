@@ -18,9 +18,31 @@ jobs:
         if: github.ref == 'refs/heads/codex/task-001-shared-governance-adoption' || github.head_ref == 'codex/task-001-shared-governance-adoption'
         shell: pwsh
         run: ./tools/validate-task-001-boundary.ps1
-      - name: Validate governance
+      - name: Validate governance (PowerShell 7)
         shell: pwsh
         run: ./tools/validate-ai-governance.ps1
-      - name: Smoke test product identity relay
+      - name: Smoke test product identity relay (PowerShell 7)
         shell: pwsh
         run: ./tools/test-requirements-defined-smoke.ps1
+      - name: Validate governance (PowerShell 5.1)
+        shell: powershell
+        run: ./tools/validate-ai-governance.ps1
+      - name: Smoke test product identity relay (PowerShell 5.1)
+        shell: powershell
+        run: ./tools/test-requirements-defined-smoke.ps1
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Check formatting
+        run: npm run format:check
+      - name: Test
+        run: npm run test
+      - name: Build
+        run: npm run build

@@ -1,9 +1,10 @@
 ---
 updated_at: 2026-08-11
-active_tasks: []
-next_action: Define TASK-002 from the permanent project requirements handoff without starting product implementation
+active_tasks:
+  - TASK-002
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-002
 ---
 
 # Current state
 
-TASK-001 established shared governance v0.12.20. There is no active implementation TASK.
+TASK-002 is active in implementation for the cross-cutting architecture spike on shared governance v0.12.20.

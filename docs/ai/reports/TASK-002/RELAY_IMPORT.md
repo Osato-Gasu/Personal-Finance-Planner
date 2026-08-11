@@ -1,0 +1,21 @@
+# RELAY IMPORT — TASK-002
+
+- source bundle: TASK-002-requirements-bundle.json
+- source SHA-256: 91BD7B72AD4096B409C91D8DF7C29BCF1DF4A70BCC6F4DF770FF645D97D75A02
+- source bytes: 3937
+- identity verified: true
+- canonical bundle: docs/ai/reports/TASK-002/RELAY_BUNDLE.json
+- canonical SHA-256: 91BD7B72AD4096B409C91D8DF7C29BCF1DF4A70BCC6F4DF770FF645D97D75A02
+- canonical bytes: 3937
+- semantic round-trip: verified
+- decision: REQUIREMENTS_DEFINED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- candidate: none
+- handoff HEAD: none
+- routing_mode: legacy_unspecified
+- review_stage: implementation
+- imported findings: 0
+- accepted findings: 0
+- finding dispositions: 0

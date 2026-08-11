@@ -6,11 +6,34 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
 $powershellExe = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
 $temporaryRoot = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ('pfp-task001-product-identity-' + [guid]::NewGuid().ToString('N'))))
+$zeroActiveBaseline = '530b9708b43fc593ae8571f69b03ba62b91f628d'
 
 function Invoke-Git([string]$Repository,[string[]]$Arguments,[string]$Context) {
     $output = @(& git -C $Repository @Arguments 2>&1)
     if ($LASTEXITCODE -ne 0) { throw "$Context failed: $($output -join "`n")" }
     $output
+}
+function Write-ZeroActiveBaselineFile([string]$Project,[string]$RelativePath) {
+    $output = @(Invoke-Git $Project @('show',"$zeroActiveBaseline`:$RelativePath") "zero-active $RelativePath")
+    $path = [IO.Path]::GetFullPath((Join-Path $Project $RelativePath))
+    $projectPrefix = [IO.Path]::GetFullPath($Project).TrimEnd('\') + '\'
+    if (-not $path.StartsWith($projectPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw "zero-active path escapes fixture: $RelativePath" }
+    [IO.File]::WriteAllText($path,(($output -join "`n") + "`n"),$utf8NoBom)
+}
+function Set-ZeroActiveFixture([string]$Project,[string]$Name) {
+    $projectPrefix = [IO.Path]::GetFullPath($Project).TrimEnd('\') + '\'
+    foreach ($relative in @('docs/ai/tasks/TASK-002.md','docs/ai/handoffs/TASK-002','docs/ai/reports/TASK-002')) {
+        $path = [IO.Path]::GetFullPath((Join-Path $Project $relative))
+        if (-not $path.StartsWith($projectPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw "zero-active removal escapes fixture: $relative" }
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
+    }
+    foreach ($relative in @('docs/ai/CURRENT_STATE.md','docs/ai/NEXT_ACTION.yml','board/PROGRESS.html')) { Write-ZeroActiveBaselineFile $Project $relative }
+    Invoke-Git $Project @('add','-A') "$Name zero-active add" | Out-Null
+    & git -C $Project diff --cached --quiet
+    if ($LASTEXITCODE -eq 1) { Invoke-Git $Project @('commit','-q','-m','materialize isolated zero-active governance state') "$Name zero-active commit" | Out-Null }
+    elseif ($LASTEXITCODE -ne 0) { throw "$Name zero-active diff failed" }
+    $status = @(git -C $Project status --porcelain=v1 --untracked-files=all)
+    if ($LASTEXITCODE -ne 0 -or $status.Count -ne 0) { throw "$Name zero-active fixture is not clean" }
 }
 function New-Fixture([string]$Name,[string]$Branch) {
     $fixture = Join-Path $temporaryRoot $Name
@@ -20,6 +43,7 @@ function New-Fixture([string]$Name,[string]$Branch) {
     Invoke-Git $fixture @('config','user.name','TASK-001 product identity smoke') "$Name user" | Out-Null
     Invoke-Git $fixture @('config','user.email','task001-product-identity@example.invalid') "$Name email" | Out-Null
     Invoke-Git $fixture @('checkout','-q','-b',$Branch,'HEAD') "$Name checkout" | Out-Null
+    Set-ZeroActiveFixture $fixture $Name
     Invoke-Git $fixture @('remote','set-url','origin','https://github.com/Osato-Gasu/Personal-Finance-Planner.git') "$Name remote" | Out-Null
     $fixture
 }
