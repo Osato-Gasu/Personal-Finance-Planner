@@ -156,8 +156,8 @@ try {
   await page.getByRole("button", { name: "2026年計算プランを作成" }).click();
   await page.getByLabel("生年月日").fill("1990-01-01");
   await page.getByLabel("生年月日").press("Tab");
-  await page.getByLabel("年間課税給与").fill("6000000");
-  await page.getByLabel("年間課税給与").press("Tab");
+  await page.getByLabel("年間課税給与（賞与を含む）").fill("6000000");
+  await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
   await page.getByLabel("事業所都道府県").selectOption("JP-13");
   await page.getByLabel("月額報酬（標準報酬推定用）").fill("300000");
   await page.getByLabel("月額報酬（標準報酬推定用）").press("Tab");
@@ -165,18 +165,31 @@ try {
   await page.getByLabel("住民税年額", { exact: true }).fill("0");
   await page.getByLabel("住民税年額", { exact: true }).press("Tab");
   await page.getByLabel("住民税0円を確認").check();
-  await page.getByRole("heading", { name: "計算結果: complete" }).waitFor();
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
   await assertContains(page.locator(".take-home-result"), "年間手取り");
   await assertContains(
     page.locator(".take-home-result"),
     "適用ルールと公式根拠",
   );
+  await assertContains(
+    page.locator(".take-home-result"),
+    "事業所都道府県: 東京都 (JP-13)",
+  );
+  await assertContains(
+    page.locator(".take-home-result"),
+    "健康保険標準報酬月額: 300,000円",
+  );
+  await assertContains(
+    page.locator(".take-home-result"),
+    "jp-kyokai-health-rate-2026",
+  );
+  await assertContains(page.locator(".take-home-result"), "確認日 2026-08-12");
   await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await assertContains(page.getByTestId("household-income"), "439,597円");
   await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByLabel("年間課税給与").fill("6100000");
-  await page.getByLabel("年間課税給与").press("Tab");
+  await page.getByLabel("年間課税給与（賞与を含む）").fill("6100000");
+  await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
   await page.getByRole("button", { name: "賞与を追加" }).click();
   assert.equal(await page.getByLabel("賞与支給日").inputValue(), "2026-06-30");
   await page.getByRole("link", { name: "家計・生活費" }).click();
@@ -426,7 +439,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=78, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=82, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();

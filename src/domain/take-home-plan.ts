@@ -102,11 +102,34 @@ export type TakeHomePlan = CalculatedTakeHomePlan | LegacyManualTakeHomePlan;
 export interface AppliedRule {
   id: string;
   domain: string;
+  contextKey: string;
   effectiveFrom: string;
   effectiveTo: string;
+  effectiveBasis: string;
+  status: string;
+  publishedAt: string;
   verifiedAt: string;
+  verifiedBy: string;
   sourceTitle: string;
   sourceUrls: readonly string[];
+  sourcePublisher: string;
+  sourceRetrievedAt: string;
+  notes: string;
+}
+
+export interface AppliedBonusBasis {
+  bonusId: string;
+  paymentDate: ISODate;
+  grossYen: number;
+  healthStandardBonusYen: number;
+  pensionStandardBonusYen: number;
+}
+
+export interface SocialInsuranceBasis {
+  employerPrefecture: PrefectureCode | null;
+  healthStandardMonthlyRemunerationYen: number | null;
+  pensionStandardMonthlyRemunerationYen: number | null;
+  bonuses: readonly AppliedBonusBasis[];
 }
 
 export interface TakeHomeResult {
@@ -136,6 +159,7 @@ export interface TakeHomeResult {
   incomeTaxAfterIdecoYen: number | null;
   incomeTaxBenefitFromIdecoYen: number | null;
   appliedRules: readonly AppliedRule[];
+  socialInsuranceBasis: SocialInsuranceBasis;
   warnings: readonly string[];
   unsupportedConditions: readonly string[];
   assumptions: readonly string[];
@@ -259,6 +283,19 @@ function parseCalculatedPlan(
   );
   if (new Set(bonuses.map((bonus) => bonus.id)).size !== bonuses.length) {
     throw new Error("bonus IDs must be unique");
+  }
+  let annualBonusGrossYen = 0;
+  for (const bonus of bonuses) {
+    if (bonus.grossYen > Number.MAX_SAFE_INTEGER - annualBonusGrossYen) {
+      throw new Error("annual bonus total is out of range");
+    }
+    annualBonusGrossYen += bonus.grossYen;
+  }
+  if (
+    value.inputMode === "annual" &&
+    annualBonusGrossYen > annualTaxableSalaryYen
+  ) {
+    throw new Error("annual taxable salary must include every bonus");
   }
   if (!isRecord(value.employment)) throw new Error("employment is required");
   const employment = value.employment;

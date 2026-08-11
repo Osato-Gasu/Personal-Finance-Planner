@@ -6,7 +6,20 @@ import {
 import type { TakeHomeRulePackage } from "./manifest";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const HTTPS = /^https:\/\//;
+const OFFICIAL_SOURCE_HOSTS: Record<RuleMetadata["sourcePublisher"], string> = {
+  国税庁: "nta.go.jp",
+  厚生労働省: "mhlw.go.jp",
+  日本年金機構: "nenkin.go.jp",
+  全国健康保険協会: "kyoukaikenpo.or.jp",
+};
+const EFFECTIVE_BASES = new Set([
+  "tax-year",
+  "salary-month",
+  "payment-date",
+  "bonus-payment-date",
+  "assessment-year",
+]);
+const RULE_STATUSES = new Set(["current", "scheduled", "retired"]);
 
 function opaque(value: unknown): unknown {
   return value;
@@ -56,6 +69,15 @@ function validateMetadata(value: RuleMetadata): void {
   }
   if (opaque(value.jurisdiction) !== "JP")
     throw new Error("rule jurisdiction must be JP");
+  if (!EFFECTIVE_BASES.has(value.effectiveBasis)) {
+    throw new Error("rule effective basis is invalid");
+  }
+  if (!RULE_STATUSES.has(value.status)) {
+    throw new Error("rule status is invalid");
+  }
+  if (opaque(value.verifiedBy) !== "Codex") {
+    throw new Error("rule verifier is invalid");
+  }
   if (!OFFICIAL_SOURCE_PUBLISHERS.includes(value.sourcePublisher)) {
     throw new Error("rule source publisher is not allowed");
   }
@@ -74,8 +96,26 @@ function validateMetadata(value: RuleMetadata): void {
   if (!Array.isArray(value.sourceUrls) || value.sourceUrls.length === 0) {
     throw new Error("rule sourceUrls are required");
   }
-  if (value.sourceUrls.some((url: string) => !HTTPS.test(url))) {
-    throw new Error("rule source URL must use https");
+  const expectedHost = OFFICIAL_SOURCE_HOSTS[value.sourcePublisher];
+  for (const sourceUrl of value.sourceUrls as readonly unknown[]) {
+    if (typeof sourceUrl !== "string") {
+      throw new Error("rule source URL must be a string");
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(sourceUrl);
+    } catch {
+      throw new Error("rule source URL is invalid");
+    }
+    if (parsed.protocol !== "https:") {
+      throw new Error("rule source URL must use https");
+    }
+    if (
+      parsed.hostname !== expectedHost &&
+      !parsed.hostname.endsWith(`.${expectedHost}`)
+    ) {
+      throw new Error("rule source URL publisher mismatch");
+    }
   }
 }
 

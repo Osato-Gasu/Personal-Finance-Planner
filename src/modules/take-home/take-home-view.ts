@@ -64,7 +64,7 @@ function checkInput(
 function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
   const section = node(document, "section");
   section.className = `take-home-result status-${result.status}`;
-  section.append(node(document, "h4", `計算結果: ${result.status}`));
+  section.append(node(document, "h4", `概算結果: ${result.status}`));
   const dl = node(document, "dl");
   const rows: [string, number | null][] = [
     ["年間総支給", result.annualGrossYen],
@@ -85,6 +85,42 @@ function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
   for (const [label, value] of rows)
     dl.append(node(document, "dt", label), node(document, "dd", yen(value)));
   section.append(dl);
+  const basis = result.socialInsuranceBasis;
+  if (basis.employerPrefecture !== null) {
+    const prefectureName = prefectures.find(
+      ([code]) => code === basis.employerPrefecture,
+    )?.[1];
+    const evidence = node(document, "section");
+    evidence.className = "calculation-evidence";
+    evidence.append(node(document, "h5", "社会保険の計算根拠"));
+    evidence.append(
+      node(
+        document,
+        "p",
+        `事業所都道府県: ${prefectureName ?? basis.employerPrefecture} (${basis.employerPrefecture})`,
+      ),
+      node(
+        document,
+        "p",
+        `健康保険標準報酬月額: ${yen(basis.healthStandardMonthlyRemunerationYen)}`,
+      ),
+      node(
+        document,
+        "p",
+        `厚生年金標準報酬月額: ${yen(basis.pensionStandardMonthlyRemunerationYen)}`,
+      ),
+    );
+    for (const bonus of basis.bonuses) {
+      evidence.append(
+        node(
+          document,
+          "p",
+          `標準賞与額 ${bonus.paymentDate}: 健康保険 ${yen(bonus.healthStandardBonusYen)}／厚生年金 ${yen(bonus.pensionStandardBonusYen)}`,
+        ),
+      );
+    }
+    section.append(evidence);
+  }
   if (result.warnings.length > 0) {
     const alert = node(document, "ul");
     alert.setAttribute("role", "alert");
@@ -99,7 +135,7 @@ function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
       const paragraph = node(
         document,
         "p",
-        `${rule.sourceTitle} (${rule.effectiveFrom}〜${rule.effectiveTo}) `,
+        `${rule.sourceTitle} [${rule.id}] (${rule.effectiveFrom}〜${rule.effectiveTo}; ${rule.effectiveBasis}; 確認日 ${rule.verifiedAt}; ${rule.sourcePublisher}) `,
       );
       for (const url of rule.sourceUrls) {
         const link = node(document, "a", "公式資料");
@@ -267,7 +303,7 @@ export function createTakeHomeRenderer(
           form.append(
             numberInput(
               document,
-              "年間課税給与",
+              "年間課税給与（賞与を含む）",
               plan.compensation.annualTaxableSalaryYen,
               (value) =>
                 update(plan, (draft) => {
@@ -397,7 +433,19 @@ export function createTakeHomeRenderer(
             }),
           );
           standardMode.append(standardModeSelect);
-          form.append(standardMode);
+          form.append(
+            standardMode,
+            numberInput(
+              document,
+              "前年4〜12月の健康保険標準賞与累計",
+              plan.socialInsurance.healthBonusPriorFiscalYearCumulativeYen,
+              (value) =>
+                update(plan, (draft) => {
+                  draft.socialInsurance.healthBonusPriorFiscalYearCumulativeYen =
+                    value;
+                }),
+            ),
+          );
         }
         const prefecture = node(document, "label", "事業所都道府県");
         const select = node(document, "select");

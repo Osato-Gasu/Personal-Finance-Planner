@@ -71,6 +71,24 @@ describe("2026 fixed rule package", () => {
     expect(() => validateTakeHomeRulePackage(rules)).toThrow("sourceUrls");
   });
 
+  it("rejects an HTTPS source outside the official publisher domain", () => {
+    const rules = structuredClone(takeHomeRulePackage2026);
+    const first = rules.allRules[0];
+    if (!first) throw new Error("fixture rule is missing");
+    Reflect.set(first.metadata, "sourceUrls", ["https://example.com/rule"]);
+    expect(() => validateTakeHomeRulePackage(rules)).toThrow(
+      "publisher mismatch",
+    );
+  });
+
+  it("rejects an invalid effective basis", () => {
+    const rules = structuredClone(takeHomeRulePackage2026);
+    const first = rules.allRules[0];
+    if (!first) throw new Error("fixture rule is missing");
+    (first.metadata as { effectiveBasis: string }).effectiveBasis = "unknown";
+    expect(() => validateTakeHomeRulePackage(rules)).toThrow("effective basis");
+  });
+
   it("rejects incomplete prefecture coverage", () => {
     const rules = structuredClone(takeHomeRulePackage2026);
     const health = rules.healthInsuranceRules[0];
@@ -157,6 +175,35 @@ describe("2026 fixed rule package", () => {
     expect(result.incomeTaxBenefitFromIdecoYen).toBe(26_000);
   });
 
+  it("treats annual salary as bonus-inclusive without double counting", () => {
+    const plan = manualPlan(6_000_000);
+    plan.compensation.bonuses = [
+      {
+        id: "summer",
+        paymentDate: "2026-06-30",
+        grossYen: 500_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: true,
+      },
+    ];
+    const result = calculateTakeHome(plan, member);
+    expect(result.status).toBe("complete");
+    expect(result.annualTaxableSalaryYen).toBe(6_000_000);
+    expect(result.annualGrossYen).toBe(6_000_000);
+  });
+
+  it("requires monthly remuneration evidence for annual-mode automatic insurance", () => {
+    const plan = manualPlan(6_000_000);
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.standardRemunerationMode =
+      "estimate-from-remuneration";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = null;
+    const result = calculateTakeHome(plan, member);
+    expect(result.status).toBe("incomplete");
+    expect(result.warnings).toContain("標準報酬月額または報酬月額が未入力です");
+  });
+
   it("calculates Tokyo 2026 month-specific insurance rates", () => {
     const plan = manualPlan(6_000_000);
     plan.socialInsurance.mode = "kyokai-auto";
@@ -173,7 +220,62 @@ describe("2026 fixed rule package", () => {
       additionalInsuranceYen: 3_105,
       pensionYen: 329_400,
       employmentInsuranceYen: 30_750,
+      socialInsuranceBasis: {
+        employerPrefecture: "JP-13",
+        healthStandardMonthlyRemunerationYen: 300_000,
+        pensionStandardMonthlyRemunerationYen: 300_000,
+        bonuses: [],
+      },
     });
+    expect(result.appliedRules).toContainEqual(
+      expect.objectContaining({
+        id: "jp-kyokai-health-rate-2026",
+        contextKey: "kyokai:all-prefectures",
+        effectiveBasis: "salary-month",
+        verifiedAt: RULE_VERIFIED_AT,
+        sourcePublisher: "全国健康保険協会",
+      }),
+    );
+  });
+
+  it("resets the health standard-bonus cap at the April fiscal boundary", () => {
+    const plan = manualPlan(6_000_000);
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.standardRemunerationMode =
+      "estimate-from-remuneration";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.socialInsurance.healthBonusPriorFiscalYearCumulativeYen = 5_630_000;
+    plan.compensation.bonuses = [
+      {
+        id: "april",
+        paymentDate: "2026-04-30",
+        grossYen: 200_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: true,
+      },
+      {
+        id: "january",
+        paymentDate: "2026-01-31",
+        grossYen: 200_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: true,
+      },
+    ];
+    const result = calculateTakeHome(plan, member);
+    expect(result.status).toBe("complete");
+    expect(result.socialInsuranceBasis.bonuses).toEqual([
+      expect.objectContaining({
+        bonusId: "january",
+        healthStandardBonusYen: 100_000,
+        pensionStandardBonusYen: 200_000,
+      }),
+      expect.objectContaining({
+        bonusId: "april",
+        healthStandardBonusYen: 200_000,
+        pensionStandardBonusYen: 200_000,
+      }),
+    ]);
   });
 
   it("starts care insurance in the month containing the day before age 40", () => {

@@ -26,6 +26,13 @@ class BytesStorage implements StorageLike {
   }
 }
 
+class FailingV3Storage extends BytesStorage {
+  override setItem(key: string, value: string): void {
+    this.values.set(key, value);
+    if (key === STORAGE_KEY) throw new Error("simulated v3 write failure");
+  }
+}
+
 function v2Fixture(): SchemaVersion2AppState {
   const current = createFixtureState();
   return {
@@ -109,6 +116,18 @@ describe("schema version 3 migration and storage", () => {
     expect(new StorageRepository(storage).load()?.schemaVersion).toBe(3);
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBe(v2Bytes);
     expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("restores every storage byte when v2-to-v3 persistence fails", () => {
+    const storage = new FailingV3Storage();
+    const v2Bytes = JSON.stringify(v2Fixture());
+    storage.values.set(PREVIOUS_STORAGE_KEY, v2Bytes);
+    const before = [...storage.values.entries()];
+    expect(() => new StorageRepository(storage).load()).toThrow(
+      "simulated v3 write failure",
+    );
+    expect([...storage.values.entries()]).toEqual(before);
+    expect(storage.getItem(STORAGE_KEY)).toBeNull();
   });
 
   it("keeps v1 bytes while migrating directly to v3", () => {
@@ -210,6 +229,7 @@ describe("schema version 3 migration and storage", () => {
       id: "calculated",
       memberId: "self",
     });
+    plan.compensation.annualTaxableSalaryYen = 1_000_000;
     state.takeHomePlans.push(plan);
     const store = new Store(state);
     store.dispatch({
@@ -276,6 +296,62 @@ describe("schema version 3 migration and storage", () => {
     );
     expect(writer.save).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("rejects an annual plan whose declared salary does not include its bonus", () => {
+    const writer = { save: vi.fn() };
+    const listener = vi.fn();
+    const store = new Store(createFixtureState(), writer);
+    store.subscribe(listener);
+    const before = JSON.stringify(store.getState());
+    const plan = createCalculatedTakeHomePlan({
+      id: "bonus-outside-annual-total",
+      memberId: "self",
+    });
+    plan.compensation.annualTaxableSalaryYen = 100_000;
+    plan.compensation.bonuses.push({
+      id: "bonus",
+      paymentDate: "2026-06-30",
+      grossYen: 200_000,
+      socialInsuranceEligible: true,
+      employmentInsuranceEligible: true,
+    });
+    expect(() => store.dispatch({ type: "add-take-home-plan", plan })).toThrow(
+      "must include every bonus",
+    );
+    expect(JSON.stringify(store.getState())).toBe(before);
+    expect(writer.save).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("derives TakeHomeResult without mutating or persisting it in AppState", () => {
+    const state = createFixtureState();
+    const plan = createCalculatedTakeHomePlan({
+      id: "derived-only",
+      memberId: "self",
+    });
+    plan.socialInsurance.mode = "manual";
+    plan.socialInsurance.standardRemunerationMode = "manual-total";
+    plan.socialInsurance.manual = {
+      annualHealthInsuranceYen: 0,
+      annualCareInsuranceYen: 0,
+      annualAdditionalInsuranceYen: 0,
+      annualPensionYen: 0,
+      annualEmploymentInsuranceYen: 0,
+      annualOtherStatutoryDeductionYen: 0,
+    };
+    plan.residentTax.mode = "manual-annual";
+    plan.residentTax.annualResidentTaxYen = 0;
+    plan.residentTax.zeroYenConfirmed = true;
+    state.takeHomePlans.push(plan);
+    const before = JSON.stringify(state);
+    const member = state.members.find((item) => item.id === "self");
+    if (!member) throw new Error("fixture member is missing");
+    const result = calculateTakeHome(plan, member);
+    expect(result.status).toBe("complete");
+    expect(JSON.stringify(state)).toBe(before);
+    expect(before).not.toContain("appliedRules");
+    expect(before).not.toContain("socialInsuranceBasis");
   });
 
   it("allows a safe negative take-home result instead of treating it as overflow", () => {

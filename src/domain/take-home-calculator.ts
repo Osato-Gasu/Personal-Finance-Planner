@@ -1,5 +1,6 @@
 import type { HouseholdMember } from "./state";
 import type {
+  AppliedBonusBasis,
   AppliedRule,
   CalculatedTakeHomePlan,
   TakeHomePlan,
@@ -92,11 +93,19 @@ function applied(rule: RuleRecord<unknown>): AppliedRule {
   return {
     id: rule.metadata.id,
     domain: rule.metadata.domain,
+    contextKey: rule.metadata.contextKey,
     effectiveFrom: rule.metadata.effectiveFrom,
     effectiveTo: rule.metadata.effectiveTo,
+    effectiveBasis: rule.metadata.effectiveBasis,
+    status: rule.metadata.status,
+    publishedAt: rule.metadata.publishedAt,
     verifiedAt: rule.metadata.verifiedAt,
+    verifiedBy: rule.metadata.verifiedBy,
     sourceTitle: rule.metadata.sourceTitle,
     sourceUrls: rule.metadata.sourceUrls,
+    sourcePublisher: rule.metadata.sourcePublisher,
+    sourceRetrievedAt: rule.metadata.sourceRetrievedAt,
+    notes: rule.metadata.notes,
   };
 }
 
@@ -207,6 +216,7 @@ interface SocialResult {
   pension: number;
   employment: number;
   appliedRules: AppliedRule[];
+  basis: TakeHomeResult["socialInsuranceBasis"];
 }
 
 function automaticSocial(
@@ -230,9 +240,13 @@ function automaticSocial(
     "exact-standard-remuneration"
       ? plan.socialInsurance.standardMonthlyRemunerationYen
       : (plan.socialInsurance.monthlyRemunerationYen ??
-        plan.compensation.monthlyTaxableSalaryYen +
-          plan.compensation.monthlyNonTaxableCommutingYen);
+        (plan.inputMode === "monthly"
+          ? plan.compensation.monthlyTaxableSalaryYen +
+            plan.compensation.monthlyNonTaxableCommutingYen
+          : null));
   if (remuneration === null) return "標準報酬月額または報酬月額が未入力です";
+  if (remuneration <= 0)
+    return "標準報酬月額または報酬月額は正の金額が必要です";
   if (
     plan.socialInsurance.standardRemunerationMode ===
       "exact-standard-remuneration" &&
@@ -286,13 +300,22 @@ function automaticSocial(
     for (const rule of [healthRule, careRule, additionalRule])
       selected.set(rule.metadata.id, rule);
   }
+  let healthFiscalYear = 2025;
   let healthFiscalUsed =
     plan.socialInsurance.healthBonusPriorFiscalYearCumulativeYen;
   const pensionUsedByMonth = new Map<number, number>();
-  for (const bonus of plan.compensation.bonuses.filter(
-    (item) => item.socialInsuranceEligible,
-  )) {
+  const bonusBasis: AppliedBonusBasis[] = [];
+  const socialBonuses = plan.compensation.bonuses
+    .filter((item) => item.socialInsuranceEligible)
+    .slice()
+    .sort((left, right) => left.paymentDate.localeCompare(right.paymentDate));
+  for (const bonus of socialBonuses) {
     const month = Number(bonus.paymentDate.slice(5, 7));
+    const bonusFiscalYear = month <= 3 ? 2025 : 2026;
+    if (bonusFiscalYear !== healthFiscalYear) {
+      healthFiscalYear = bonusFiscalYear;
+      healthFiscalUsed = 0;
+    }
     const standardBonus = Math.floor(bonus.grossYen / 1000) * 1000;
     const healthRemaining = Math.max(
       0,
@@ -336,17 +359,32 @@ function automaticSocial(
       pensionRule2026.value.fullRateNumerator,
       1000,
     );
+    bonusBasis.push({
+      bonusId: bonus.id,
+      paymentDate: bonus.paymentDate,
+      grossYen: bonus.grossYen,
+      healthStandardBonusYen: healthBase,
+      pensionStandardBonusYen: pensionBase,
+    });
   }
   const employmentOverride =
     plan.compensation.employmentInsuranceWageOverrideYen;
+  const annualBonusGross = plan.compensation.bonuses.reduce(
+    (total, bonus) => total + bonus.grossYen,
+    0,
+  );
   const annualEmploymentBase =
     employmentOverride ??
     (plan.inputMode === "annual"
       ? plan.compensation.annualTaxableSalaryYen +
-        plan.compensation.annualNonTaxableCommutingYen
+        plan.compensation.annualNonTaxableCommutingYen -
+        annualBonusGross
       : (plan.compensation.monthlyTaxableSalaryYen +
           plan.compensation.monthlyNonTaxableCommutingYen) *
         12);
+  if (annualEmploymentBase < 0) {
+    return "年収は登録した賞与合計以上である必要があります";
+  }
   const baseMonthlyWage = Math.floor(annualEmploymentBase / 12);
   const employmentBaseRemainder = annualEmploymentBase % 12;
   let employment = 0;
@@ -384,6 +422,12 @@ function automaticSocial(
     pension,
     employment,
     appliedRules: [...selected.values()].map(applied),
+    basis: {
+      employerPrefecture: prefecture,
+      healthStandardMonthlyRemunerationYen: healthStandard,
+      pensionStandardMonthlyRemunerationYen: pensionStandard,
+      bonuses: bonusBasis,
+    },
   };
 }
 
@@ -419,6 +463,12 @@ function emptyResult(
     incomeTaxAfterIdecoYen: null,
     incomeTaxBenefitFromIdecoYen: null,
     appliedRules: [],
+    socialInsuranceBasis: {
+      employerPrefecture: null,
+      healthStandardMonthlyRemunerationYen: null,
+      pensionStandardMonthlyRemunerationYen: null,
+      bonuses: [],
+    },
     warnings: [message],
     unsupportedConditions: status === "unsupported" ? [message] : [],
     assumptions: [],
@@ -478,11 +528,7 @@ export function calculateTakeHome(
     const annualSalary =
       plan.inputMode === "annual"
         ? plan.compensation.annualTaxableSalaryYen +
-          plan.compensation.annualOtherTaxableSalaryYen +
-          plan.compensation.bonuses.reduce(
-            (sum, bonus) => sum + bonus.grossYen,
-            0,
-          )
+          plan.compensation.annualOtherTaxableSalaryYen
         : plan.compensation.monthlyTaxableSalaryYen * 12 +
           plan.compensation.annualOtherTaxableSalaryYen +
           plan.compensation.bonuses.reduce(
@@ -526,6 +572,12 @@ export function calculateTakeHome(
         pension: manual.annualPensionYen ?? 0,
         employment: manual.annualEmploymentInsuranceYen ?? 0,
         appliedRules: [],
+        basis: {
+          employerPrefecture: null,
+          healthStandardMonthlyRemunerationYen: null,
+          pensionStandardMonthlyRemunerationYen: null,
+          bonuses: [],
+        },
       };
     } else {
       const automatic = automaticSocial(plan, member);
@@ -644,6 +696,7 @@ export function calculateTakeHome(
         beforeIdeco.tax - afterIdeco.tax,
       ),
       appliedRules: [...rules, ...social.appliedRules],
+      socialInsuranceBasis: social.basis,
       warnings: [
         "概算です。給与明細・年末調整・確定申告・住民税決定通知と差が生じる場合があります",
         "iDeCo掛金の制度上限は未検証です",
