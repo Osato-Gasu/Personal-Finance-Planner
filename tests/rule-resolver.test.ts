@@ -58,4 +58,49 @@ describe("RuleResolver", () => {
       status: "missing-rule",
     });
   });
+
+  it.each(["2030-02-30", "2030-02-29", "2030-00-01", "2030-13-01"])(
+    "rejects invalid target calendar date %s",
+    (date) => {
+      expect(() => resolver.resolve("fixture-domain", date, {})).toThrow(
+        "targetDate must be an ISO date",
+      );
+    },
+  );
+
+  it("accepts a valid leap day", () => {
+    const leapDay = new RuleResolver([
+      {
+        id: "leap-day",
+        domain: "fixture-domain",
+        effectiveFrom: "2032-02-29",
+        effectiveTo: "2032-02-29",
+        value: "leap",
+      },
+    ]);
+    expect(leapDay.resolve("fixture-domain", "2032-02-29", {})).toMatchObject({
+      status: "selected",
+    });
+  });
+
+  it.each([
+    ["effectiveFrom", "2030-02-30", "2030-12-31"],
+    ["effectiveTo", "2030-01-01", "2030-02-30"],
+  ] as const)(
+    "rejects an invalid %s calendar date",
+    (field, effectiveFrom, effectiveTo) => {
+      expect(
+        () =>
+          new RuleResolver([
+            {
+              id: `invalid-${field}`,
+              domain: "fixture-domain",
+              effectiveFrom,
+              effectiveTo,
+              value: "invalid",
+            },
+          ]),
+      ).toThrow(`${field} must be an ISO date`);
+    },
+  );
 });

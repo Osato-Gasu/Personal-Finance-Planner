@@ -12,12 +12,23 @@ export type RuleResolution<TValue> =
   | { status: "selected"; ruleId: string; value: TValue }
   | { status: "overlapping-rule"; ruleIds: string[] };
 
-const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const isoDatePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 function assertIsoDate(value: string, field: string): void {
+  const match = isoDatePattern.exec(value);
+  if (!match) {
+    throw new Error(`${field} must be an ISO date`);
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
   if (
-    !isoDatePattern.test(value) ||
-    Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
   ) {
     throw new Error(`${field} must be an ISO date`);
   }
