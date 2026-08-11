@@ -1,7 +1,15 @@
 import { resolveIncomeTarget } from "./linked-value";
 import {
-  assertPositiveSafeInteger,
-  assertSafeYen,
+  CalculationRangeError,
+  checkedAmountSum,
+  checkedIntegerDifference,
+  checkedIntegerSum,
+  checkedNonNegativeAmount,
+  checkedRound,
+  checkedShare,
+  monthlyExpenseYen,
+} from "./checked-arithmetic";
+import {
   type AppState,
   type BudgetCategory,
   type CycleUnit,
@@ -9,7 +17,11 @@ import {
   type HouseholdMember,
 } from "./state";
 
-export const AVERAGE_YEAR_DAYS = 365.2425;
+export {
+  AVERAGE_YEAR_DAYS,
+  monthlyExpenseYen,
+  monthlyExpenseYenOrNull,
+} from "./checked-arithmetic";
 
 export interface CategoryBudgetSummary {
   categoryId: string;
@@ -40,28 +52,6 @@ export interface BudgetSummary {
   self: MemberBudgetSummary;
   partner: MemberBudgetSummary;
   categories: CategoryBudgetSummary[];
-}
-
-function assertFiniteSafeResult(value: number, field: string): number {
-  if (!Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) {
-    throw new Error(`${field} exceeds the supported monetary range`);
-  }
-  return value;
-}
-
-export function monthlyExpenseYen(item: Readonly<ExpenseItem>): number {
-  assertSafeYen(item.amountYen, "amountYen");
-  assertPositiveSafeInteger(item.cycleValue, "cycleValue");
-  assertPositiveSafeInteger(item.occurrencesPerCycle, "occurrencesPerCycle");
-  const annualPeriods: Record<CycleUnit, number> = {
-    day: AVERAGE_YEAR_DAYS / item.cycleValue,
-    week: AVERAGE_YEAR_DAYS / 7 / item.cycleValue,
-    month: 12 / item.cycleValue,
-    year: 1 / item.cycleValue,
-  };
-  const annual =
-    item.amountYen * item.occurrencesPerCycle * annualPeriods[item.cycleUnit];
-  return assertFiniteSafeResult(annual / 12, "monthly expense");
 }
 
 export function formatFrequency(item: Readonly<ExpenseItem>): string {
@@ -123,14 +113,10 @@ function allocate(
   if (!partnerActive && scope === "partner") return null;
   if (!partnerActive || scope === "self") return { total, self: total };
   if (scope === "partner") return { total, self: 0 };
-  return { total, self: (total * selfShareBasisPoints) / 10_000 };
-}
-
-function roundSafe(value: number, field: string): number {
-  const rounded = Math.round(value);
-  if (!Number.isSafeInteger(rounded))
-    throw new Error(`${field} exceeds safe integer range`);
-  return rounded;
+  return {
+    total,
+    self: checkedShare(total, selfShareBasisPoints, "self expense"),
+  };
 }
 
 export function calculateBudgetSummary(
@@ -176,29 +162,49 @@ export function calculateBudgetSummary(
         partnerActive,
       );
       if (!allocation) continue;
-      householdUnrounded += allocation.total;
-      selfUnrounded += allocation.self;
+      householdUnrounded = checkedAmountSum(
+        householdUnrounded,
+        allocation.total,
+        "household expense",
+      );
+      selfUnrounded = checkedAmountSum(
+        selfUnrounded,
+        allocation.self,
+        "self expense",
+      );
       const current = categoryAllocations.get(category.id) ?? {
         category,
         total: 0,
         self: 0,
       };
-      current.total += allocation.total;
-      current.self += allocation.self;
+      current.total = checkedAmountSum(
+        current.total,
+        allocation.total,
+        "category expense",
+      );
+      current.self = checkedAmountSum(
+        current.self,
+        allocation.self,
+        "category self expense",
+      );
       categoryAllocations.set(category.id, current);
     }
   }
 
-  assertFiniteSafeResult(householdUnrounded, "household expense");
-  assertFiniteSafeResult(selfUnrounded, "self expense");
-  const householdExpenseYen = roundSafe(
+  checkedNonNegativeAmount(householdUnrounded, "household expense");
+  checkedNonNegativeAmount(selfUnrounded, "self expense");
+  const householdExpenseYen = checkedRound(
     householdUnrounded,
     "household expense",
   );
   const selfExpenseYen = partnerActive
-    ? roundSafe(selfUnrounded, "self expense")
+    ? checkedRound(selfUnrounded, "self expense")
     : householdExpenseYen;
-  const partnerExpenseYen = householdExpenseYen - selfExpenseYen;
+  const partnerExpenseYen = checkedIntegerDifference(
+    householdExpenseYen,
+    selfExpenseYen,
+    "partner expense",
+  );
 
   const selfIncome = incomeForMember(state, selfMember);
   const partnerIncome = partnerActive
@@ -210,25 +216,37 @@ export function calculateBudgetSummary(
     selfIncome.value === null ||
     partnerIncome.value === null
       ? null
-      : selfIncome.value + partnerIncome.value;
+      : checkedIntegerSum(
+          selfIncome.value,
+          partnerIncome.value,
+          "household income",
+        );
   const householdRemainingYen =
     householdIncomeYen === null
       ? null
-      : householdIncomeYen - householdExpenseYen;
+      : checkedIntegerDifference(
+          householdIncomeYen,
+          householdExpenseYen,
+          "household remaining",
+        );
 
   const categories = [...categoryAllocations.values()]
     .sort((left, right) => left.category.sortOrder - right.category.sortOrder)
     .map((entry) => {
-      const total = roundSafe(entry.total, "category expense");
+      const total = checkedRound(entry.total, "category expense");
       const self = partnerActive
-        ? roundSafe(entry.self, "category self expense")
+        ? checkedRound(entry.self, "category self expense")
         : total;
       return {
         categoryId: entry.category.id,
         name: entry.category.name,
         householdExpenseYen: total,
         selfExpenseYen: self,
-        partnerExpenseYen: total - self,
+        partnerExpenseYen: checkedIntegerDifference(
+          total,
+          self,
+          "category partner expense",
+        ),
         householdSharePercent:
           householdUnrounded === 0
             ? 0
@@ -237,11 +255,21 @@ export function calculateBudgetSummary(
     });
 
   const selfRemaining =
-    selfIncome.value === null ? null : selfIncome.value - selfExpenseYen;
+    selfIncome.value === null
+      ? null
+      : checkedIntegerDifference(
+          selfIncome.value,
+          selfExpenseYen,
+          "self remaining",
+        );
   const partnerRemaining =
     partnerIncome.value === null
       ? null
-      : partnerIncome.value - partnerExpenseYen;
+      : checkedIntegerDifference(
+          partnerIncome.value,
+          partnerExpenseYen,
+          "partner remaining",
+        );
   return {
     mode: state.budget.mode,
     householdIncomeYen,
@@ -273,4 +301,32 @@ export function calculateBudgetSummary(
     },
     categories,
   };
+}
+
+export type BudgetCalculationResult =
+  | { status: "calculated"; summary: BudgetSummary }
+  | { status: "out-of-range"; message: string };
+
+export function tryCalculateBudgetSummary(
+  state: Readonly<AppState>,
+): BudgetCalculationResult {
+  try {
+    return { status: "calculated", summary: calculateBudgetSummary(state) };
+  } catch (error) {
+    if (error instanceof CalculationRangeError) {
+      return { status: "out-of-range", message: error.message };
+    }
+    throw error;
+  }
+}
+
+export function assertBudgetCalculable(state: Readonly<AppState>): void {
+  calculateBudgetSummary({
+    ...state,
+    budget: { ...state.budget, mode: "detailed" },
+  });
+  calculateBudgetSummary({
+    ...state,
+    budget: { ...state.budget, mode: "simple" },
+  });
 }

@@ -1,8 +1,8 @@
 import type { Store } from "../../app/store";
 import {
-  calculateBudgetSummary,
   formatFrequency,
-  monthlyExpenseYen,
+  monthlyExpenseYenOrNull,
+  tryCalculateBudgetSummary,
 } from "../../domain/budget";
 import { resolveIncomeTarget } from "../../domain/linked-value";
 import type {
@@ -172,7 +172,7 @@ export function createBudgetRenderer(options: {
 
   return (main: HTMLElement): void => {
     const state = options.store.getState();
-    const summary = calculateBudgetSummary(state);
+    const summaryResult = tryCalculateBudgetSummary(state);
     main.classList.add("budget-page");
     const introduction = node(
       options.document,
@@ -186,7 +186,9 @@ export function createBudgetRenderer(options: {
     status.textContent =
       ui.error ?? "入力はこの端末のlocalStorageへ自動保存されます。";
     main.append(status);
-    renderSummary(main, summary);
+    if (summaryResult.status === "calculated")
+      renderSummary(main, summaryResult.summary);
+    else renderOutOfRangeSummary(main, summaryResult.message);
     renderHousehold(main, perform);
     renderMode(main, perform);
     renderCategories(main, perform);
@@ -195,7 +197,10 @@ export function createBudgetRenderer(options: {
 
   function renderSummary(
     main: HTMLElement,
-    summary: ReturnType<typeof calculateBudgetSummary>,
+    summary: Extract<
+      ReturnType<typeof tryCalculateBudgetSummary>,
+      { status: "calculated" }
+    >["summary"],
   ): void {
     const section = node(options.document, "section");
     section.append(node(options.document, "h3", "家計サマリー"));
@@ -294,6 +299,21 @@ export function createBudgetRenderer(options: {
       table.append(caption, head, body);
       section.append(table);
     }
+    main.append(section);
+  }
+
+  function renderOutOfRangeSummary(main: HTMLElement, detail: string): void {
+    const section = node(options.document, "section");
+    section.append(node(options.document, "h3", "家計サマリー"));
+    const status = node(
+      options.document,
+      "p",
+      "計算範囲超過／未計算：保存データは変更していません。入力値を見直してください。",
+    );
+    status.dataset.testid = "calculation-status";
+    status.setAttribute("role", "status");
+    status.title = detail;
+    section.append(status);
     main.append(section);
   }
 
@@ -771,8 +791,13 @@ export function createBudgetRenderer(options: {
       return matchesSearch && matchesCategory && matchesScope && matchesActive;
     });
     items = [...items].sort((left, right) => {
-      if (ui.sort === "monthly")
-        return monthlyExpenseYen(left) - monthlyExpenseYen(right);
+      if (ui.sort === "monthly") {
+        const leftMonthly = monthlyExpenseYenOrNull(left);
+        const rightMonthly = monthlyExpenseYenOrNull(right);
+        if (leftMonthly === null) return rightMonthly === null ? 0 : 1;
+        if (rightMonthly === null) return -1;
+        return leftMonthly - rightMonthly;
+      }
       if (ui.sort === "category")
         return (categories.get(left.categoryId)?.name ?? "").localeCompare(
           categories.get(right.categoryId)?.name ?? "",
@@ -1041,7 +1066,12 @@ export function createBudgetRenderer(options: {
       node(
         options.document,
         "p",
-        `月換算：${yen(Math.round(monthlyExpenseYen(item)))}`,
+        (() => {
+          const monthly = monthlyExpenseYenOrNull(item);
+          return monthly === null
+            ? "月換算：計算範囲超過／未計算"
+            : `月換算：${yen(Math.round(monthly))}`;
+        })(),
       ),
     );
     article.append(

@@ -6,6 +6,7 @@ import {
   type AppAction,
   type AppState,
 } from "../domain/state";
+import { assertBudgetCalculable } from "../domain/budget";
 
 export type StoreListener = (state: Readonly<AppState>) => void;
 export type Selector<T> = (state: Readonly<AppState>) => T;
@@ -32,6 +33,13 @@ export class Store {
   dispatch(action: AppAction): void {
     const next = reduceState(cloneState(this.#state), action);
     validateAppState(next);
+    if (
+      action.type !== "navigate" &&
+      action.type !== "rename-member" &&
+      action.type !== "move-category"
+    ) {
+      assertBudgetCalculable(next);
+    }
     this.#writer?.save(next);
     this.#publish(next);
   }

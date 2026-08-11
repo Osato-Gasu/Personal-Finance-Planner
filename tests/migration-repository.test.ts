@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { Store } from "../src/app/store";
+import { tryCalculateBudgetSummary } from "../src/domain/budget";
 import { migrateToCurrentState } from "../src/domain/migration";
 import {
   LEGACY_STORAGE_KEY,
@@ -297,5 +299,176 @@ describe("versioned repository migration and active link integrity", () => {
     ).toThrow("active link source is missing");
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(v1);
     expect(storage.getItem(STORAGE_KEY)).toBe(v2);
+  });
+
+  it("preserves legacy names byte-exactly through unrelated household saves and reload", () => {
+    const storage = new ByteStorage();
+    const legacy = createLegacyFixtureState();
+    legacy.links = [];
+    required(
+      legacy.members.find((member) => member.role === "self"),
+      "legacy self",
+    ).displayName = " 本人 ";
+    required(
+      legacy.members.find((member) => member.role === "partner"),
+      "legacy partner",
+    ).displayName = "長".repeat(51);
+    const legacyBytes = JSON.stringify(legacy);
+    storage.values.set(LEGACY_STORAGE_KEY, legacyBytes);
+    const repository = new StorageRepository(storage);
+    const migrated = required(repository.load(), "migrated state");
+    const writer = { save: vi.fn((state: AppState) => repository.save(state)) };
+    const store = new Store(migrated, writer);
+
+    store.dispatch({
+      type: "update-household",
+      selfName: " 本人 ",
+      partnerName: "長".repeat(51),
+      partnerActive: true,
+      selfManualYen: 345_678,
+      partnerManualYen: 234_567,
+      globalSelfShareBasisPoints: 5000,
+    });
+    store.dispatch({
+      type: "update-household",
+      selfName: " 本人 ",
+      partnerName: "長".repeat(51),
+      partnerActive: true,
+      globalSelfShareBasisPoints: 6400,
+    });
+    store.dispatch({
+      type: "update-household",
+      selfName: " 本人 ",
+      partnerName: "長".repeat(51),
+      partnerActive: false,
+      globalSelfShareBasisPoints: 6400,
+    });
+
+    const persistedBytes = required(storage.getItem(STORAGE_KEY), "v2 bytes");
+    const persisted = JSON.parse(persistedBytes) as AppState;
+    expect(persisted.members.map((member) => member.displayName)).toEqual([
+      " 本人 ",
+      "長".repeat(51),
+    ]);
+    expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(legacyBytes);
+    const reloaded = required(repository.load(), "reloaded state");
+    expect(reloaded.members.map((member) => member.displayName)).toEqual([
+      " 本人 ",
+      "長".repeat(51),
+    ]);
+    expect(reloaded.budget.globalSelfShareBasisPoints).toBe(6400);
+    expect(
+      reloaded.members.find((member) => member.role === "partner")?.active,
+    ).toBe(false);
+    expect(writer.save).toHaveBeenCalledTimes(3);
+  });
+
+  it("accepts an intentional valid legacy-name change", () => {
+    const migrated = migrateToCurrentState(createLegacyFixtureState());
+    required(
+      migrated.members.find((member) => member.role === "self"),
+      "self",
+    ).displayName = " 本人 ";
+    const store = new Store(migrated);
+    store.dispatch({
+      type: "update-household",
+      selfName: "本人更新",
+      partnerName: "相手",
+      partnerActive: true,
+      globalSelfShareBasisPoints: 5000,
+    });
+    expect(
+      store.getState().members.find((member) => member.role === "self")
+        ?.displayName,
+    ).toBe("本人更新");
+  });
+
+  it("rejects an invalid intentional legacy-name change without effects", () => {
+    const storage = new ByteStorage();
+    const migrated = migrateToCurrentState(createLegacyFixtureState());
+    required(
+      migrated.members.find((member) => member.role === "self"),
+      "self",
+    ).displayName = " 本人 ";
+    const repository = new StorageRepository(storage);
+    repository.save(migrated);
+    const beforeBytes = required(storage.getItem(STORAGE_KEY), "before bytes");
+    const writer = { save: vi.fn((state: AppState) => repository.save(state)) };
+    const listener = vi.fn();
+    const store = new Store(migrated, writer);
+    store.subscribe(listener);
+    const beforeState = JSON.stringify(store.getState());
+    expect(() =>
+      store.dispatch({
+        type: "update-household",
+        selfName: " ",
+        partnerName: "相手",
+        partnerActive: true,
+        selfManualYen: 999_999,
+        globalSelfShareBasisPoints: 7000,
+      }),
+    ).toThrow("self name");
+    expect(JSON.stringify(store.getState())).toBe(beforeState);
+    expect(storage.getItem(STORAGE_KEY)).toBe(beforeBytes);
+    expect(writer.save).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("loads and previews structurally valid overflow data without changing existing bytes", () => {
+    const overflow = createFixtureState();
+    overflow.links = [];
+    overflow.budget.items = [
+      {
+        ...required(overflow.budget.items[0], "fixture item"),
+        amountYen: Number.MAX_SAFE_INTEGER,
+      },
+      {
+        ...required(overflow.budget.items[0], "fixture item"),
+        id: "overflow-second",
+        amountYen: 1,
+      },
+    ];
+    const overflowBytes = JSON.stringify(overflow);
+    const loadStorage = new ByteStorage();
+    loadStorage.values.set(STORAGE_KEY, overflowBytes);
+    const loaded = required(
+      new StorageRepository(loadStorage).load(),
+      "overflow state",
+    );
+    expect(tryCalculateBudgetSummary(loaded).status).toBe("out-of-range");
+    expect(loadStorage.getItem(STORAGE_KEY)).toBe(overflowBytes);
+
+    const importStorage = new ByteStorage();
+    const currentBytes = JSON.stringify(createFixtureState());
+    importStorage.values.set(STORAGE_KEY, currentBytes);
+    const prepared = new StorageRepository(importStorage).prepareImport(
+      overflowBytes,
+    );
+    expect(tryCalculateBudgetSummary(prepared.preview).status).toBe(
+      "out-of-range",
+    );
+    expect(importStorage.getItem(STORAGE_KEY)).toBe(currentBytes);
+  });
+
+  it("preserves baseline-valid v1 bytes when migrated totals exceed the calculation range", () => {
+    const legacy = createLegacyFixtureState();
+    required(legacy.livingExpenses[0], "legacy expense").amountYen =
+      Number.MAX_SAFE_INTEGER;
+    legacy.livingExpenses.push({
+      id: "legacy-overflow-second",
+      memberId: "self",
+      kind: "living-expense",
+      amountYen: 1,
+    });
+    const legacyBytes = JSON.stringify(legacy);
+    const storage = new ByteStorage();
+    storage.values.set(LEGACY_STORAGE_KEY, legacyBytes);
+    const loaded = required(
+      new StorageRepository(storage).load(),
+      "migrated overflow state",
+    );
+    expect(tryCalculateBudgetSummary(loaded).status).toBe("out-of-range");
+    expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(legacyBytes);
+    expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
   });
 });

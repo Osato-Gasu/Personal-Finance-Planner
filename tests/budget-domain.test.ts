@@ -3,6 +3,7 @@ import {
   calculateBudgetSummary,
   effectiveSelfShareBasisPoints,
   monthlyExpenseYen,
+  tryCalculateBudgetSummary,
 } from "../src/domain/budget";
 import { validateAppState, type ExpenseItem } from "../src/domain/state";
 import { createFixtureState } from "./fixtures/state";
@@ -251,5 +252,43 @@ describe("share allocation and budget summary", () => {
     const state = stateWith([expense({ amountYen: 10_000 })]);
     required(state.contributionSources[0], "contribution").amountYen = 900_000;
     expect(calculateBudgetSummary(state).householdExpenseYen).toBe(10_000);
+  });
+
+  it("accepts the exact MAX_SAFE_INTEGER household expense boundary", () => {
+    const state = stateWith([
+      expense({ id: "near-max", amountYen: Number.MAX_SAFE_INTEGER - 1 }),
+      expense({ id: "boundary", amountYen: 1 }),
+    ]);
+    expect(calculateBudgetSummary(state).householdExpenseYen).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
+  });
+
+  it("rejects overflow in the sum of individually calculable expenses", () => {
+    const state = stateWith([
+      expense({ id: "max", amountYen: Number.MAX_SAFE_INTEGER }),
+      expense({ id: "overflow", amountYen: 1 }),
+    ]);
+    expect(() => calculateBudgetSummary(state)).toThrow(
+      "household expense exceeds the supported monetary range",
+    );
+    expect(tryCalculateBudgetSummary(state)).toMatchObject({
+      status: "out-of-range",
+    });
+  });
+
+  it("rejects overflow in the active household income sum", () => {
+    const state = stateWith([]);
+    required(
+      state.incomeTargets.find((target) => target.memberId === "self"),
+      "self target",
+    ).manualYen = Number.MAX_SAFE_INTEGER;
+    required(
+      state.incomeTargets.find((target) => target.memberId === "partner"),
+      "partner target",
+    ).manualYen = Number.MAX_SAFE_INTEGER - 1;
+    expect(() => calculateBudgetSummary(state)).toThrow(
+      "household income exceeds the supported monetary range",
+    );
   });
 });

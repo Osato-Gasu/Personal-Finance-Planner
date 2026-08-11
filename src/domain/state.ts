@@ -1,3 +1,5 @@
+import { monthlyExpenseYen } from "./checked-arithmetic";
+
 export const SCHEMA_VERSION = 2 as const;
 export const LEGACY_SCHEMA_VERSION = 1 as const;
 
@@ -773,12 +775,14 @@ export function reduceState(state: AppState, action: AppAction): AppState {
         next.members.find((m) => m.role === "self"),
         "self is missing",
       );
-      self.displayName = action.selfName.trim();
+      if (action.selfName !== self.displayName)
+        self.displayName = action.selfName.trim();
       const partner = requirePresent(
         next.members.find((m) => m.role === "partner"),
         "partner is missing",
       );
-      partner.displayName = action.partnerName.trim();
+      if (action.partnerName !== partner.displayName)
+        partner.displayName = action.partnerName.trim();
       partner.active = action.partnerActive;
       next.budget.globalSelfShareBasisPoints =
         action.globalSelfShareBasisPoints;
@@ -974,16 +978,18 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       }
       return;
     case "update-household": {
-      assertTrimmedText(action.selfName.trim(), "self name", 1, 50);
-      assertTrimmedText(action.partnerName.trim(), "partner name", 1, 50);
-      assertBasisPoints(
-        action.globalSelfShareBasisPoints,
-        "globalSelfShareBasisPoints",
-      );
       const self = state.members.find((m) => m.role === "self");
       const partner = state.members.find((m) => m.role === "partner");
       if (!self || !partner)
         throw new Error("household members are incomplete");
+      if (action.selfName !== self.displayName)
+        assertTrimmedText(action.selfName.trim(), "self name", 1, 50);
+      if (action.partnerName !== partner.displayName)
+        assertTrimmedText(action.partnerName.trim(), "partner name", 1, 50);
+      assertBasisPoints(
+        action.globalSelfShareBasisPoints,
+        "globalSelfShareBasisPoints",
+      );
       const selfTarget = state.incomeTargets.find(
         (t) => t.memberId === self.id,
       );
@@ -1107,6 +1113,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
     item.occurrencesPerCycle,
     "expense occurrencesPerCycle",
   );
+  monthlyExpenseYen(item);
   const category = state.budget.categories.find(
     (c) => c.id === item.categoryId,
   );

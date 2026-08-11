@@ -320,6 +320,148 @@ describe("budget Store actions", () => {
 
   it.each([
     [
+      "single expense monthly overflow on add",
+      {
+        type: "add-expense",
+        item: {
+          ...required(createFixtureState().budget.items[0], "fixture item"),
+          id: "overflow-add",
+          amountYen: Number.MAX_SAFE_INTEGER,
+          occurrencesPerCycle: 2,
+        },
+      },
+      createFixtureState(),
+      "monthly expense",
+    ],
+    [
+      "single expense monthly overflow on update",
+      {
+        type: "update-expense",
+        itemId: "living-self",
+        changes: {
+          ...required(createFixtureState().budget.items[0], "fixture item"),
+          amountYen: Number.MAX_SAFE_INTEGER,
+          occurrencesPerCycle: 2,
+        },
+      },
+      createFixtureState(),
+      "monthly expense",
+    ],
+    [
+      "active expense sum overflow",
+      {
+        type: "add-expense",
+        item: {
+          ...required(createFixtureState().budget.items[0], "fixture item"),
+          id: "sum-overflow",
+          amountYen: 2,
+        },
+      },
+      (() => {
+        const state = createFixtureState();
+        state.budget.mode = "simple";
+        state.budget.items = [
+          {
+            ...required(state.budget.items[0], "fixture item"),
+            amountYen: Number.MAX_SAFE_INTEGER - 1,
+          },
+        ];
+        return state;
+      })(),
+      "household expense",
+    ],
+    [
+      "duplicate expense sum overflow",
+      {
+        type: "duplicate-expense",
+        itemId: "living-self",
+        newId: "overflow-copy",
+      },
+      (() => {
+        const state = createFixtureState();
+        state.budget.items = [
+          {
+            ...required(state.budget.items[0], "fixture item"),
+            amountYen: Number.MAX_SAFE_INTEGER,
+          },
+        ];
+        return state;
+      })(),
+      "household expense",
+    ],
+    [
+      "re-enabled expense sum overflow",
+      {
+        type: "set-expense-active",
+        itemId: "overflow-inactive",
+        active: true,
+      },
+      (() => {
+        const state = createFixtureState();
+        state.budget.items = [
+          {
+            ...required(state.budget.items[0], "fixture item"),
+            amountYen: Number.MAX_SAFE_INTEGER - 1,
+          },
+          {
+            ...required(state.budget.items[0], "fixture item"),
+            id: "overflow-inactive",
+            amountYen: 2,
+            active: false,
+          },
+        ];
+        return state;
+      })(),
+      "household expense",
+    ],
+    [
+      "household income sum overflow",
+      {
+        type: "update-manual-income",
+        targetId: "budget-income-self",
+        amountYen: Number.MAX_SAFE_INTEGER,
+      },
+      (() => {
+        const state = createFixtureState();
+        state.links = [];
+        required(
+          state.incomeTargets.find((target) => target.memberId === "partner"),
+          "partner target",
+        ).manualYen = Number.MAX_SAFE_INTEGER - 1;
+        return state;
+      })(),
+      "household income",
+    ],
+  ] as const)(
+    "rejects %s before persistence without effects",
+    (_label, action, initial, message) => {
+      rejectedWithoutEffects(action, message, initial);
+    },
+  );
+
+  it("persists the exact MAX_SAFE_INTEGER active expense boundary", () => {
+    const initial = createFixtureState();
+    initial.budget.items = [
+      {
+        ...required(initial.budget.items[0], "fixture item"),
+        amountYen: Number.MAX_SAFE_INTEGER - 1,
+      },
+    ];
+    const writer = { save: vi.fn() };
+    const store = new Store(initial, writer);
+    store.dispatch({
+      type: "add-expense",
+      item: {
+        ...required(initial.budget.items[0], "fixture item"),
+        id: "boundary",
+        amountYen: 1,
+      },
+    });
+    expect(writer.save).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    [
       "missing category",
       {
         type: "add-expense",

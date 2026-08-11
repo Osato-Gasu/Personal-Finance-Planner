@@ -8,6 +8,7 @@ import { chromium } from "playwright-core";
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "dist", "index.html");
 const storageKey = "personal-finance-planner:state:v2";
+const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
   ["overview", "総合サマリー"],
   ["budget", "家計・生活費"],
@@ -283,6 +284,99 @@ try {
   );
   assert.equal(savedAfterReload, savedBeforeReload);
 
+  const legacyLongName = "長".repeat(51);
+  const legacyState = {
+    schemaVersion: 1,
+    activeRoute: "budget",
+    members: [
+      { id: "legacy-self", role: "self", displayName: " 本人 ", active: true },
+      {
+        id: "legacy-partner",
+        role: "partner",
+        displayName: legacyLongName,
+        active: true,
+      },
+    ],
+    takeHomeInputs: [],
+    incomeTargets: [
+      { id: "legacy-income-self", memberId: "legacy-self", manualYen: 100_000 },
+      {
+        id: "legacy-income-partner",
+        memberId: "legacy-partner",
+        manualYen: 80_000,
+      },
+    ],
+    links: [],
+    livingExpenses: [
+      {
+        id: "legacy-expense",
+        memberId: "legacy-self",
+        kind: "living-expense",
+        amountYen: 1_000,
+      },
+    ],
+    contributionSources: [],
+  };
+  await page.evaluate(
+    ({ currentKey, legacyKey, state }) => {
+      globalThis.localStorage.removeItem(currentKey);
+      globalThis.localStorage.setItem(legacyKey, JSON.stringify(state));
+    },
+    { currentKey: storageKey, legacyKey: legacyStorageKey, state: legacyState },
+  );
+  await page.reload({ waitUntil: "load" });
+  const legacySelfName = page.getByLabel("本人表示名");
+  const legacyPartnerName = page.getByLabel("相手表示名");
+  assert.equal(await legacySelfName.inputValue(), " 本人 ");
+  assert.equal(await legacyPartnerName.inputValue(), legacyLongName);
+  await page.getByLabel("本人の月間手取り").fill("345678");
+  await page.getByLabel("本人の既定負担割合（%）").fill("64");
+  await page.getByLabel("同棲モード").uncheck();
+  await page.getByRole("button", { name: "世帯設定を保存" }).click();
+  const legacyNamesAfterSave = await page.evaluate((key) => {
+    const bytes = globalThis.localStorage.getItem(key);
+    if (!bytes) throw new Error("migrated v2 state is missing");
+    return JSON.parse(bytes).members.map((member) => member.displayName);
+  }, storageKey);
+  assert.deepEqual(legacyNamesAfterSave, [" 本人 ", legacyLongName]);
+  await page.reload({ waitUntil: "load" });
+  assert.equal(await page.getByLabel("本人表示名").inputValue(), " 本人 ");
+  assert.equal(
+    await page.getByLabel("相手表示名").inputValue(),
+    legacyLongName,
+  );
+
+  const overflowBytes = await page.evaluate((key) => {
+    const bytes = globalThis.localStorage.getItem(key);
+    if (!bytes) throw new Error("v2 state is missing");
+    const state = JSON.parse(bytes);
+    const source = state.budget.items[0];
+    state.budget.items = [
+      { ...source, amountYen: Number.MAX_SAFE_INTEGER },
+      { ...source, id: "overflow-second", amountYen: 1 },
+    ];
+    const overflow = JSON.stringify(state);
+    globalThis.localStorage.setItem(key, overflow);
+    return overflow;
+  }, storageKey);
+  await page.reload({ waitUntil: "load" });
+  await assertContains(
+    page.getByTestId("calculation-status"),
+    "計算範囲超過／未計算",
+  );
+  await page.getByLabel("並び替え").selectOption("monthly");
+  await assertContains(
+    page.getByTestId("calculation-status"),
+    "計算範囲超過／未計算",
+  );
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    overflowBytes,
+  );
+
   await page.setViewportSize({ width: 360, height: 800 });
   const viewportFits = await page.evaluate(
     () =>
@@ -300,7 +394,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=46, routes=${routes.length}, budgetScenario=passed, sequentialJapaneseSearch=passed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=59, routes=${routes.length}, budgetScenario=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();
