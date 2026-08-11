@@ -22,10 +22,14 @@ function Write-ZeroActiveBaselineFile([string]$Project,[string]$RelativePath) {
 }
 function Set-ZeroActiveFixture([string]$Project,[string]$Name) {
     $projectPrefix = [IO.Path]::GetFullPath($Project).TrimEnd('\') + '\'
-    foreach ($relative in @('docs/ai/tasks/TASK-002.md','docs/ai/handoffs/TASK-002','docs/ai/reports/TASK-002')) {
-        $path = [IO.Path]::GetFullPath((Join-Path $Project $relative))
-        if (-not $path.StartsWith($projectPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw "zero-active removal escapes fixture: $relative" }
-        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
+    $currentState = [IO.File]::ReadAllText((Join-Path $Project 'docs/ai/CURRENT_STATE.md'))
+    $activeTaskIds = @([regex]::Matches($currentState,'(?m)^\s+-\s+(TASK-[0-9]+)\s*$') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+    foreach ($taskId in $activeTaskIds) {
+        foreach ($relative in @("docs/ai/tasks/$taskId.md","docs/ai/handoffs/$taskId","docs/ai/reports/$taskId")) {
+            $path = [IO.Path]::GetFullPath((Join-Path $Project $relative))
+            if (-not $path.StartsWith($projectPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw "zero-active removal escapes fixture: $relative" }
+            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
+        }
     }
     foreach ($relative in @('docs/ai/CURRENT_STATE.md','docs/ai/NEXT_ACTION.yml','board/PROGRESS.html')) { Write-ZeroActiveBaselineFile $Project $relative }
     Invoke-Git $Project @('add','-A') "$Name zero-active add" | Out-Null
