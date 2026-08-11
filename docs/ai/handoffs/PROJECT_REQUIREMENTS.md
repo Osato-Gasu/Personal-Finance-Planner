@@ -7,9 +7,12 @@
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch_policy: mainの固定baselineから専用branchを作る
 - product_source: docs/product/
-- next_candidate: TASK-004
+- next_candidate: TASK-010
 - resolved_carry_forward: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
+- blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eを未承認・main未反映のままTASK-010へ継承する
+- required_carry_forward: FINDING-004-R2-09-REMAINDER（2026年開始時点で65～74歳のplanの第1号介護保険料未計算）をTASK-010の要件・受入条件・testへ含める
+- successor_policy: TASK-010はTASK-004 attempt 4ではなく、新規TASKとしてreview attempt 1／standardから開始する
 - implementation_gate: TASK、handoff、CURRENT_STATE、NEXT_ACTION、Progressを同じstateへ更新するまで製品実装を開始しない
 - write_capability: state transition前にrepository write accessを実測する
 - write_available: project正本一式を更新してvalidatorを実行する

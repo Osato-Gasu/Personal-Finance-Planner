@@ -37,3 +37,14 @@
 - The accepted unresolved issue is not fixed in TASK-003 and must be included in the requirements and acceptance criteria of TASK-008, データ保全・UX完成.
 - The TASK-002 active-link carry-forward was addressed by TASK-003 active-link validation and is no longer an unresolved carry-forward.
 - The active TASK-003 task, handoff, and report packet is preserved in Git through handoff HEAD `7d11cc20964732b3dd04c74632e41173728160a5`; canonical `git_only` completion sync removes it from the current tree.
+
+## GOV-007 TASK-004 review termination and option C transition
+
+- TASK-004 spec revision 2 implementation review attempt 3 used the relaxed final profile for candidate `0f7ae95e296caa741ab3fdde03b9180c3bea122e` (tree `e139244d9cd538e3177dc35c176fa161910f12ee`) and handoff HEAD `fc2f8d274e9ec76356bb122124fbf12ea8bc73dd` (tree `159e46fd363c41ffc0ab7edcbaf1aacd27d8550c`). Candidate workflow `31536781347` and handoff workflow `31537172662` succeeded.
+- Final review result is `NEEDS_USER_DECISION`; implementation review is terminated, attempt 4 is forbidden, the candidate is not user-accepted, and main integration is not approved.
+- The user selected option C: TASK-004 remains blocked and unmerged, and completion responsibility moves to the new TASK-010. TASK-010 is a separate TASK beginning with review attempt 1, not TASK-004 attempt 4.
+- Unresolved `FINDING-004-R2-09-REMAINDER`: a plan already age 65 through 74 at the start of 2026 can complete without calculating or requiring manual input for the first-category care-insurance premium.
+- The unresolved finding and candidate are carried forward to TASK-010, `65～74歳介護保険未計算安全化`; the candidate is a historical carry-forward base and is not approved.
+- User-decision transition artifact: schema `project-user-decision-separate-task-transition-v1`, SHA-256 `E464A16F48C9798411717A73BB0C18936B25C93CC925C50C9A3A1AB9818BF4E6`, 8349 bytes.
+- Final-review source artifact: SHA-256 `D8ABA8BBEB8A62FC7F1E7B963E538EE364C4FB215890A04EFD84A13B156CD153`, 16611 bytes.
+- The TASK-004 task, handoff, and report packet remains traceable through Git history at handoff HEAD `fc2f8d274e9ec76356bb122124fbf12ea8bc73dd`; canonical `git_only` transition removes it from the current tree.
