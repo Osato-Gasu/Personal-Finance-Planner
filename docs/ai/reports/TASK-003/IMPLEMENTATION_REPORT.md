@@ -6,18 +6,18 @@
 - status: review_requested
 - baseline_commit: 288f49ccaebc62040ad797126f2d5eabb4d89555
 - baseline_tree: fcb3c24f7718abc6e6b8d559bd0456b37b37715a
-- implementation_candidate: 932fad6f46b2c1aea8dace9d448bacaf826c0f0f
-- candidate_commit: 932fad6f46b2c1aea8dace9d448bacaf826c0f0f
-- candidate_tree: 29461c05f6c23f0f03512e6e50b127fc0f380c91
+- implementation_candidate: 42f61931139922569e6761a553fd01bf637731f8
+- candidate_commit: 42f61931139922569e6761a553fd01bf637731f8
+- candidate_tree: 59d6f75d3176bb3cdfff69966a3e7784b3cd0d6d
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - product_bytes: 11767
 - product_blob: 9d7509bcb8c7726903942d6dc4fb2b768cc3f654
-- changed_files: 27 from baseline
-- tests_passed: 131 unit/integration tests; 46 system Edge portable file checks; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build/test:portable
+- changed_files: 29 from baseline
+- tests_passed: 146 unit/integration tests; 59 system Edge portable file checks; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build/test:portable
 - tests_failed: none
 - build_result: passed
 - source_match: requirements product identity matched
-- browser_evidence: system Edge file:// passed at candidate; budget input, CRUD, share priority, detail/simple mode, reload, Japanese sequential typing, Backspace, focus retention, 360px, keyboard, localStorage, console/page errors 0
+- browser_evidence: system Edge file:// passed at candidate; budget input, CRUD, share priority, detail/simple mode, reload, Japanese sequential typing, Backspace, focus retention, legacy name preservation, overflow uncomputed state, 360px, keyboard, localStorage, console/page errors 0
 - network: npm registry dependency installation only; portable smoke observed zero runtime requests
 - unresolved: none
 - risks: 実制度値を含まないMVPであり、税・社会保険・資産形成計算を示さない
@@ -32,7 +32,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol-Pro
 - review_effort: Pro
-- reviewed_candidate: 932fad6f46b2c1aea8dace9d448bacaf826c0f0f
+- reviewed_candidate: 42f61931139922569e6761a553fd01bf637731f8
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -58,22 +58,25 @@
 - finding_dispositions: not_applicable
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: verified
-- execution_started_at: 2026-08-11 22:33:37 JST
-- workflow_run_id: 31499982804
-- workflow_head_sha: 932fad6f46b2c1aea8dace9d448bacaf826c0f0f
+- execution_started_at: 2026-08-11 23:16:04 JST
+- workflow_run_id: 31506155390
+- workflow_head_sha: 42f61931139922569e6761a553fd01bf637731f8
 - workflow_conclusion: success
-- implementation_review_attempt: 2
-- implementation_review_profile: standard
-- changes_requested_cycles: 1
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
+- changes_requested_cycles: 2
 - implementation_review_terminated: false
-- final_review: false
+- final_review: true
 - schema_migration: deterministic and idempotent v1-to-v2 with atomic persistence
 - active_link_validation: save, load, import, and migration enforce source, target, member, field, and active-target uniqueness
-- resolved_findings: FINDING-003-01, FINDING-003-02, FINDING-003-03
+- resolved_findings: FINDING-003-01, FINDING-003-02, FINDING-003-03, FINDING-003-04, FINDING-003-05
 - legacy_display_name_compatibility: surrounding whitespace and over-50-character baseline-valid names migrate byte-equivalently; empty string remains rejected
 - duplicate_expense_validation: inactive category and inactive partner destinations reject before persistence with no effects
-- standalone_html: dist/index.html (51147 bytes; single-file build)
+- legacy_unrelated_save: unchanged legacy display names remain byte-exact across income, share, partner-active saves and reload
+- checked_arithmetic: monthly normalization, detail/simple totals, allocations, active income sum, and remaining amounts reject unsupported range before persistence
+- overflow_existing_data: structurally valid v1/v2 load and import preview preserve bytes and render calculation-range-exceeded/uncomputed without page errors
+- standalone_html: dist/index.html (53098 bytes; single-file build)
 - portable_browser: msedge
-- portable_checks: 46
+- portable_checks: 59
 - runtime_requests: 0
-- execution_finished_at: 2026-08-11 23:12:45 JST
+- execution_finished_at: 2026-08-12 00:19:04 JST
