@@ -2,37 +2,37 @@
 
 - task_id: TASK-002
 - spec_revision: 2
-- phase: implementation
-- status: ready
+- phase: implementation_review
+- status: review_requested
 - baseline_commit: 530b9708b43fc593ae8571f69b03ba62b91f628d
 - baseline_tree: 21aa743bc67fb63ddf9d1b0c3589bba9e92c3a71
-- candidate_commit: pending
-- candidate_tree: pending
+- candidate_commit: 0443acc4289c1f134fe3c42ee1b41d6ad10a52f4
+- candidate_tree: d28414370618267d0be4bf5b12947d1f020b7219
 - product_sha256: 359008B7D3F54AF15B28020EBDD89AD734B361081E5243D0DB6704982B96D72C
 - product_bytes: 8458
 - product_blob: 883716b428a744569ac2b7ea2b196e95f2d4b055
-- changed_files: pending
-- tests_passed: 61 unit/integration tests retained; local system Edge portable file smoke passed; remaining candidate gates pending
+- changed_files: 44 from baseline; 17 in spec revision 2
+- tests_passed: 61 unit/integration tests; 15 system Edge portable file checks; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build/test:portable
 - tests_failed: none
 - build_result: passed
 - source_match: architecture product identity matched
-- browser_evidence: local_system_edge_passed_candidate_pending
+- browser_evidence: system Edge file:// passed at candidate; 5 routes, history, reload, same-path localStorage, console/page errors 0
 - network: npm registry dependency installation only; portable smoke observed zero runtime requests
 - unresolved: accepted active link integrity issue from spec revision 1 remains out of portable build scope
 - risks: fixture-only architecture must not be represented as actual制度計算
-- worktree: implementation_in_progress
+- worktree: clean_at_candidate
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: none
-- review_role: none
-- execution_mode: existing_session
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
 - repository_access: true
-- review_status: not_requested
-- request_review_status: none
-- review_model: none
-- review_effort: none
-- reviewed_candidate: none
-- reviewed_spec_revision: none
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol-Pro
+- review_effort: Pro
+- reviewed_candidate: 0443acc4289c1f134fe3c42ee1b41d6ad10a52f4
+- reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
@@ -58,15 +58,22 @@
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: verified
 - execution_started_at: 2026-08-11 19:47:00 JST
-- workflow_run_id: pending
-- workflow_head_sha: pending
-- workflow_conclusion: pending
+- workflow_run_id: 31485104093
+- workflow_head_sha: 0443acc4289c1f134fe3c42ee1b41d6ad10a52f4
+- workflow_conclusion: success
 - supersedes_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
 - spec_revision_1_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
 - spec_revision_1_workflow_run_id: 31482370511
 - spec_revision_1_review_attempts: 1,2,3
 - spec_revision_1_user_decision: accepted active link integrity issue and approved spec revision 2
-- next_implementation_review_attempt: 1
-- next_implementation_review_profile: standard
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- changes_requested_cycles: 0
+- implementation_review_terminated: false
 - final_review: false
-- execution_finished_at: pending
+- standalone_build: vite-plugin-singlefile with separated HTML/CSS/TypeScript sources
+- standalone_html: dist/index.html (10924 bytes at candidate verification)
+- portable_browser: msedge
+- portable_checks: 15
+- runtime_requests: 0
+- execution_finished_at: 2026-08-11 20:07:50 JST
