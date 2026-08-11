@@ -5,13 +5,13 @@
 - status: review_requested
 - baseline_commit: 530b9708b43fc593ae8571f69b03ba62b91f628d
 - baseline_tree: 21aa743bc67fb63ddf9d1b0c3589bba9e92c3a71
-- candidate_commit: b9d01423965ac94b2f24152ad53a5af8e3b1ef18
-- candidate_tree: d7ac761f398a48422dd867c3c03458ac166c8600
+- candidate_commit: 5529ec7eebdf7e182df4444621201469a7399fe9
+- candidate_tree: 0a50da29a6cb932eb2c7ba05fc59102e42efc952
 - product_sha256: E6692D69EF6D6E52BDAF36999C8C5EF75D8859C369DBD77CF4156E3A76B76BBE
 - product_bytes: 6714
 - product_blob: ccd20c1b8b7547c1af0185ad847dc2d31c786e10
 - changed_files: 36
-- tests_passed: 46 unit/integration tests; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build
+- tests_passed: 61 unit/integration tests; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build
 - tests_failed: none
 - build_result: passed
 - source_match: architecture product identity matched
@@ -30,7 +30,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol-Pro
 - review_effort: Pro
-- reviewed_candidate: b9d01423965ac94b2f24152ad53a5af8e3b1ef18
+- reviewed_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -56,10 +56,13 @@
 - finding_dispositions: not_applicable
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: verified
-- execution_started_at: 2026-08-11 18:21:05 JST
-- workflow_run_id: 31480158393
-- workflow_head_sha: b9d01423965ac94b2f24152ad53a5af8e3b1ef18
+- execution_started_at: 2026-08-11 19:23:00 JST
+- workflow_run_id: 31482370511
+- workflow_head_sha: 5529ec7eebdf7e182df4444621201469a7399fe9
 - workflow_conclusion: success
-- supersedes_candidate: 906c4aa0bb10cb61f456466c0f26943f718ef40b
-- resolved_findings: FINDING-002-01,FINDING-002-02
-- execution_finished_at: 2026-08-11 19:01:07 JST
+- supersedes_candidate: b9d01423965ac94b2f24152ad53a5af8e3b1ef18
+- resolved_findings: FINDING-002-01,FINDING-002-02,FINDING-002-03
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
+- final_review: true
+- execution_finished_at: 2026-08-11 19:31:06 JST
