@@ -1,65 +1,36 @@
----
-task_id: TASK-010
-title: 65～74歳介護保険未計算安全化
-status: changes_requested
-route: TWO_SESSION_FAST
-priority: high
-spec_revision: 1
-spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
-session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-010/RELAY_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: optional
-claude_implementation_review_recommendation: optional
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_requested
-claude_implementation_review_status: not_requested
-base_commit: 7c4b7185f43bf1434f8babd8f659a0b231d382f9
-base_tree: 798b6f9f722e820208c8035044f8c3d8e9eec3b0
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
-review_stage: implementation
-changes_requested_cycles: 1
-implementation_review_attempt: 2
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
-reviewed_spec_revision: 1
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: ChatGPT
-provider_substitution: none
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# RELAY HANDOFF — TASK-010
 
-updated_at: 2026-08-12
----
-
-# TASK-010 — 65～74歳介護保険未計算安全化
+- relay_schema: 2
+- task_id: TASK-010
+- decision: CHANGES_REQUESTED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-010-age-65-74-care-insurance-safety
+- reviewed_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- candidate_commit: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- reviewed_handoff_head: 2203a80e54134e3d8ad2c83762a1e7a5f2dc6e42
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: implementation
+- next_actor: Codex
+- next_role: IMPLEMENTER
+- model: 5.6 Sol
+- effort: high
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-010-age-65-74-care-insurance-safety
+- resolved_commit: 2203a80e54134e3d8ad2c83762a1e7a5f2dc6e42
+- next_action_blob: 367ed2d5d8e403a1f1481e46961905f089099d09
+- handoff_blob: f42d237474ab313dba98c3871a57001ce6c06da8
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- implementation_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
 
 ## Purpose
 
@@ -95,6 +66,18 @@ TASK-004 spec revision 2の未承認candidateをcarry-forward baseとして保�
 - TASK-003でユーザー受容済みのschema v1改行表示名問題の修正
 - docs/product/**変更、backend、cloud同期、runtime CDN、runtime外部API
 - main merge、tag、release、配布
+
+## Required changes
+
+- FINDING-010-01 [MAJOR] docs/ai/BACKLOG.md and board/PROGRESS.html: TASK-010がimplementation review attempt 1へ進んでいる一方、BACKLOGのTASK-010行がstatus=ready、phase=requirements、next step=正式要件を定義するのまま残り、生成進捗表にも同じ古い状態が表示されている。 Evidence: TASK-010.md、CURRENT_STATE.md、NEXT_ACTION.ymlはcandidate 072fdb6c8fba4aaa506b48be957966bd008ecac4のimplementation_review／ChatGPT review_requestedを正本としている。これに対し、handoff HEAD 2203a80e54134e3d8ad2c83762a1e7a5f2dc6e42のBACKLOGとPROGRESS表は要件定義／TASK-004 candidateを継承する正式要件を定義する、と表示している。spec revision 1のAcceptance criteriaはTASK、handoff、CURRENT_STATE、NEXT_ACTION、BACKLOG/Progressを同一stateへtransactional同期することを必須としている。 Impact: 現在工程と次作業が正本間で矛盾し、後続セッションが要件定義を重複実行したり、実装レビュー状態を誤認する可能性がある。必須受入条件の未達であり、attempt 1／standardでは緩和できない。製品計算ロジック自体の不合格ではない。 Required: TASK-010のBACKLOG行を現在stateへ同期し、CHANGES_REQUESTED取込後はstatus=ready、phase=implementation、next step=FINDING-010-01を修正してattempt 2へ渡す旨とする。新candidate固定後のreview handoff作成時はphase=implementation_review、next step=新candidateをattempt 2／standardでexact reviewする旨へ更新する。正規generatorでboard/PROGRESS.htmlを再生成し、generate-next-action／generate-progressのCheck、governance、project overlayを通す。製品source、rule、testは変更しない。
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
 
 ## Acceptance criteria
 
@@ -147,27 +130,7 @@ TASK-004 spec revision 2の未承認candidateをcarry-forward baseとして保�
 - PowerShell 7 governance、PowerShell 7 product identity smoke、PowerShell 5.1 governance、PowerShell 5.1 product identity smoke
 - npm ci、npm run typecheck、npm run lint、npm run format:check、npm run test、npm run test:rules、npm run build、npm run test:portable
 - candidate exact GitHub Actions successとhandoff-only exact GitHub Actions success
-
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run test:rules
-- npm run build
-- npm run test:portable
-- candidate exact GitHub Actions success
-- handoff-only exact GitHub Actions success
-
-## Rollback
-
-relay importまたはvalidator失敗時は全変更をbyte-exact rollbackする。実装を破棄する場合はisolated TASK-010 branch/worktreeだけを廃棄し、origin/main、transition branch、TASK-004履歴を変更しない
+- TASK-010のBACKLOG行、CURRENT_STATE、NEXT_ACTION、active TASK、Progress表のphase／next step整合確認
 
 ## Forbidden changes
 
@@ -189,3 +152,5 @@ relay importまたはvalidator失敗時は全変更をbyte-exact rollbackする�
 - test削除、skip、成功条件・assertionの弱体化、既存test件数の減少
 - TASK外refactor
 - TASK-003から引き継いだschema v1改行表示名の自動修正、trim、置換、削除
+
+Validated full bundle: docs/ai/reports/TASK-010/RELAY_BUNDLE.json
