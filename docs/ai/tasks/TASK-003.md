@@ -29,10 +29,10 @@ base_commit: 288f49ccaebc62040ad797126f2d5eabb4d89555
 base_tree: fcb3c24f7718abc6e6b8d559bd0456b37b37715a
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: 6170b0fa1f895f8e269115fd1d4fbc9d6a3234e7
+implementation_candidate: 932fad6f46b2c1aea8dace9d448bacaf826c0f0f
 review_stage: implementation
-changes_requested_cycles: 0
-implementation_review_attempt: 1
+changes_requested_cycles: 1
+implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
@@ -44,7 +44,7 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol-Pro
 review_effort: Pro
-reviewed_candidate: 6170b0fa1f895f8e269115fd1d4fbc9d6a3234e7
+reviewed_candidate: 932fad6f46b2c1aea8dace9d448bacaf826c0f0f
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
