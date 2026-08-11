@@ -1,0 +1,27 @@
+# RELAY IMPORT — TASK-010
+
+- source bundle: task-010-requirements-relay.json
+- source SHA-256: BFAF218DA97DE51251704DECF0B423C23668AA46DD07A26CF303AB8197A2D76A
+- source bytes: 16695
+- identity verified: true
+- canonical bundle: docs/ai/reports/TASK-010/RELAY_BUNDLE.json
+- canonical SHA-256: BFAF218DA97DE51251704DECF0B423C23668AA46DD07A26CF303AB8197A2D76A
+- canonical bytes: 16695
+- semantic round-trip: verified
+- decision: REQUIREMENTS_DEFINED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- candidate: none
+- handoff HEAD: none
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-010-age-65-74-care-insurance-safety
+- resolved_commit: 7c4b7185f43bf1434f8babd8f659a0b231d382f9
+- next_action_blob: ed43018c0f2b559f289071d7575503484f098c0a
+- handoff_blob: 505d200237554ccedfcca8b6844a1429681ec49c
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- imported findings: 0
+- accepted findings: 0
+- finding dispositions: 0

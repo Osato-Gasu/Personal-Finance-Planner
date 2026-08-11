@@ -1,7 +1,8 @@
 ---
 updated_at: 2026-08-12
-active_tasks: []
-next_action: ChatGPT defines formal TASK-010 requirements from user option C and the retained TASK-004 candidate
+active_tasks:
+  - TASK-010
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-010
 ---
 
 # Current state
