@@ -85,7 +85,15 @@
         Requirements = @{
             Priorities = @('low','normal','high')
             RequireProductIdentityReference = $true
-            ProductIdentityReferences = @('docs/product/REQUIREMENTS.md','docs/product/ARCHITECTURE.md','docs/product/DATA_MODEL.md','docs/product/CALCULATIONS.md','docs/product/RULE_GOVERNANCE.md','docs/product/REVIEW_POLICY.md','docs/product/DELIVERY_PLAN.md')
+            ProductIdentityReferences = @(
+                'docs/ai/PRODUCT_IDENTITIES.yml#requirements_*'
+                'docs/ai/PRODUCT_IDENTITIES.yml#architecture_*'
+                'docs/ai/PRODUCT_IDENTITIES.yml#data_model_*'
+                'docs/ai/PRODUCT_IDENTITIES.yml#calculations_*'
+                'docs/ai/PRODUCT_IDENTITIES.yml#rule_governance_*'
+                'docs/ai/PRODUCT_IDENTITIES.yml#review_policy_*'
+                'docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*'
+            )
             Executors = @('Claude','ChatGPT')
             BaseCommitPolicy = 'exact_head'
             TaskMetadata = @()

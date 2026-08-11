@@ -17,3 +17,6 @@ jobs:
       - name: Validate governance
         shell: pwsh
         run: ./tools/validate-ai-governance.ps1
+      - name: Smoke test product identity relay
+        shell: pwsh
+        run: ./tools/test-requirements-defined-smoke.ps1
