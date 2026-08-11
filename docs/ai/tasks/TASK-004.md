@@ -1,23 +1,23 @@
 ---
 task_id: TASK-004
 title: 手取り計算ベータ
-status: ready
+status: review_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-004/CODEX_HANDOFF.md
+session_mode: existing
+handoff_file: docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -29,6 +29,31 @@ base_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 base_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
+implementation_candidate: 106868ea12ebd6766cfa89499e6b12f9b341e08e
+review_stage: implementation
+changes_requested_cycles: 0
+implementation_review_attempt: 1
+implementation_review_profile: standard
+implementation_review_final: false
+implementation_review_terminated: false
+review_kind: implementation
+review_role: ORCHESTRATOR_AND_REVIEWER
+execution_mode: separate_session
+repository_access: true
+review_status: requested
+request_review_status: requested
+review_model: 5.6 Sol
+review_effort: high
+reviewed_candidate: 106868ea12ebd6766cfa89499e6b12f9b341e08e
+reviewed_spec_revision: 1
+review_request_id: none
+review_started_at: none
+review_completed_at: none
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
+actual_executor: ChatGPT
+provider_substitution: none
 
 updated_at: 2026-08-12
 ---
