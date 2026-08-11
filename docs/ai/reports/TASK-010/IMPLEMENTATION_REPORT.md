@@ -8,9 +8,9 @@
 - baseline_tree: 798b6f9f722e820208c8035044f8c3d8e9eec3b0
 - carry_forward_candidate: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
 - carry_forward_tree: e139244d9cd538e3177dc35c176fa161910f12ee
-- implementation_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
-- candidate_commit: 072fdb6c8fba4aaa506b48be957966bd008ecac4
-- candidate_tree: bca2bb6a2dfdae8c134ac1db237f1239e583c4dc
+- implementation_candidate: aa3d7275de00ce3bfe900741750e642c780904ad
+- candidate_commit: aa3d7275de00ce3bfe900741750e642c780904ad
+- candidate_tree: d68adbb2018843229345d1d40740e5d0e35be0d3
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
@@ -18,6 +18,7 @@
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - source_match: requirements product identity matched
 - changed_files: src/domain/take-home-calculator.ts; tests/take-home-rules.test.ts; tests/schema-v3.test.ts; tools/test-portable-build.mjs
+- corrected_candidate_changed_files: board/PROGRESS.html; docs/ai/BACKLOG.md; docs/ai/CURRENT_STATE.md; docs/ai/NEXT_ACTION.yml; docs/ai/handoffs/TASK-010/RELAY_HANDOFF.md; docs/ai/reports/TASK-010/RELAY_BUNDLE.json; docs/ai/reports/TASK-010/RELAY_IMPORT.md; docs/ai/tasks/TASK-010.md
 - build_result: passed; standalone dist/index.html single-file build
 - tests_passed: 247 Vitest tests; 69 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; portable
 - tests_failed: none
@@ -35,7 +36,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- reviewed_candidate: aa3d7275de00ce3bfe900741750e642c780904ad
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -56,12 +57,12 @@
 - result_return_to: ChatGPT
 - canonical_relay_bundle: docs/ai/reports/TASK-010/RELAY_BUNDLE.json
 - routing_mode: local_script
-- workflow_run_id: 31543796574
-- workflow_head_sha: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- workflow_run_id: 31546445080
+- workflow_head_sha: aa3d7275de00ce3bfe900741750e642c780904ad
 - workflow_conclusion: success
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_terminated: false
 - final_review: false
@@ -70,8 +71,21 @@
 - excluded_source: https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000198659_00017.html resolved to unrelated current content and was not used as evidence
 - official_sources_verified_at: 2026-08-12
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_started_at: 2026-08-12 07:34:51 JST
-- execution_finished_at: 2026-08-12 07:49:38 JST
+- execution_started_at: 2026-08-12 08:23:43 JST
+- execution_finished_at: 2026-08-12 08:28:11 JST
+
+## Attempt 1 review relay
+
+- source_bundle: task-010-review-attempt-1-changes-requested.json
+- source_sha256: 89D9FF4C805E21318219AE7E77C739EEB19E4E03689BB1408E53E754F7079538
+- source_bytes: 17008
+- reviewed_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- reviewed_handoff_head: 2203a80e54134e3d8ad2c83762a1e7a5f2dc6e42
+- decision: CHANGES_REQUESTED
+- finding_resolved: FINDING-010-01 BACKLOG／Progress state synchronization
+- product_source_rule_test_changes: none
+- candidate_workflow_run_id: 31546445080
+- candidate_workflow_conclusion: success
 
 ## Implementation evidence
 
