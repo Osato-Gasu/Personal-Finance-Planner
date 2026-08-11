@@ -34,8 +34,8 @@ function Get-Snapshot([string]$Project) {
 }
 function Test-Snapshot($Before,$After) { (ConvertTo-Json $Before -Depth 6 -Compress) -ceq (ConvertTo-Json $After -Depth 6 -Compress) }
 function New-RequirementsBundle([string]$Project,[string]$Branch,[string]$Reference) {
-    $head = (Invoke-Git $Project @('rev-parse','HEAD') 'fixture HEAD')[-1].Trim()
-    $tree = (Invoke-Git $Project @('rev-parse','HEAD^{tree}') 'fixture tree')[-1].Trim()
+    $head = (@(Invoke-Git $Project @('rev-parse','HEAD') 'fixture HEAD'))[-1].Trim()
+    $tree = (@(Invoke-Git $Project @('rev-parse','HEAD^{tree}') 'fixture tree'))[-1].Trim()
     [pscustomobject][ordered]@{
         schema_version = 2
         status = 'USER_RELAY_REQUIRED'
