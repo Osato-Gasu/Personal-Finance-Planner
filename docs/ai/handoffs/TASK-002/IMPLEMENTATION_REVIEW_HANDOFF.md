@@ -15,6 +15,7 @@
 - baseline_commit: 530b9708b43fc593ae8571f69b03ba62b91f628d
 - baseline_tree: 21aa743bc67fb63ddf9d1b0c3589bba9e92c3a71
 - candidate_commit: 0443acc4289c1f134fe3c42ee1b41d6ad10a52f4
+- implementation_candidate: 0443acc4289c1f134fe3c42ee1b41d6ad10a52f4
 - candidate_tree: d28414370618267d0be4bf5b12947d1f020b7219
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#architecture_*
