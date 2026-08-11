@@ -5,8 +5,7 @@
 <!-- PROGRESS:START -->
 | ID | 優先度 | 状態 | リスク | フェーズ | タイトル | 依存 | 次の作業 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-002 | high | ready | high | requirements | 基盤・横断アーキテクチャスパイク | TASK-001 | 要件と受入条件を確定する |
-| TASK-003 | high | queued | high | requirements | 家計・生活費MVP | TASK-002 | TASK-002完了後に設計する |
+| TASK-003 | high | ready | high | requirements | 家計・生活費MVP | TASK-002 | active link整合性の既知事項を受入条件へ引き継いで要件定義する |
 | TASK-004 | high | queued | high | requirements | 手取り計算ベータ | TASK-002 | 制度ruleを小分けTASKへ分解する |
 | TASK-005 | normal | queued | high | requirements | NISAベータ | TASK-002 | 上限ruleの一次資料要件を定義する |
 | TASK-006 | normal | queued | high | requirements | iDeCoベータ | TASK-002 | 対象年月別rule要件を定義する |
