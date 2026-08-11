@@ -164,7 +164,45 @@ try {
   await page.getByLabel("事業所都道府県").selectOption("JP-13");
   await page.getByLabel("月額報酬（標準報酬推定用）").fill("300000");
   await page.getByLabel("月額報酬（標準報酬推定用）").press("Tab");
-  for (let month = 1; month <= 12; month += 1) {
+  const januaryWage = page.getByLabel("1月の雇用保険対象賃金（賞与除く）", {
+    exact: true,
+  });
+  const februaryWage = page.getByLabel("2月の雇用保険対象賃金（賞与除く）", {
+    exact: true,
+  });
+  assert.equal(await januaryWage.inputValue(), "");
+  assert.equal(await februaryWage.inputValue(), "");
+  await januaryWage.fill("500000");
+  await januaryWage.press("Tab");
+  await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
+  assert.equal(await februaryWage.inputValue(), "");
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page
+      .getByLabel("1月の雇用保険対象賃金（賞与除く）", { exact: true })
+      .inputValue(),
+    "500000",
+  );
+  assert.equal(
+    await page
+      .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
+      .inputValue(),
+    "",
+  );
+  await page
+    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
+    .fill("0");
+  await page
+    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
+    .press("Tab");
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page
+      .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
+      .inputValue(),
+    "0",
+  );
+  for (let month = 3; month <= 11; month += 1) {
     const wage = page.getByLabel(
       `${String(month)}月の雇用保険対象賃金（賞与除く）`,
       { exact: true },
@@ -172,6 +210,25 @@ try {
     await wage.fill("500000");
     await wage.press("Tab");
   }
+  assert.equal(
+    await page
+      .getByLabel("12月の雇用保険対象賃金（賞与除く）", { exact: true })
+      .inputValue(),
+    "",
+  );
+  await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
+  await page
+    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
+    .fill("500000");
+  await page
+    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
+    .press("Tab");
+  await page
+    .getByLabel("12月の雇用保険対象賃金（賞与除く）", { exact: true })
+    .fill("500000");
+  await page
+    .getByLabel("12月の雇用保険対象賃金（賞与除く）", { exact: true })
+    .press("Tab");
   await page.getByLabel("住民税年額を入力する").check();
   await page.getByLabel("住民税年額", { exact: true }).fill("0");
   await page.getByLabel("住民税年額", { exact: true }).press("Tab");
@@ -195,6 +252,50 @@ try {
     "jp-kyokai-health-rate-2026",
   );
   await assertContains(page.locator(".take-home-result"), "確認日 2026-08-12");
+  for (const requiredResultLabel of [
+    "その他法定控除",
+    "法定控除合計",
+    "控除率",
+    "iDeCo控除なし基準所得税",
+    "iDeCo控除なし復興特別所得税",
+    "iDeCo控除なし所得税等（100円未満切捨て前）",
+    "iDeCo控除なし所得税等総額",
+    "iDeCo控除あり所得税等総額",
+    "iDeCoによる所得税等差額",
+  ]) {
+    await assertContains(
+      page.locator(".take-home-result"),
+      requiredResultLabel,
+    );
+  }
+  await page.setViewportSize({ width: 360, height: 800 });
+  assert.equal(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.document.documentElement.clientWidth,
+    ),
+    true,
+  );
+  await page.getByLabel("その他法定控除年額").fill("12345");
+  await page.getByLabel("その他法定控除年額").press("Tab");
+  await page.getByLabel("社会保険計算方法").selectOption("manual");
+  await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  assert.equal(
+    await page.getByLabel("その他法定控除年額").inputValue(),
+    "12345",
+  );
+  await assertContains(page.locator(".take-home-result"), "12,345円");
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page.getByLabel("その他法定控除年額").inputValue(),
+    "12345",
+  );
+  await assertContains(page.locator(".take-home-result"), "12,345円");
+  await page.getByLabel("その他法定控除年額").fill("0");
+  await page.getByLabel("その他法定控除年額").press("Tab");
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await assertContains(page.getByTestId("household-income"), "439,597円");
@@ -208,6 +309,28 @@ try {
   await assertContains(page.getByTestId("household-income"), "未計算");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await page.getByLabel("計算プランの生年月日").fill("1961-06-02");
+  await page.getByLabel("計算プランの生年月日").press("Tab");
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await assertContains(page.locator(".take-home-result"), "第1号介護保険料");
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await assertContains(page.getByTestId("household-income"), "未計算");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.reload({ waitUntil: "load" });
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await page.getByLabel("計算プランの生年月日").fill("1951-06-02");
+  await page.getByLabel("計算プランの生年月日").press("Tab");
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await assertContains(
+    page.locator(".take-home-result"),
+    "後期高齢者医療保険料",
+  );
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await assertContains(page.getByTestId("household-income"), "未計算");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByLabel("計算プランの生年月日").fill("1990-01-01");
+  await page.getByLabel("計算プランの生年月日").press("Tab");
   await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
   await page.getByLabel("年間課税給与（賞与を含む）").fill("6100000");
   await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
@@ -460,7 +583,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=88, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, unsupportedCondition=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=112, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();

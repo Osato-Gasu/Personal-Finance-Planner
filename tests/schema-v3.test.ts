@@ -216,6 +216,107 @@ describe("schema version 3 migration and storage", () => {
     });
   });
 
+  it("preserves missing and explicit-zero monthly employment wages in v3", () => {
+    const state = linkedCalculatedState();
+    const plan = state.takeHomePlans[0];
+    if (!plan || plan.mode !== "calculated") throw new Error("plan is missing");
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.standardRemunerationMode =
+      "estimate-from-remuneration";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = [
+      500_000,
+      0,
+      null,
+      ...Array.from({ length: 9 }, () => 500_000),
+    ];
+    const parsed = parseAppState(JSON.parse(JSON.stringify(state)));
+    const parsedPlan = parsed.takeHomePlans[0];
+    if (!parsedPlan || parsedPlan.mode !== "calculated")
+      throw new Error("parsed plan is missing");
+    expect(parsedPlan.compensation.monthlyEmploymentInsuranceWagesYen).toEqual(
+      plan.compensation.monthlyEmploymentInsuranceWagesYen,
+    );
+    const parsedMember = parsed.members[0];
+    if (!parsedMember) throw new Error("parsed member is missing");
+    expect(calculateTakeHome(parsedPlan, parsedMember)).toMatchObject({
+      status: "incomplete",
+      warnings: [
+        "雇用保険の月別対象賃金（賞与を除く）は12か月すべての入力が必要です",
+      ],
+    });
+  });
+
+  it("completes only after all 12 monthly employment wages are explicit", () => {
+    const state = linkedCalculatedState();
+    const plan = state.takeHomePlans[0];
+    const member = state.members[0];
+    if (!plan || plan.mode !== "calculated" || !member)
+      throw new Error("fixture is missing");
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.standardRemunerationMode =
+      "estimate-from-remuneration";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = [
+      500_000,
+      0,
+      null,
+      ...Array.from({ length: 9 }, () => 500_000),
+    ];
+    expect(calculateTakeHome(plan, member).status).toBe("incomplete");
+    plan.compensation.monthlyEmploymentInsuranceWagesYen[2] = 500_000;
+    expect(calculateTakeHome(plan, member).status).toBe("complete");
+  });
+
+  it("round-trips missing and explicit-zero monthly wages through reload and import", () => {
+    const storage = new BytesStorage();
+    const repository = new StorageRepository(storage);
+    const state = linkedCalculatedState();
+    const plan = state.takeHomePlans[0];
+    if (!plan || plan.mode !== "calculated") throw new Error("plan is missing");
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = [
+      500_000,
+      0,
+      null,
+      ...Array.from({ length: 9 }, () => 500_000),
+    ];
+    repository.save(state);
+    const reloaded = repository.load();
+    if (!reloaded) throw new Error("reloaded state is missing");
+    const imported = repository.prepareImport(JSON.stringify(reloaded)).preview;
+    for (const candidate of [reloaded, imported]) {
+      const candidatePlan = candidate.takeHomePlans[0];
+      if (!candidatePlan || candidatePlan.mode !== "calculated")
+        throw new Error("candidate plan is missing");
+      expect(
+        candidatePlan.compensation.monthlyEmploymentInsuranceWagesYen,
+      ).toEqual(plan.compensation.monthlyEmploymentInsuranceWagesYen);
+    }
+  });
+
+  it("rejects an invalid monthly wage before writer and listener side effects", () => {
+    const writer = { save: vi.fn() };
+    const listener = vi.fn();
+    const state = linkedCalculatedState();
+    const store = new Store(state, writer);
+    store.subscribe(listener);
+    const before = JSON.stringify(store.getState());
+    const plan = structuredClone(state.takeHomePlans[0]);
+    if (!plan || plan.mode !== "calculated") throw new Error("plan is missing");
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = [
+      -1,
+      ...Array.from({ length: 11 }, () => 500_000),
+    ];
+    expect(() =>
+      store.dispatch({ type: "update-take-home-plan", planId: plan.id, plan }),
+    ).toThrow("employment insurance wage month 1");
+    expect(JSON.stringify(store.getState())).toBe(before);
+    expect(writer.save).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it("leaves all storage bytes unchanged during import preview", () => {
     const storage = new BytesStorage();
     storage.values.set(STORAGE_KEY, JSON.stringify(createFixtureState()));
@@ -495,6 +596,70 @@ describe("schema version 3 migration and storage", () => {
         warning: `uncomputed-link:${expectedStatus}:take-home-self`,
         sourceId: "take-home-self",
       });
+      expect(calculateBudgetSummary(store.getState())).toMatchObject({
+        householdIncomeYen: null,
+        self: { incomeYen: null, unresolvedIncome: true },
+      });
+      const reloaded = repository.load();
+      if (!reloaded) throw new Error("reloaded state is missing");
+      expect(resolveIncomeTarget(reloaded, "budget-income-self").status).toBe(
+        "broken-link",
+      );
+      const imported = repository.prepareImport(
+        JSON.stringify(reloaded),
+      ).preview;
+      expect(resolveIncomeTarget(imported, "budget-income-self").status).toBe(
+        "broken-link",
+      );
+    },
+  );
+
+  it.each([
+    ["65", "1961-06-02", "第1号介護保険料"],
+    ["75", "1951-06-02", "後期高齢者医療保険料"],
+  ])(
+    "keeps a linked age-%s transition unresolved through save, reload, and import",
+    (_age, birthDate, reason) => {
+      const storage = new BytesStorage();
+      const repository = new StorageRepository(storage);
+      const state = linkedCalculatedState();
+      const initial = state.takeHomePlans[0];
+      if (!initial || initial.mode !== "calculated")
+        throw new Error("initial plan is missing");
+      initial.socialInsurance.mode = "kyokai-auto";
+      initial.socialInsurance.standardRemunerationMode =
+        "estimate-from-remuneration";
+      initial.socialInsurance.employerPrefecture = "JP-13";
+      initial.socialInsurance.monthlyRemunerationYen = 300_000;
+      initial.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+        { length: 12 },
+        () => 500_000,
+      );
+      repository.save(state);
+      const writer = { save: vi.fn((next: AppState) => repository.save(next)) };
+      const listener = vi.fn();
+      const store = new Store(state, writer);
+      store.subscribe(listener);
+      const updated = structuredClone(initial);
+      updated.birthDate = birthDate;
+      store.dispatch({
+        type: "update-take-home-plan",
+        planId: updated.id,
+        plan: updated,
+      });
+      const member = store.getState().members[0];
+      if (!member) throw new Error("member is missing");
+      expect(calculateTakeHome(updated, member)).toMatchObject({
+        status: "unsupported",
+        annualTakeHomeYen: null,
+        averageMonthlyTakeHomeYen: null,
+        unsupportedConditions: [expect.stringContaining(reason)],
+      });
+      expect(writer.save).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(
+        resolveIncomeTarget(store.getState(), "budget-income-self").status,
+      ).toBe("broken-link");
       expect(calculateBudgetSummary(store.getState())).toMatchObject({
         householdIncomeYen: null,
         self: { incomeYen: null, unresolvedIncome: true },

@@ -29,6 +29,10 @@ function yen(value: number | null): string {
   return value === null ? "未計算" : `${value.toLocaleString("ja-JP")}円`;
 }
 
+function percent(value: number | null): string {
+  return value === null ? "未計算" : `${value.toLocaleString("ja-JP")}%`;
+}
+
 function numberInput(
   document: Document,
   labelText: string,
@@ -42,6 +46,25 @@ function numberInput(
   input.step = "1";
   input.value = String(value);
   input.addEventListener("change", () => onChange(Number(input.value)));
+  label.append(input);
+  return label;
+}
+
+function nullableNumberInput(
+  document: Document,
+  labelText: string,
+  value: number | null,
+  onChange: (value: number | null) => void,
+): HTMLLabelElement {
+  const label = node(document, "label", labelText);
+  const input = node(document, "input");
+  input.type = "number";
+  input.min = "0";
+  input.step = "1";
+  input.value = value === null ? "" : String(value);
+  input.addEventListener("change", () =>
+    onChange(input.value === "" ? null : Number(input.value)),
+  );
   label.append(input);
   return label;
 }
@@ -66,36 +89,56 @@ function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
   section.className = `take-home-result status-${result.status}`;
   section.append(node(document, "h4", `概算結果: ${result.status}`));
   const dl = node(document, "dl");
-  const rows: [string, number | null][] = [
-    ["年間総支給", result.annualGrossYen],
-    ["給与所得", result.salaryIncomeYen],
-    ["課税所得", result.taxableIncomeYen],
-    ["所得税", result.nationalIncomeTaxYen],
-    ["復興特別所得税", result.reconstructionIncomeTaxYen],
-    ["住民税", result.residentTaxYen],
-    ["健康保険", result.healthInsuranceYen],
-    ["介護保険", result.careInsuranceYen],
-    ["子ども・子育て支援金", result.additionalInsuranceYen],
-    ["厚生年金", result.pensionYen],
-    ["雇用保険", result.employmentInsuranceYen],
-    ["年間手取り", result.annualTakeHomeYen],
-    ["平均月間手取り", result.averageMonthlyTakeHomeYen],
-    ["iDeCo所得税軽減額", result.incomeTaxBenefitFromIdecoYen],
-    ["iDeCo控除なし課税所得", result.taxableIncomeBeforeIdecoYen],
-    ["iDeCo控除あり課税所得", result.taxableIncomeAfterIdecoYen],
-    ["iDeCo控除なし基準所得税", result.nationalIncomeTaxBeforeIdecoYen],
-    ["iDeCo控除あり基準所得税", result.nationalIncomeTaxAfterIdecoYen],
+  const rows: [string, number | null, "yen" | "percent"][] = [
+    ["年間総支給", result.annualGrossYen, "yen"],
+    ["給与所得", result.salaryIncomeYen, "yen"],
+    ["課税所得", result.taxableIncomeYen, "yen"],
+    ["所得税", result.nationalIncomeTaxYen, "yen"],
+    ["復興特別所得税", result.reconstructionIncomeTaxYen, "yen"],
+    ["住民税", result.residentTaxYen, "yen"],
+    ["健康保険", result.healthInsuranceYen, "yen"],
+    ["介護保険", result.careInsuranceYen, "yen"],
+    ["子ども・子育て支援金", result.additionalInsuranceYen, "yen"],
+    ["厚生年金", result.pensionYen, "yen"],
+    ["雇用保険", result.employmentInsuranceYen, "yen"],
+    ["その他法定控除", result.otherStatutoryDeductionYen, "yen"],
+    ["法定控除合計", result.statutoryDeductionsYen, "yen"],
+    ["控除率", result.deductionRatePercent, "percent"],
+    ["年間手取り", result.annualTakeHomeYen, "yen"],
+    ["平均月間手取り", result.averageMonthlyTakeHomeYen, "yen"],
+    ["iDeCoによる所得税等差額", result.incomeTaxBenefitFromIdecoYen, "yen"],
+    ["iDeCo控除なし課税所得", result.taxableIncomeBeforeIdecoYen, "yen"],
+    ["iDeCo控除あり課税所得", result.taxableIncomeAfterIdecoYen, "yen"],
+    ["iDeCo控除なし基準所得税", result.nationalIncomeTaxBeforeIdecoYen, "yen"],
+    ["iDeCo控除あり基準所得税", result.nationalIncomeTaxAfterIdecoYen, "yen"],
     [
       "iDeCo控除なし復興特別所得税",
       result.reconstructionIncomeTaxBeforeIdecoYen,
+      "yen",
     ],
     [
       "iDeCo控除あり復興特別所得税",
       result.reconstructionIncomeTaxAfterIdecoYen,
+      "yen",
     ],
+    [
+      "iDeCo控除なし所得税等（100円未満切捨て前）",
+      result.incomeTaxBeforeIdecoPreRoundedYen,
+      "yen",
+    ],
+    [
+      "iDeCo控除あり所得税等（100円未満切捨て前）",
+      result.incomeTaxAfterIdecoPreRoundedYen,
+      "yen",
+    ],
+    ["iDeCo控除なし所得税等総額", result.incomeTaxBeforeIdecoYen, "yen"],
+    ["iDeCo控除あり所得税等総額", result.incomeTaxAfterIdecoYen, "yen"],
   ];
-  for (const [label, value] of rows)
-    dl.append(node(document, "dt", label), node(document, "dd", yen(value)));
+  for (const [label, value, format] of rows)
+    dl.append(
+      node(document, "dt", label),
+      node(document, "dd", format === "percent" ? percent(value) : yen(value)),
+    );
   section.append(dl);
   const basis = result.socialInsuranceBasis;
   if (basis.employerPrefecture !== null) {
@@ -445,17 +488,17 @@ export function createTakeHomeRenderer(
         ) {
           for (let month = 1; month <= 12; month += 1) {
             form.append(
-              numberInput(
+              nullableNumberInput(
                 document,
                 `${String(month)}月の雇用保険対象賃金（賞与除く）`,
                 plan.compensation.monthlyEmploymentInsuranceWagesYen?.[
                   month - 1
-                ] ?? 0,
+                ] ?? null,
                 (value) =>
                   update(plan, (draft) => {
                     const wages =
                       draft.compensation.monthlyEmploymentInsuranceWagesYen ??
-                      Array.from({ length: 12 }, () => 0);
+                      Array.from({ length: 12 }, () => null as number | null);
                     wages[month - 1] = value;
                     draft.compensation.monthlyEmploymentInsuranceWagesYen =
                       wages;
@@ -560,7 +603,6 @@ export function createTakeHomeRenderer(
             ["子ども・子育て支援金年額", "annualAdditionalInsuranceYen"],
             ["厚生年金年額", "annualPensionYen"],
             ["雇用保険年額", "annualEmploymentInsuranceYen"],
-            ["その他法定控除年額", "annualOtherStatutoryDeductionYen"],
           ] as const) {
             form.append(
               numberInput(
@@ -575,6 +617,18 @@ export function createTakeHomeRenderer(
             );
           }
         }
+        form.append(
+          numberInput(
+            document,
+            "その他法定控除年額",
+            plan.socialInsurance.manual.annualOtherStatutoryDeductionYen,
+            (value) =>
+              update(plan, (draft) => {
+                draft.socialInsurance.manual.annualOtherStatutoryDeductionYen =
+                  value;
+              }),
+          ),
+        );
         const residentMode = checkInput(
           document,
           "住民税年額を入力する",

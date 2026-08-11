@@ -260,6 +260,14 @@ fieldset input {
     grid-template-columns: 1fr;
   }
 
+  .take-home-result dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .take-home-result dd {
+    text-align: left;
+  }
+
   .summary-table,
   .summary-table tbody,
   .summary-table tr,

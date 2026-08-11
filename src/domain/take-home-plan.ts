@@ -22,7 +22,7 @@ export interface CompensationInput {
   monthlyNonTaxableCommutingYen: number;
   annualOtherTaxableSalaryYen: number;
   bonuses: BonusPayment[];
-  monthlyEmploymentInsuranceWagesYen: number[] | null;
+  monthlyEmploymentInsuranceWagesYen: (number | null)[] | null;
   /** @deprecated Annual totals cannot establish month-specific statutory bases. */
   employmentInsuranceWageOverrideYen: number | null;
 }
@@ -168,6 +168,8 @@ export interface TakeHomeResult {
   nationalIncomeTaxAfterIdecoYen: number | null;
   reconstructionIncomeTaxBeforeIdecoYen: number | null;
   reconstructionIncomeTaxAfterIdecoYen: number | null;
+  incomeTaxBeforeIdecoPreRoundedYen: number | null;
+  incomeTaxAfterIdecoPreRoundedYen: number | null;
   appliedRules: readonly AppliedRule[];
   socialInsuranceBasis: SocialInsuranceBasis;
   warnings: readonly string[];
@@ -290,7 +292,7 @@ function parseCalculatedPlan(
     compensation.monthlyNonTaxableCommutingYen as number;
   const annualOtherTaxableSalaryYen =
     compensation.annualOtherTaxableSalaryYen as number;
-  let monthlyEmploymentInsuranceWagesYen: number[] | null = null;
+  let monthlyEmploymentInsuranceWagesYen: (number | null)[] | null = null;
   if (
     compensation.monthlyEmploymentInsuranceWagesYen !== null &&
     compensation.monthlyEmploymentInsuranceWagesYen !== undefined
@@ -307,6 +309,7 @@ function parseCalculatedPlan(
     }
     monthlyEmploymentInsuranceWagesYen =
       compensation.monthlyEmploymentInsuranceWagesYen.map((monthly, index) => {
+        if (monthly === null) return null;
         assertSafeYenValue(
           monthly,
           `employment insurance wage month ${String(index + 1)}`,

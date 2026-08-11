@@ -225,7 +225,9 @@ describe("2026 fixed rule package", () => {
       salaryIncomeYen: 4_360_000,
       taxableIncomeYen: 3_320_000,
       nationalIncomeTaxYen: 236_500,
-      reconstructionIncomeTaxYen: 4_900,
+      reconstructionIncomeTaxYen: 4_966,
+      incomeTaxBeforeIdecoPreRoundedYen: 241_466,
+      incomeTaxBeforeIdecoYen: 241_400,
       annualTakeHomeYen: 5_758_600,
       averageMonthlyTakeHomeYen: 479_883,
     });
@@ -238,11 +240,13 @@ describe("2026 fixed rule package", () => {
     expect(result).toMatchObject({
       taxableIncomeBeforeIdecoYen: 3_320_000,
       nationalIncomeTaxBeforeIdecoYen: 236_500,
-      reconstructionIncomeTaxBeforeIdecoYen: 4_900,
+      reconstructionIncomeTaxBeforeIdecoYen: 4_966,
+      incomeTaxBeforeIdecoPreRoundedYen: 241_466,
       incomeTaxBeforeIdecoYen: 241_400,
       taxableIncomeAfterIdecoYen: 3_080_000,
       nationalIncomeTaxAfterIdecoYen: 210_500,
-      reconstructionIncomeTaxAfterIdecoYen: 4_400,
+      reconstructionIncomeTaxAfterIdecoYen: 4_420,
+      incomeTaxAfterIdecoPreRoundedYen: 214_920,
       incomeTaxAfterIdecoYen: 214_900,
       incomeTaxBenefitFromIdecoYen: 26_500,
     });
@@ -483,7 +487,7 @@ describe("2026 fixed rule package", () => {
     expect(calculateTakeHome(plan, member).pensionYen).toBe(146_400);
   });
 
-  it("applies the age-75 health boundary to salary and bonus", () => {
+  it("does not complete the age-75 transition year without later medical premiums", () => {
     const plan = manualPlan(6_000_000);
     plan.birthDate = "1951-06-02";
     plan.socialInsurance.mode = "kyokai-auto";
@@ -510,10 +514,21 @@ describe("2026 fixed rule package", () => {
       },
     ];
     expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "unsupported",
+      annualTakeHomeYen: null,
+      averageMonthlyTakeHomeYen: null,
+      unsupportedConditions: [
+        "2026年中の75歳到達後に必要な後期高齢者医療保険料は自動計算対象外です",
+      ],
+    });
+    plan.socialInsurance.mode = "manual";
+    plan.socialInsurance.standardRemunerationMode = "manual-total";
+    plan.socialInsurance.manual.annualHealthInsuranceYen = 240_000;
+    plan.socialInsurance.manual.annualCareInsuranceYen = 120_000;
+    expect(calculateTakeHome(plan, member)).toMatchObject({
       status: "complete",
-      healthInsuranceYen: 78_980,
-      additionalInsuranceYen: 805,
-      pensionYen: 0,
+      healthInsuranceYen: 240_000,
+      careInsuranceYen: 120_000,
     });
   });
 
@@ -539,7 +554,7 @@ describe("2026 fixed rule package", () => {
     });
   });
 
-  it("stops care insurance before the month containing age 65", () => {
+  it("does not complete the age-65 transition year without later care premiums", () => {
     const plan = manualPlan(6_000_000);
     plan.socialInsurance.mode = "kyokai-auto";
     plan.socialInsurance.employerPrefecture = "JP-13";
@@ -565,7 +580,23 @@ describe("2026 fixed rule package", () => {
       },
     ];
     plan.birthDate = "1961-06-02";
-    expect(calculateTakeHome(plan, member).careInsuranceYen).toBe(12_870);
+    expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "unsupported",
+      annualTakeHomeYen: null,
+      averageMonthlyTakeHomeYen: null,
+      unsupportedConditions: [
+        "2026年中の65歳到達後に必要な第1号介護保険料は自動計算対象外です",
+      ],
+    });
+    plan.socialInsurance.mode = "manual";
+    plan.socialInsurance.standardRemunerationMode = "manual-total";
+    plan.socialInsurance.manual.annualHealthInsuranceYen = 240_000;
+    plan.socialInsurance.manual.annualCareInsuranceYen = 120_000;
+    expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "complete",
+      healthInsuranceYen: 240_000,
+      careInsuranceYen: 120_000,
+    });
   });
 
   it("keeps resident tax explicitly uncomputed", () => {
