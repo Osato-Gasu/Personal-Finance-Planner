@@ -7,10 +7,12 @@ export type RuleDomain =
   | "social-insurance-income-deduction"
   | "ideco-income-deduction"
   | "health-insurance"
+  | "health-insurance-eligibility"
   | "care-insurance"
   | "care-insurance-eligibility"
   | "additional-insurance"
   | "pension"
+  | "pension-eligibility"
   | "employment-insurance"
   | "standard-remuneration"
   | "standard-bonus";

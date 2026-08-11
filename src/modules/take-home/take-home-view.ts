@@ -81,6 +81,18 @@ function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
     ["年間手取り", result.annualTakeHomeYen],
     ["平均月間手取り", result.averageMonthlyTakeHomeYen],
     ["iDeCo所得税軽減額", result.incomeTaxBenefitFromIdecoYen],
+    ["iDeCo控除なし課税所得", result.taxableIncomeBeforeIdecoYen],
+    ["iDeCo控除あり課税所得", result.taxableIncomeAfterIdecoYen],
+    ["iDeCo控除なし基準所得税", result.nationalIncomeTaxBeforeIdecoYen],
+    ["iDeCo控除あり基準所得税", result.nationalIncomeTaxAfterIdecoYen],
+    [
+      "iDeCo控除なし復興特別所得税",
+      result.reconstructionIncomeTaxBeforeIdecoYen,
+    ],
+    [
+      "iDeCo控除あり復興特別所得税",
+      result.reconstructionIncomeTaxAfterIdecoYen,
+    ],
   ];
   for (const [label, value] of rows)
     dl.append(node(document, "dt", label), node(document, "dd", yen(value)));
@@ -127,6 +139,17 @@ function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
     for (const warning of result.warnings)
       alert.append(node(document, "li", warning));
     section.append(alert);
+  }
+  if (result.unsupportedConditions.length > 0) {
+    const unsupported = node(document, "section");
+    unsupported.className = "unsupported-conditions";
+    unsupported.append(node(document, "h5", "未対応条件"));
+    const list = node(document, "ul");
+    for (const condition of result.unsupportedConditions) {
+      list.append(node(document, "li", condition));
+    }
+    unsupported.append(list);
+    section.append(unsupported);
   }
   if (result.appliedRules.length > 0) {
     const details = node(document, "details");
@@ -239,6 +262,10 @@ export function createTakeHomeRenderer(
             plan: createCalculatedTakeHomePlan({
               id: options.createId(),
               memberId: member.id,
+              birthDate: member.birthDate ?? null,
+              residencePrefecture:
+                (member.residencePrefecture as
+                  (typeof prefectures)[number][0] | undefined) ?? null,
             }),
           }),
         );
@@ -281,6 +308,35 @@ export function createTakeHomeRenderer(
         card.append(planActions);
         const form = node(document, "div");
         form.className = "form-grid take-home-form";
+        const planBirth = node(document, "label", "計算プランの生年月日");
+        const planBirthInput = node(document, "input");
+        planBirthInput.type = "date";
+        planBirthInput.value = plan.birthDate ?? "";
+        planBirthInput.addEventListener("change", () =>
+          update(plan, (draft) => {
+            draft.birthDate = planBirthInput.value || null;
+          }),
+        );
+        planBirth.append(planBirthInput);
+        const planResidence = node(
+          document,
+          "label",
+          "計算プランの居住都道府県",
+        );
+        const planResidenceSelect = node(document, "select");
+        planResidenceSelect.append(new Option("選択してください", ""));
+        for (const [code, name] of prefectures)
+          planResidenceSelect.append(new Option(name, code));
+        planResidenceSelect.value = plan.residencePrefecture ?? "";
+        planResidenceSelect.addEventListener("change", () =>
+          update(plan, (draft) => {
+            draft.residencePrefecture = planResidenceSelect.value
+              ? (planResidenceSelect.value as typeof draft.residencePrefecture)
+              : null;
+          }),
+        );
+        planResidence.append(planResidenceSelect);
+        form.append(planBirth, planResidence);
         form.append(
           numberInput(document, "対象年", plan.targetYear, (value) =>
             update(plan, (draft) => {
@@ -382,19 +438,32 @@ export function createTakeHomeRenderer(
           }),
         );
         employmentCategory.append(employmentCategorySelect);
-        form.append(
-          employmentCategory,
-          numberInput(
-            document,
-            "雇用保険対象賃金年額override",
-            plan.compensation.employmentInsuranceWageOverrideYen ?? 0,
-            (value) =>
-              update(plan, (draft) => {
-                draft.compensation.employmentInsuranceWageOverrideYen =
-                  value === 0 ? null : value;
-              }),
-          ),
-        );
+        form.append(employmentCategory);
+        if (
+          plan.inputMode === "annual" ||
+          plan.compensation.annualOtherTaxableSalaryYen > 0
+        ) {
+          for (let month = 1; month <= 12; month += 1) {
+            form.append(
+              numberInput(
+                document,
+                `${String(month)}月の雇用保険対象賃金（賞与除く）`,
+                plan.compensation.monthlyEmploymentInsuranceWagesYen?.[
+                  month - 1
+                ] ?? 0,
+                (value) =>
+                  update(plan, (draft) => {
+                    const wages =
+                      draft.compensation.monthlyEmploymentInsuranceWagesYen ??
+                      Array.from({ length: 12 }, () => 0);
+                    wages[month - 1] = value;
+                    draft.compensation.monthlyEmploymentInsuranceWagesYen =
+                      wages;
+                  }),
+              ),
+            );
+          }
+        }
         const insuranceMode = node(document, "label", "社会保険計算方法");
         const insuranceModeSelect = node(document, "select");
         insuranceModeSelect.append(

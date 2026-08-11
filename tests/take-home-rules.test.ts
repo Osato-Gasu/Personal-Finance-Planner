@@ -4,6 +4,7 @@ import {
   calculateTakeHome,
   nationalIncomeTaxYen2026,
   salaryIncomeYen2026,
+  socialInsuranceEligibilityMonths2026,
 } from "../src/domain/take-home-calculator";
 import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
 import { takeHomeRulePackage2026 } from "../src/rules/jp/take-home/manifest";
@@ -24,6 +25,8 @@ function manualPlan(salaryYen: number) {
   const plan = createCalculatedTakeHomePlan({
     id: "plan",
     memberId: member.id,
+    birthDate: member.birthDate,
+    residencePrefecture: "JP-13",
   });
   plan.compensation.annualTaxableSalaryYen = salaryYen;
   plan.socialInsurance.mode = "manual";
@@ -109,6 +112,68 @@ describe("2026 fixed rule package", () => {
     );
   });
 
+  it("rejects a missing grade even when both standard-remuneration arrays are shortened", () => {
+    const rules = structuredClone(takeHomeRulePackage2026);
+    Reflect.set(
+      rules.healthStandardRemunerationTable.value,
+      "lowerBoundsYen",
+      rules.healthStandardRemunerationTable.value.lowerBoundsYen.filter(
+        (_, index) => index !== 10,
+      ),
+    );
+    Reflect.set(
+      rules.healthStandardRemunerationTable.value,
+      "standardMonthlyValuesYen",
+      rules.healthStandardRemunerationTable.value.standardMonthlyValuesYen.filter(
+        (_, index) => index !== 10,
+      ),
+    );
+    expect(() => validateTakeHomeRulePackage(rules)).toThrow(
+      "official 2026 table",
+    );
+  });
+
+  it("rejects modified standard-remuneration boundaries and values", () => {
+    const boundary = structuredClone(takeHomeRulePackage2026);
+    Reflect.set(
+      boundary.pensionStandardRemunerationTable.value,
+      "lowerBoundsYen",
+      [
+        0,
+        92_000,
+        ...boundary.pensionStandardRemunerationTable.value.lowerBoundsYen.slice(
+          2,
+        ),
+      ],
+    );
+    expect(() => validateTakeHomeRulePackage(boundary)).toThrow(
+      "official 2026 table",
+    );
+    const value = structuredClone(takeHomeRulePackage2026);
+    Reflect.set(
+      value.healthStandardRemunerationTable.value,
+      "standardMonthlyValuesYen",
+      [
+        ...value.healthStandardRemunerationTable.value.standardMonthlyValuesYen.slice(
+          0,
+          49,
+        ),
+        1_400_000,
+      ],
+    );
+    expect(() => validateTakeHomeRulePackage(value)).toThrow(
+      "official 2026 table",
+    );
+  });
+
+  it("rejects a modified standard-remuneration official identity", () => {
+    const rules = structuredClone(takeHomeRulePackage2026);
+    rules.healthStandardRemunerationTable.metadata.id = "replacement";
+    expect(() => validateTakeHomeRulePackage(rules)).toThrow(
+      "official identity",
+    );
+  });
+
   it.each([
     [0, 0],
     [740_999, 0],
@@ -170,9 +235,26 @@ describe("2026 fixed rule package", () => {
     const plan = manualPlan(6_000_000);
     plan.deductions.annualIdecoContributionYen = 240_000;
     const result = calculateTakeHome(plan, member);
-    expect(result.incomeTaxBeforeIdecoYen).toBe(236_500);
-    expect(result.incomeTaxAfterIdecoYen).toBe(210_500);
-    expect(result.incomeTaxBenefitFromIdecoYen).toBe(26_000);
+    expect(result).toMatchObject({
+      taxableIncomeBeforeIdecoYen: 3_320_000,
+      nationalIncomeTaxBeforeIdecoYen: 236_500,
+      reconstructionIncomeTaxBeforeIdecoYen: 4_900,
+      incomeTaxBeforeIdecoYen: 241_400,
+      taxableIncomeAfterIdecoYen: 3_080_000,
+      nationalIncomeTaxAfterIdecoYen: 210_500,
+      reconstructionIncomeTaxAfterIdecoYen: 4_400,
+      incomeTaxAfterIdecoYen: 214_900,
+      incomeTaxBenefitFromIdecoYen: 26_500,
+    });
+  });
+
+  it("recalculates both iDeCo paths across the final 100-yen boundary", () => {
+    const plan = manualPlan(6_000_000);
+    plan.deductions.annualIdecoContributionYen = 1_000;
+    const result = calculateTakeHome(plan, member);
+    expect(result.incomeTaxBeforeIdecoYen).toBe(241_400);
+    expect(result.incomeTaxAfterIdecoYen).toBe(241_200);
+    expect(result.incomeTaxBenefitFromIdecoYen).toBe(200);
   });
 
   it("treats annual salary as bonus-inclusive without double counting", () => {
@@ -212,6 +294,10 @@ describe("2026 fixed rule package", () => {
     plan.socialInsurance.employerPrefecture = "JP-13";
     plan.socialInsurance.monthlyRemunerationYen = 300_000;
     plan.compensation.monthlyTaxableSalaryYen = 500_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
     const result = calculateTakeHome(plan, member);
     expect(result).toMatchObject({
       status: "complete",
@@ -238,6 +324,46 @@ describe("2026 fixed rule package", () => {
     );
   });
 
+  it("requires actual monthly employment-insurance wages in annual mode", () => {
+    const plan = manualPlan(6_000_000);
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "incomplete",
+      warnings: ["雇用保険の月別対象賃金（賞与を除く）が未入力です"],
+    });
+  });
+
+  it("uses month-specific employment wages, eligible bonuses, and statutory rounding", () => {
+    const plan = manualPlan(2_300_000);
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 200_000;
+    plan.compensation.annualOtherTaxableSalaryYen = 100_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = [
+      100_000, 100_000, 100_000, 200_000, 200_000, 200_000, 200_000, 200_000,
+      200_000, 200_000, 200_000, 200_000,
+    ];
+    plan.compensation.bonuses = [
+      {
+        id: "eligible",
+        paymentDate: "2026-01-31",
+        grossYen: 100_000,
+        socialInsuranceEligible: false,
+        employmentInsuranceEligible: true,
+      },
+      {
+        id: "not-eligible",
+        paymentDate: "2026-04-30",
+        grossYen: 100_000,
+        socialInsuranceEligible: false,
+        employmentInsuranceEligible: false,
+      },
+    ];
+    expect(calculateTakeHome(plan, member).employmentInsuranceYen).toBe(11_200);
+  });
+
   it("resets the health standard-bonus cap at the April fiscal boundary", () => {
     const plan = manualPlan(6_000_000);
     plan.socialInsurance.mode = "kyokai-auto";
@@ -246,6 +372,10 @@ describe("2026 fixed rule package", () => {
     plan.socialInsurance.employerPrefecture = "JP-13";
     plan.socialInsurance.monthlyRemunerationYen = 300_000;
     plan.socialInsurance.healthBonusPriorFiscalYearCumulativeYen = 5_630_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
     plan.compensation.bonuses = [
       {
         id: "april",
@@ -284,21 +414,158 @@ describe("2026 fixed rule package", () => {
     plan.socialInsurance.employerPrefecture = "JP-13";
     plan.socialInsurance.monthlyRemunerationYen = 300_000;
     plan.compensation.monthlyTaxableSalaryYen = 500_000;
-    const result = calculateTakeHome(plan, {
-      ...member,
-      birthDate: "1986-06-02",
-    });
-    expect(result.careInsuranceYen).toBe(17_010);
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    plan.compensation.bonuses = [
+      {
+        id: "before-care",
+        paymentDate: "2026-05-31",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+      {
+        id: "during-care",
+        paymentDate: "2026-06-30",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+    ];
+    plan.birthDate = "1986-06-02";
+    const result = calculateTakeHome(plan, member);
+    expect(result.careInsuranceYen).toBe(17_820);
   });
 
-  it("does not auto-calculate a member who turns 65 during 2026", () => {
+  it("resolves the 40, 65, 70, and 75 age boundaries by statutory month", () => {
+    expect(socialInsuranceEligibilityMonths2026("1986-06-02").care).toEqual([
+      6, 7, 8, 9, 10, 11, 12,
+    ]);
+    expect(socialInsuranceEligibilityMonths2026("1961-06-02").care).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+    expect(socialInsuranceEligibilityMonths2026("1956-06-02").pension).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+    expect(socialInsuranceEligibilityMonths2026("1951-06-02").health).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+  });
+
+  it("applies the age-70 pension boundary to salary and bonus", () => {
+    const plan = manualPlan(6_000_000);
+    plan.birthDate = "1956-06-02";
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    plan.compensation.bonuses = [
+      {
+        id: "before-loss-month",
+        paymentDate: "2026-05-31",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+      {
+        id: "loss-month",
+        paymentDate: "2026-06-30",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+    ];
+    expect(calculateTakeHome(plan, member).pensionYen).toBe(146_400);
+  });
+
+  it("applies the age-75 health boundary to salary and bonus", () => {
+    const plan = manualPlan(6_000_000);
+    plan.birthDate = "1951-06-02";
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    plan.compensation.bonuses = [
+      {
+        id: "before-loss-month",
+        paymentDate: "2026-05-31",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+      {
+        id: "loss-month",
+        paymentDate: "2026-06-30",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+    ];
+    expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "complete",
+      healthInsuranceYen: 78_980,
+      additionalInsuranceYen: 805,
+      pensionYen: 0,
+    });
+  });
+
+  it("does not infer kyokai or voluntary pension deductions above age limits", () => {
+    const age70 = manualPlan(6_000_000);
+    age70.birthDate = "1955-12-31";
+    age70.socialInsurance.mode = "kyokai-auto";
+    age70.socialInsurance.employerPrefecture = "JP-13";
+    age70.socialInsurance.monthlyRemunerationYen = 300_000;
+    age70.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    expect(calculateTakeHome(age70, member)).toMatchObject({
+      status: "complete",
+      pensionYen: 0,
+    });
+    const age75 = structuredClone(age70);
+    age75.birthDate = "1950-12-31";
+    expect(calculateTakeHome(age75, member)).toMatchObject({
+      status: "unsupported",
+      healthInsuranceYen: null,
+    });
+  });
+
+  it("stops care insurance before the month containing age 65", () => {
     const plan = manualPlan(6_000_000);
     plan.socialInsurance.mode = "kyokai-auto";
     plan.socialInsurance.employerPrefecture = "JP-13";
     plan.socialInsurance.monthlyRemunerationYen = 300_000;
-    expect(
-      calculateTakeHome(plan, { ...member, birthDate: "1961-06-02" }).status,
-    ).toBe("unsupported");
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    plan.compensation.bonuses = [
+      {
+        id: "before-care-end",
+        paymentDate: "2026-05-31",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+      {
+        id: "after-care-end",
+        paymentDate: "2026-06-30",
+        grossYen: 100_000,
+        socialInsuranceEligible: true,
+        employmentInsuranceEligible: false,
+      },
+    ];
+    plan.birthDate = "1961-06-02";
+    expect(calculateTakeHome(plan, member).careInsuranceYen).toBe(12_870);
   });
 
   it("keeps resident tax explicitly uncomputed", () => {
@@ -329,6 +596,16 @@ describe("2026 fixed rule package", () => {
     const plan = manualPlan(6_000_000);
     plan.socialInsurance.manual.annualPensionYen = null;
     expect(calculateTakeHome(plan, member).status).toBe("incomplete");
+  });
+
+  it("keeps unsupported social insurance distinct with a concrete condition", () => {
+    const plan = manualPlan(6_000_000);
+    plan.socialInsurance.mode = "unsupported-uncomputed";
+    const result = calculateTakeHome(plan, member);
+    expect(result.status).toBe("unsupported");
+    expect(result.unsupportedConditions).toEqual([
+      "社会保険の自動計算に対応しない保険者・加入条件です",
+    ]);
   });
 
   it("preserves a migrated legacy manual result", () => {

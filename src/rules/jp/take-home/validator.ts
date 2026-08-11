@@ -20,6 +20,36 @@ const EFFECTIVE_BASES = new Set([
   "assessment-year",
 ]);
 const RULE_STATUSES = new Set(["current", "scheduled", "retired"]);
+const HEALTH_STANDARD_LOWER_BOUNDS_2026 = [
+  0, 63_000, 73_000, 83_000, 93_000, 101_000, 107_000, 114_000, 122_000,
+  130_000, 138_000, 146_000, 155_000, 165_000, 175_000, 185_000, 195_000,
+  210_000, 230_000, 250_000, 270_000, 290_000, 310_000, 330_000, 350_000,
+  370_000, 395_000, 425_000, 455_000, 485_000, 515_000, 545_000, 575_000,
+  605_000, 635_000, 665_000, 695_000, 730_000, 770_000, 810_000, 855_000,
+  905_000, 955_000, 1_005_000, 1_055_000, 1_115_000, 1_175_000, 1_235_000,
+  1_295_000, 1_355_000,
+] as const;
+const HEALTH_STANDARD_VALUES_2026 = [
+  58_000, 68_000, 78_000, 88_000, 98_000, 104_000, 110_000, 118_000, 126_000,
+  134_000, 142_000, 150_000, 160_000, 170_000, 180_000, 190_000, 200_000,
+  220_000, 240_000, 260_000, 280_000, 300_000, 320_000, 340_000, 360_000,
+  380_000, 410_000, 440_000, 470_000, 500_000, 530_000, 560_000, 590_000,
+  620_000, 650_000, 680_000, 710_000, 750_000, 790_000, 830_000, 880_000,
+  930_000, 980_000, 1_030_000, 1_090_000, 1_150_000, 1_210_000, 1_270_000,
+  1_330_000, 1_390_000,
+] as const;
+const PENSION_STANDARD_LOWER_BOUNDS_2026 = [
+  0, 93_000, 101_000, 107_000, 114_000, 122_000, 130_000, 138_000, 146_000,
+  155_000, 165_000, 175_000, 185_000, 195_000, 210_000, 230_000, 250_000,
+  270_000, 290_000, 310_000, 330_000, 350_000, 370_000, 395_000, 425_000,
+  455_000, 485_000, 515_000, 545_000, 575_000, 605_000, 635_000,
+] as const;
+const PENSION_STANDARD_VALUES_2026 = [
+  88_000, 98_000, 104_000, 110_000, 118_000, 126_000, 134_000, 142_000, 150_000,
+  160_000, 170_000, 180_000, 190_000, 200_000, 220_000, 240_000, 260_000,
+  280_000, 300_000, 320_000, 340_000, 360_000, 380_000, 410_000, 440_000,
+  470_000, 500_000, 530_000, 560_000, 590_000, 620_000, 650_000,
+] as const;
 
 function opaque(value: unknown): unknown {
   return value;
@@ -166,6 +196,19 @@ function validateAscending(values: readonly number[], field: string): void {
   }
 }
 
+function validateExactTable(
+  actual: readonly number[],
+  expected: readonly number[],
+  field: string,
+): void {
+  if (
+    actual.length !== expected.length ||
+    actual.some((value, index) => value !== expected[index])
+  ) {
+    throw new Error(`${field} does not match the official 2026 table`);
+  }
+}
+
 export function validateTakeHomeRulePackage(rules: TakeHomeRulePackage): {
   ruleCount: number;
   prefectureCount: number;
@@ -219,6 +262,56 @@ export function validateTakeHomeRulePackage(rules: TakeHomeRulePackage): {
       "standard remuneration monthly values",
     );
   }
+  if (
+    rules.healthStandardRemunerationTable.metadata.id !==
+      "jp-health-standard-remuneration-table-2026" ||
+    rules.healthStandardRemunerationTable.metadata.contextKey !==
+      "health-insurance" ||
+    rules.healthStandardRemunerationTable.metadata.sourcePublisher !==
+      "全国健康保険協会" ||
+    !rules.healthStandardRemunerationTable.metadata.sourceUrls.includes(
+      "https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/premium_prefectures/r08/",
+    )
+  ) {
+    throw new Error(
+      "health standard remuneration official identity is invalid",
+    );
+  }
+  if (
+    rules.pensionStandardRemunerationTable.metadata.id !==
+      "jp-pension-standard-remuneration-table-2026" ||
+    rules.pensionStandardRemunerationTable.metadata.contextKey !==
+      "employees-pension" ||
+    rules.pensionStandardRemunerationTable.metadata.sourcePublisher !==
+      "日本年金機構" ||
+    !rules.pensionStandardRemunerationTable.metadata.sourceUrls.includes(
+      "https://www.nenkin.go.jp/service/kounen/hokenryo/hoshu/20150515-01.html",
+    )
+  ) {
+    throw new Error(
+      "pension standard remuneration official identity is invalid",
+    );
+  }
+  validateExactTable(
+    rules.healthStandardRemunerationTable.value.lowerBoundsYen,
+    HEALTH_STANDARD_LOWER_BOUNDS_2026,
+    "health standard remuneration lower bounds",
+  );
+  validateExactTable(
+    rules.healthStandardRemunerationTable.value.standardMonthlyValuesYen,
+    HEALTH_STANDARD_VALUES_2026,
+    "health standard remuneration values",
+  );
+  validateExactTable(
+    rules.pensionStandardRemunerationTable.value.lowerBoundsYen,
+    PENSION_STANDARD_LOWER_BOUNDS_2026,
+    "pension standard remuneration lower bounds",
+  );
+  validateExactTable(
+    rules.pensionStandardRemunerationTable.value.standardMonthlyValuesYen,
+    PENSION_STANDARD_VALUES_2026,
+    "pension standard remuneration values",
+  );
 
   const taxBrackets = rules.incomeTaxRules.find(
     (rule) => rule.metadata.domain === "national-income-tax-brackets",

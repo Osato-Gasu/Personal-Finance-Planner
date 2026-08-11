@@ -8,9 +8,15 @@ import {
   type StorageLike,
 } from "../src/data/storage-repository";
 import { migrateToCurrentState } from "../src/domain/migration";
+import { calculateBudgetSummary } from "../src/domain/budget";
 import { calculateTakeHome } from "../src/domain/take-home-calculator";
+import { resolveIncomeTarget } from "../src/domain/linked-value";
 import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
-import type { SchemaVersion2AppState } from "../src/domain/state";
+import {
+  parseAppState,
+  type AppState,
+  type SchemaVersion2AppState,
+} from "../src/domain/state";
 import { createFixtureState } from "./fixtures/state";
 
 class BytesStorage implements StorageLike {
@@ -57,6 +63,43 @@ function v2Fixture(): SchemaVersion2AppState {
     budget: structuredClone(current.budget),
     contributionSources: structuredClone(current.contributionSources),
   };
+}
+
+function completeCalculatedSelfPlan() {
+  const plan = createCalculatedTakeHomePlan({
+    id: "take-home-self",
+    memberId: "self",
+    birthDate: "1990-01-01",
+    residencePrefecture: "JP-13",
+  });
+  plan.compensation.annualTaxableSalaryYen = 6_000_000;
+  plan.socialInsurance.mode = "manual";
+  plan.socialInsurance.standardRemunerationMode = "manual-total";
+  plan.socialInsurance.manual = {
+    annualHealthInsuranceYen: 0,
+    annualCareInsuranceYen: 0,
+    annualAdditionalInsuranceYen: 0,
+    annualPensionYen: 0,
+    annualEmploymentInsuranceYen: 0,
+    annualOtherStatutoryDeductionYen: 0,
+  };
+  plan.residentTax.mode = "manual-annual";
+  plan.residentTax.annualResidentTaxYen = 0;
+  plan.residentTax.zeroYenConfirmed = true;
+  return plan;
+}
+
+function linkedCalculatedState(): AppState {
+  const state = createFixtureState();
+  const self = state.members[0];
+  if (!self) throw new Error("self member is missing");
+  state.members[0] = {
+    ...self,
+    birthDate: "1990-01-01",
+    residencePrefecture: "JP-13",
+  };
+  state.takeHomePlans[0] = completeCalculatedSelfPlan();
+  return state;
 }
 
 describe("schema version 3 migration and storage", () => {
@@ -153,6 +196,24 @@ describe("schema version 3 migration and storage", () => {
       repository.prepareImport(JSON.stringify(createFixtureState())).preview
         .schemaVersion,
     ).toBe(3);
+  });
+
+  it("normalizes pre-finding v3 calculated plans by snapshotting member identity", () => {
+    const state = linkedCalculatedState();
+    const plan = state.takeHomePlans[0];
+    if (!plan || plan.mode !== "calculated") throw new Error("plan is missing");
+    Reflect.deleteProperty(plan, "birthDate");
+    Reflect.deleteProperty(plan, "residencePrefecture");
+    Reflect.deleteProperty(
+      plan.compensation,
+      "monthlyEmploymentInsuranceWagesYen",
+    );
+    const normalized = parseAppState(JSON.parse(JSON.stringify(state)));
+    expect(normalized.takeHomePlans[0]).toMatchObject({
+      birthDate: "1990-01-01",
+      residencePrefecture: "JP-13",
+      compensation: { monthlyEmploymentInsuranceWagesYen: null },
+    });
   });
 
   it("leaves all storage bytes unchanged during import preview", () => {
@@ -353,6 +414,104 @@ describe("schema version 3 migration and storage", () => {
     expect(before).not.toContain("appliedRules");
     expect(before).not.toContain("socialInsuranceBasis");
   });
+
+  it("keeps calculated plan identity independent from later member profile changes", () => {
+    const state = createFixtureState();
+    const self = state.members[0];
+    if (!self) throw new Error("self member is missing");
+    state.members[0] = {
+      ...self,
+      birthDate: "1990-01-01",
+      residencePrefecture: "JP-13",
+    };
+    const plan = completeCalculatedSelfPlan();
+    plan.id = "identity-snapshot";
+    state.takeHomePlans.push(plan);
+    const store = new Store(state);
+    store.dispatch({
+      type: "update-member-profile",
+      memberId: "self",
+      birthDate: "1950-01-01",
+      residencePrefecture: "JP-47",
+    });
+    const retained = store
+      .getState()
+      .takeHomePlans.find((item) => item.id === plan.id);
+    expect(retained).toMatchObject({
+      birthDate: "1990-01-01",
+      residencePrefecture: "JP-13",
+    });
+  });
+
+  it.each([
+    [
+      "incomplete",
+      (plan: ReturnType<typeof completeCalculatedSelfPlan>) => {
+        plan.residentTax.mode = "unsupported-uncomputed";
+        plan.residentTax.annualResidentTaxYen = null;
+        plan.residentTax.zeroYenConfirmed = false;
+      },
+    ],
+    [
+      "unsupported",
+      (plan: ReturnType<typeof completeCalculatedSelfPlan>) => {
+        plan.socialInsurance.mode = "unsupported-uncomputed";
+      },
+    ],
+    [
+      "missing-rule",
+      (plan: ReturnType<typeof completeCalculatedSelfPlan>) => {
+        plan.targetYear = 2027;
+        plan.residentTax.assessmentYear = 2028;
+      },
+    ],
+  ])(
+    "persists a linked plan transition to %s as unresolved without zero conversion",
+    (expectedStatus, mutate) => {
+      const storage = new BytesStorage();
+      const repository = new StorageRepository(storage);
+      const state = linkedCalculatedState();
+      repository.save(state);
+      const writer = { save: vi.fn((next: AppState) => repository.save(next)) };
+      const listener = vi.fn();
+      const store = new Store(state, writer);
+      store.subscribe(listener);
+      const plan = structuredClone(completeCalculatedSelfPlan());
+      const member = state.members[0];
+      if (!member) throw new Error("self member is missing");
+      mutate(plan);
+      store.dispatch({
+        type: "update-take-home-plan",
+        planId: plan.id,
+        plan,
+      });
+      expect(writer.save).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(calculateTakeHome(plan, member).status).toBe(expectedStatus);
+      expect(
+        resolveIncomeTarget(store.getState(), "budget-income-self"),
+      ).toEqual({
+        status: "broken-link",
+        warning: `uncomputed-link:${expectedStatus}:take-home-self`,
+        sourceId: "take-home-self",
+      });
+      expect(calculateBudgetSummary(store.getState())).toMatchObject({
+        householdIncomeYen: null,
+        self: { incomeYen: null, unresolvedIncome: true },
+      });
+      const reloaded = repository.load();
+      if (!reloaded) throw new Error("reloaded state is missing");
+      expect(resolveIncomeTarget(reloaded, "budget-income-self").status).toBe(
+        "broken-link",
+      );
+      const imported = repository.prepareImport(
+        JSON.stringify(reloaded),
+      ).preview;
+      expect(resolveIncomeTarget(imported, "budget-income-self").status).toBe(
+        "broken-link",
+      );
+    },
+  );
 
   it("allows a safe negative take-home result instead of treating it as overflow", () => {
     const plan = createCalculatedTakeHomePlan({

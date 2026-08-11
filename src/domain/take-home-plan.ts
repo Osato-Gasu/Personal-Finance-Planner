@@ -22,6 +22,8 @@ export interface CompensationInput {
   monthlyNonTaxableCommutingYen: number;
   annualOtherTaxableSalaryYen: number;
   bonuses: BonusPayment[];
+  monthlyEmploymentInsuranceWagesYen: number[] | null;
+  /** @deprecated Annual totals cannot establish month-specific statutory bases. */
   employmentInsuranceWageOverrideYen: number | null;
 }
 
@@ -79,6 +81,8 @@ export interface CalculatedTakeHomePlan {
   memberId: string;
   targetYear: number;
   mode: "calculated";
+  birthDate: ISODate | null;
+  residencePrefecture: PrefectureCode | null;
   inputMode: "annual" | "monthly";
   compensation: CompensationInput;
   employment: EmploymentSettings;
@@ -158,6 +162,12 @@ export interface TakeHomeResult {
   incomeTaxBeforeIdecoYen: number | null;
   incomeTaxAfterIdecoYen: number | null;
   incomeTaxBenefitFromIdecoYen: number | null;
+  taxableIncomeBeforeIdecoYen: number | null;
+  taxableIncomeAfterIdecoYen: number | null;
+  nationalIncomeTaxBeforeIdecoYen: number | null;
+  nationalIncomeTaxAfterIdecoYen: number | null;
+  reconstructionIncomeTaxBeforeIdecoYen: number | null;
+  reconstructionIncomeTaxAfterIdecoYen: number | null;
   appliedRules: readonly AppliedRule[];
   socialInsuranceBasis: SocialInsuranceBasis;
   warnings: readonly string[];
@@ -243,6 +253,10 @@ function parseBonus(value: unknown, targetYear: number): BonusPayment {
 
 function parseCalculatedPlan(
   value: Record<string, unknown>,
+  profileFallback?: {
+    birthDate?: string | undefined;
+    residencePrefecture?: string | undefined;
+  },
 ): CalculatedTakeHomePlan {
   if (
     !Number.isSafeInteger(value.targetYear) ||
@@ -276,6 +290,30 @@ function parseCalculatedPlan(
     compensation.monthlyNonTaxableCommutingYen as number;
   const annualOtherTaxableSalaryYen =
     compensation.annualOtherTaxableSalaryYen as number;
+  let monthlyEmploymentInsuranceWagesYen: number[] | null = null;
+  if (
+    compensation.monthlyEmploymentInsuranceWagesYen !== null &&
+    compensation.monthlyEmploymentInsuranceWagesYen !== undefined
+  ) {
+    if (!Array.isArray(compensation.monthlyEmploymentInsuranceWagesYen)) {
+      throw new Error(
+        "monthlyEmploymentInsuranceWagesYen must be an array or null",
+      );
+    }
+    if (compensation.monthlyEmploymentInsuranceWagesYen.length !== 12) {
+      throw new Error(
+        "monthlyEmploymentInsuranceWagesYen must contain 12 months",
+      );
+    }
+    monthlyEmploymentInsuranceWagesYen =
+      compensation.monthlyEmploymentInsuranceWagesYen.map((monthly, index) => {
+        assertSafeYenValue(
+          monthly,
+          `employment insurance wage month ${String(index + 1)}`,
+        );
+        return monthly;
+      });
+  }
   if (!Array.isArray(compensation.bonuses))
     throw new Error("bonuses must be an array");
   const bonuses = compensation.bonuses.map((bonus) =>
@@ -389,11 +427,33 @@ function parseCalculatedPlan(
     deductions.annualOtherIncomeDeductionsYen,
     "annualOtherIncomeDeductionsYen",
   );
+  const rawBirthDate =
+    value.birthDate === undefined
+      ? (profileFallback?.birthDate ?? null)
+      : value.birthDate;
+  if (rawBirthDate !== null) {
+    if (typeof rawBirthDate !== "string")
+      throw new Error("plan birthDate is invalid");
+    assertIsoDate(rawBirthDate, "plan birthDate");
+  }
+  const rawResidencePrefecture =
+    value.residencePrefecture === undefined
+      ? (profileFallback?.residencePrefecture ?? null)
+      : value.residencePrefecture;
+  if (
+    rawResidencePrefecture !== null &&
+    (typeof rawResidencePrefecture !== "string" ||
+      !prefectureCodeSet.has(rawResidencePrefecture))
+  ) {
+    throw new Error("plan residencePrefecture is invalid");
+  }
   return {
     id: string(value.id, "plan id"),
     memberId: string(value.memberId, "plan memberId"),
     targetYear,
     mode: "calculated",
+    birthDate: rawBirthDate,
+    residencePrefecture: rawResidencePrefecture as PrefectureCode | null,
     inputMode: value.inputMode,
     compensation: {
       annualTaxableSalaryYen,
@@ -402,6 +462,7 @@ function parseCalculatedPlan(
       monthlyNonTaxableCommutingYen,
       annualOtherTaxableSalaryYen,
       bonuses,
+      monthlyEmploymentInsuranceWagesYen,
       employmentInsuranceWageOverrideYen: nullableYen(
         compensation.employmentInsuranceWageOverrideYen,
         "employmentInsuranceWageOverrideYen",
@@ -463,7 +524,13 @@ function parseCalculatedPlan(
   };
 }
 
-export function parseTakeHomePlan(value: unknown): TakeHomePlan {
+export function parseTakeHomePlan(
+  value: unknown,
+  profileFallback?: {
+    birthDate?: string | undefined;
+    residencePrefecture?: string | undefined;
+  },
+): TakeHomePlan {
   if (!isRecord(value)) throw new Error("take-home plan must be an object");
   if (value.mode === "legacy-manual") {
     if (value.targetYear !== null && !Number.isSafeInteger(value.targetYear)) {
@@ -484,10 +551,18 @@ export function parseTakeHomePlan(value: unknown): TakeHomePlan {
   }
   if (value.mode !== "calculated")
     throw new Error("take-home plan mode is invalid");
-  return parseCalculatedPlan(value);
+  return parseCalculatedPlan(value, profileFallback);
 }
 
 export function validateTakeHomePlan(plan: TakeHomePlan): void {
+  if (
+    plan.mode === "calculated" &&
+    (!Object.hasOwn(plan, "birthDate") ||
+      !Object.hasOwn(plan, "residencePrefecture") ||
+      !Object.hasOwn(plan.compensation, "monthlyEmploymentInsuranceWagesYen"))
+  ) {
+    throw new Error("calculated plan identity fields are required");
+  }
   parseTakeHomePlan(plan);
 }
 
@@ -495,12 +570,16 @@ export function createCalculatedTakeHomePlan(options: {
   id: string;
   memberId: string;
   targetYear?: number;
+  birthDate?: string | null;
+  residencePrefecture?: PrefectureCode | null;
 }): CalculatedTakeHomePlan {
   return {
     id: options.id,
     memberId: options.memberId,
     targetYear: options.targetYear ?? 2026,
     mode: "calculated",
+    birthDate: options.birthDate ?? null,
+    residencePrefecture: options.residencePrefecture ?? null,
     inputMode: "annual",
     compensation: {
       annualTaxableSalaryYen: 0,
@@ -509,6 +588,7 @@ export function createCalculatedTakeHomePlan(options: {
       monthlyNonTaxableCommutingYen: 0,
       annualOtherTaxableSalaryYen: 0,
       bonuses: [],
+      monthlyEmploymentInsuranceWagesYen: null,
       employmentInsuranceWageOverrideYen: null,
     },
     employment: {

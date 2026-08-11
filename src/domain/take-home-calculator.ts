@@ -19,9 +19,11 @@ import {
   careInsuranceRules2026,
   careInsuranceEligibility2026,
   employmentInsuranceRules2026,
+  healthInsuranceEligibility2026,
   healthInsuranceRules2026,
   healthStandardRemunerationTable,
   pensionRule2026,
+  pensionInsuranceEligibility2026,
   pensionStandardRemunerationTable,
   standardBonusRule2026,
   type StandardRemunerationTable,
@@ -178,35 +180,87 @@ function standardFrom(
   );
 }
 
-function careEligibilityMonths(birthDate: string): Set<number> | "turns-65" {
+function ageBoundaryDate(
+  birthDate: string,
+  age: number,
+  reachedOn: "birthday" | "day-before-birthday",
+): Date {
   const [year, month, day] = birthDate.split("-").map(Number) as [
     number,
     number,
     number,
   ];
-  const dayBefore40 = new Date(
+  return new Date(
     Date.UTC(
-      year + careInsuranceEligibility2026.value.minimumAge,
+      year + age,
       month - 1,
-      day - 1,
+      day - (reachedOn === "day-before-birthday" ? 1 : 0),
     ),
   );
-  const dayBefore65 = new Date(
-    Date.UTC(
-      year + careInsuranceEligibility2026.value.maximumAgeExclusive,
-      month - 1,
-      day - 1,
-    ),
-  );
-  if (dayBefore65.getUTCFullYear() === SUPPORT_YEAR) return "turns-65";
+}
+
+function monthsFromInclusiveUntilExclusive(
+  from: Date,
+  until: Date,
+): Set<number> {
   const result = new Set<number>();
-  for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
-    const start = new Date(Date.UTC(SUPPORT_YEAR, monthIndex, 1));
-    const end = new Date(Date.UTC(SUPPORT_YEAR, monthIndex + 1, 0));
-    if (dayBefore40 <= end && dayBefore65 > end && dayBefore65 > start)
-      result.add(monthIndex + 1);
+  const fromKey = from.getUTCFullYear() * 12 + from.getUTCMonth();
+  const untilKey = until.getUTCFullYear() * 12 + until.getUTCMonth();
+  for (let month = 1; month <= 12; month += 1) {
+    const key = SUPPORT_YEAR * 12 + month - 1;
+    if (key >= fromKey && key < untilKey) result.add(month);
   }
   return result;
+}
+
+function careEligibilityMonths(birthDate: string): Set<number> {
+  return monthsFromInclusiveUntilExclusive(
+    ageBoundaryDate(
+      birthDate,
+      careInsuranceEligibility2026.value.minimumAge,
+      careInsuranceEligibility2026.value.ageReachedOn,
+    ),
+    ageBoundaryDate(
+      birthDate,
+      careInsuranceEligibility2026.value.maximumAgeExclusive,
+      careInsuranceEligibility2026.value.ageReachedOn,
+    ),
+  );
+}
+
+function insurancePremiumMonths(
+  birthDate: string,
+  age: number,
+  lostOn: "birthday" | "day-before-birthday",
+): Set<number> {
+  return monthsFromInclusiveUntilExclusive(
+    new Date(Date.UTC(1900, 0, 1)),
+    ageBoundaryDate(birthDate, age, lostOn),
+  );
+}
+
+export function socialInsuranceEligibilityMonths2026(birthDate: string): {
+  health: readonly number[];
+  care: readonly number[];
+  pension: readonly number[];
+} {
+  return {
+    health: [
+      ...insurancePremiumMonths(
+        birthDate,
+        healthInsuranceEligibility2026.value.maximumAgeExclusive,
+        healthInsuranceEligibility2026.value.qualificationLostOn,
+      ),
+    ],
+    care: [...careEligibilityMonths(birthDate)],
+    pension: [
+      ...insurancePremiumMonths(
+        birthDate,
+        pensionInsuranceEligibility2026.value.maximumAgeExclusive,
+        pensionInsuranceEligibility2026.value.qualificationLostOn,
+      ),
+    ],
+  };
 }
 
 interface SocialResult {
@@ -219,16 +273,16 @@ interface SocialResult {
   basis: TakeHomeResult["socialInsuranceBasis"];
 }
 
-function automaticSocial(
-  plan: CalculatedTakeHomePlan,
-  member: Readonly<HouseholdMember>,
-): SocialResult | string {
+function automaticSocial(plan: CalculatedTakeHomePlan): SocialResult | string {
   const prefecture = plan.socialInsurance.employerPrefecture;
   if (!prefecture) return "事業所都道府県が未入力です";
-  if (!member.birthDate) return "生年月日が未入力です";
-  const careMonths = careEligibilityMonths(member.birthDate);
-  if (careMonths === "turns-65")
-    return "対象年中の65歳到達は自動計算対象外です";
+  if (!plan.birthDate) return "生年月日が未入力です";
+  const eligibility = socialInsuranceEligibilityMonths2026(plan.birthDate);
+  const careMonths = new Set(eligibility.care);
+  const healthMonths = new Set(eligibility.health);
+  const pensionMonths = new Set(eligibility.pension);
+  if (healthMonths.size === 0)
+    return "75歳以上の健康保険は協会けんぽ自動計算対象外です";
   if (
     plan.compensation.bonuses.filter((bonus) => bonus.socialInsuranceEligible)
       .length > standardBonusRule2026.value.maximumOrdinaryPaymentsPerYear
@@ -275,11 +329,13 @@ function automaticSocial(
     const healthRule = ruleOn(healthInsuranceRules2026, date);
     const careRule = ruleOn(careInsuranceRules2026, date);
     const additionalRule = ruleOn(additionalInsuranceRules2026, date);
-    health += employeeRounded(
-      healthStandard,
-      healthRule.value.fullRateNumeratorByPrefecture[prefecture],
-      healthRule.value.fullRateDenominator,
-    );
+    if (healthMonths.has(month)) {
+      health += employeeRounded(
+        healthStandard,
+        healthRule.value.fullRateNumeratorByPrefecture[prefecture],
+        healthRule.value.fullRateDenominator,
+      );
+    }
     if (careMonths.has(month)) {
       care += employeeRounded(
         healthStandard,
@@ -287,16 +343,20 @@ function automaticSocial(
         careRule.value.fullRateDenominator,
       );
     }
-    additional += employeeRounded(
-      healthStandard,
-      additionalRule.value.fullRateNumerator,
-      additionalRule.value.fullRateDenominator,
-    );
-    pension += employeeRounded(
-      pensionStandard,
-      pensionRule2026.value.fullRateNumerator,
-      pensionRule2026.value.fullRateDenominator,
-    );
+    if (healthMonths.has(month)) {
+      additional += employeeRounded(
+        healthStandard,
+        additionalRule.value.fullRateNumerator,
+        additionalRule.value.fullRateDenominator,
+      );
+    }
+    if (pensionMonths.has(month)) {
+      pension += employeeRounded(
+        pensionStandard,
+        pensionRule2026.value.fullRateNumerator,
+        pensionRule2026.value.fullRateDenominator,
+      );
+    }
     for (const rule of [healthRule, careRule, additionalRule])
       selected.set(rule.metadata.id, rule);
   }
@@ -329,22 +389,26 @@ function automaticSocial(
       additionalInsuranceRules2026,
       bonus.paymentDate,
     );
-    health += employeeRounded(
-      healthBase,
-      healthRule.value.fullRateNumeratorByPrefecture[prefecture],
-      10_000,
-    );
+    if (healthMonths.has(month)) {
+      health += employeeRounded(
+        healthBase,
+        healthRule.value.fullRateNumeratorByPrefecture[prefecture],
+        10_000,
+      );
+    }
     if (careMonths.has(month))
       care += employeeRounded(
         healthBase,
         careRule.value.fullRateNumerator,
         10_000,
       );
-    additional += employeeRounded(
-      healthBase,
-      additionalRule.value.fullRateNumerator,
-      10_000,
-    );
+    if (healthMonths.has(month)) {
+      additional += employeeRounded(
+        healthBase,
+        additionalRule.value.fullRateNumerator,
+        10_000,
+      );
+    }
     const already = pensionUsedByMonth.get(month) ?? 0;
     const pensionBase = Math.min(
       standardBonus,
@@ -354,11 +418,13 @@ function automaticSocial(
       ),
     );
     pensionUsedByMonth.set(month, already + pensionBase);
-    pension += employeeRounded(
-      pensionBase,
-      pensionRule2026.value.fullRateNumerator,
-      1000,
-    );
+    if (pensionMonths.has(month)) {
+      pension += employeeRounded(
+        pensionBase,
+        pensionRule2026.value.fullRateNumerator,
+        1000,
+      );
+    }
     bonusBasis.push({
       bonusId: bonus.id,
       paymentDate: bonus.paymentDate,
@@ -367,26 +433,20 @@ function automaticSocial(
       pensionStandardBonusYen: pensionBase,
     });
   }
-  const employmentOverride =
-    plan.compensation.employmentInsuranceWageOverrideYen;
-  const annualBonusGross = plan.compensation.bonuses.reduce(
-    (total, bonus) => total + bonus.grossYen,
-    0,
-  );
-  const annualEmploymentBase =
-    employmentOverride ??
-    (plan.inputMode === "annual"
-      ? plan.compensation.annualTaxableSalaryYen +
-        plan.compensation.annualNonTaxableCommutingYen -
-        annualBonusGross
-      : (plan.compensation.monthlyTaxableSalaryYen +
-          plan.compensation.monthlyNonTaxableCommutingYen) *
-        12);
-  if (annualEmploymentBase < 0) {
-    return "年収は登録した賞与合計以上である必要があります";
+  const monthlyEmploymentWages =
+    plan.compensation.monthlyEmploymentInsuranceWagesYen ??
+    (plan.inputMode === "monthly" &&
+    plan.compensation.annualOtherTaxableSalaryYen === 0
+      ? Array.from(
+          { length: 12 },
+          () =>
+            plan.compensation.monthlyTaxableSalaryYen +
+            plan.compensation.monthlyNonTaxableCommutingYen,
+        )
+      : null);
+  if (!monthlyEmploymentWages) {
+    return "雇用保険の月別対象賃金（賞与を除く）が未入力です";
   }
-  const baseMonthlyWage = Math.floor(annualEmploymentBase / 12);
-  const employmentBaseRemainder = annualEmploymentBase % 12;
   let employment = 0;
   for (let month = 1; month <= 12; month += 1) {
     const date = `2026-${String(month).padStart(2, "0")}-15`;
@@ -399,7 +459,7 @@ function automaticSocial(
       )
       .reduce((total, bonus) => total + bonus.grossYen, 0);
     employment += payrollRounded(
-      baseMonthlyWage + (month <= employmentBaseRemainder ? 1 : 0) + bonuses,
+      add([monthlyEmploymentWages[month - 1] ?? 0, bonuses], "employment wage"),
       rule.value.workerNumeratorByCategory[
         plan.employment.employmentInsuranceCategory
       ],
@@ -409,6 +469,8 @@ function automaticSocial(
   }
   for (const rule of [
     pensionRule2026,
+    healthInsuranceEligibility2026,
+    pensionInsuranceEligibility2026,
     healthStandardRemunerationTable,
     pensionStandardRemunerationTable,
     standardBonusRule2026,
@@ -462,6 +524,12 @@ function emptyResult(
     incomeTaxBeforeIdecoYen: null,
     incomeTaxAfterIdecoYen: null,
     incomeTaxBenefitFromIdecoYen: null,
+    taxableIncomeBeforeIdecoYen: null,
+    taxableIncomeAfterIdecoYen: null,
+    nationalIncomeTaxBeforeIdecoYen: null,
+    nationalIncomeTaxAfterIdecoYen: null,
+    reconstructionIncomeTaxBeforeIdecoYen: null,
+    reconstructionIncomeTaxAfterIdecoYen: null,
     appliedRules: [],
     socialInsuranceBasis: {
       employerPrefecture: null,
@@ -480,7 +548,12 @@ function taxableAndTax(
   social: number,
   ideco: number,
   other: number,
-): { taxable: number; tax: number } {
+): {
+  taxable: number;
+  nationalTax: number;
+  reconstructionTax: number;
+  combinedTax: number;
+} {
   const deduction = add(
     [basicDeductionYen2026(salaryIncome), social, ideco, other],
     "income deductions",
@@ -488,7 +561,21 @@ function taxableAndTax(
   const unit = taxableIncomeRounding2026.value.unitYen;
   const taxable =
     Math.floor(Math.max(0, salaryIncome - deduction) / unit) * unit;
-  return { taxable, tax: nationalIncomeTaxYen2026(taxable) };
+  const nationalTax = nationalIncomeTaxYen2026(taxable);
+  const reconstruction = reconstructionIncomeTax2026.value;
+  const combinedTax = Number(
+    ((BigInt(nationalTax) *
+      BigInt(reconstruction.rateDenominator + reconstruction.rateNumerator)) /
+      BigInt(reconstruction.rateDenominator) /
+      BigInt(reconstruction.finalPaymentRoundingUnitYen)) *
+      BigInt(reconstruction.finalPaymentRoundingUnitYen),
+  );
+  return {
+    taxable,
+    nationalTax,
+    reconstructionTax: Math.max(0, combinedTax - nationalTax),
+    combinedTax,
+  };
 }
 
 export function calculateTakeHome(
@@ -496,6 +583,9 @@ export function calculateTakeHome(
   member: Readonly<HouseholdMember>,
 ): TakeHomeResult {
   try {
+    if (plan.memberId !== member.id) {
+      return emptyResult(plan, "unsupported", "planと人物が一致しません");
+    }
     if (plan.mode === "legacy-manual") {
       const annual = checked(
         plan.manualAverageMonthlyTakeHomeYen * 12,
@@ -546,7 +636,11 @@ export function calculateTakeHome(
       );
     let social: SocialResult;
     if (plan.socialInsurance.mode === "unsupported-uncomputed") {
-      return emptyResult(plan, "incomplete", "社会保険料が未計算です");
+      return emptyResult(
+        plan,
+        "unsupported",
+        "社会保険の自動計算に対応しない保険者・加入条件です",
+      );
     }
     if (plan.socialInsurance.mode === "manual") {
       const manual = plan.socialInsurance.manual;
@@ -580,7 +674,7 @@ export function calculateTakeHome(
         },
       };
     } else {
-      const automatic = automaticSocial(plan, member);
+      const automatic = automaticSocial(plan);
       if (typeof automatic === "string")
         return emptyResult(
           plan,
@@ -627,16 +721,11 @@ export function calculateTakeHome(
       plan.deductions.annualIdecoContributionYen,
       plan.deductions.annualOtherIncomeDeductionsYen,
     );
-    const reconstruction = reconstructionIncomeTax2026.value;
-    const combinedTax = Number(
-      ((BigInt(afterIdeco.tax) *
-        BigInt(reconstruction.rateDenominator + reconstruction.rateNumerator)) /
-        BigInt(reconstruction.rateDenominator) /
-        BigInt(reconstruction.finalPaymentRoundingUnitYen)) *
-        BigInt(reconstruction.finalPaymentRoundingUnitYen),
+    const paidNationalTax = Math.min(
+      afterIdeco.nationalTax,
+      afterIdeco.combinedTax,
     );
-    const paidNationalTax = Math.min(afterIdeco.tax, combinedTax);
-    const reconstructionTax = combinedTax - paidNationalTax;
+    const reconstructionTax = afterIdeco.combinedTax - paidNationalTax;
     const annualGross = add(
       [
         annualSalary,
@@ -647,7 +736,7 @@ export function calculateTakeHome(
       "annual gross",
     );
     const deductions = add(
-      [combinedTax, residentTax, socialTotal],
+      [afterIdeco.combinedTax, residentTax, socialTotal],
       "statutory deductions",
     );
     const annualTakeHome = checkedSigned(
@@ -689,12 +778,18 @@ export function calculateTakeHome(
         annualGross === 0
           ? 0
           : Math.round((deductions / annualGross) * 10_000) / 100,
-      incomeTaxBeforeIdecoYen: beforeIdeco.tax,
-      incomeTaxAfterIdecoYen: afterIdeco.tax,
+      incomeTaxBeforeIdecoYen: beforeIdeco.combinedTax,
+      incomeTaxAfterIdecoYen: afterIdeco.combinedTax,
       incomeTaxBenefitFromIdecoYen: Math.max(
         0,
-        beforeIdeco.tax - afterIdeco.tax,
+        beforeIdeco.combinedTax - afterIdeco.combinedTax,
       ),
+      taxableIncomeBeforeIdecoYen: beforeIdeco.taxable,
+      taxableIncomeAfterIdecoYen: afterIdeco.taxable,
+      nationalIncomeTaxBeforeIdecoYen: beforeIdeco.nationalTax,
+      nationalIncomeTaxAfterIdecoYen: afterIdeco.nationalTax,
+      reconstructionIncomeTaxBeforeIdecoYen: beforeIdeco.reconstructionTax,
+      reconstructionIncomeTaxAfterIdecoYen: afterIdeco.reconstructionTax,
       appliedRules: [...rules, ...social.appliedRules],
       socialInsuranceBasis: social.basis,
       warnings: [
@@ -716,6 +811,9 @@ export function calculateTakeHome(
       ],
     };
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("missing rule")) {
+      return emptyResult(plan, "missing-rule", error.message);
+    }
     return emptyResult(
       plan,
       "out-of-range",

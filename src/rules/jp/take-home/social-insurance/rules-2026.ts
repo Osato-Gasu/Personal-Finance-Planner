@@ -83,6 +83,10 @@ const kyokaiAdditionalRatePage =
   "https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/003/";
 const pensionPage =
   "https://www.nenkin.go.jp/service/kounen/hokenryo/hoshu/20150515-01.html";
+const pensionAgeEligibilityPage =
+  "https://www.nenkin.go.jp/section/faq/kounen/hihokensha/20170801.html";
+const healthAgeEligibilityPage =
+  "https://www.nenkin.go.jp/service/kounen/tekiyo/hihokensha1/20150407-02.html";
 const pensionRoundingPage =
   "https://www.nenkin.go.jp/service/kounen/hokenryo/nofu/20121026.html";
 const bonusPage =
@@ -213,6 +217,30 @@ export const careInsuranceEligibility2026 = {
   },
 };
 
+export const healthInsuranceEligibility2026 = {
+  metadata: metadata({
+    id: "jp-kyokai-health-age-eligibility-2026",
+    domain: "health-insurance-eligibility",
+    contextKey: "kyokai:insured-person",
+    effectiveFrom: "2026-01-01",
+    effectiveTo: "2026-12-31",
+    effectiveBasis: "salary-month",
+    status: "current",
+    publishedAt: "2025-12-25",
+    sourceTitle: "75歳到達による健康保険の資格喪失",
+    sourceUrls: [healthAgeEligibilityPage],
+    sourcePublisher: "日本年金機構",
+    notes:
+      "75歳の誕生日当日に健康保険資格を喪失し、資格喪失月の前月分まで保険料が発生する。",
+  }),
+  value: {
+    maximumAgeExclusive: 75,
+    qualificationLostOn: "birthday" as const,
+    premiumThrough: "month-before-loss" as const,
+    exceptionalCoverage: "unsupported" as const,
+  },
+};
+
 export const additionalInsuranceRules2026: readonly RuleRecord<{
   fullRateNumerator: number;
   fullRateDenominator: number;
@@ -270,6 +298,30 @@ export const pensionRule2026 = {
       "保険料率18.3%、労使折半。給与控除時は50銭以下切捨て、50銭超切上げ。",
   }),
   value: { fullRateNumerator: 183, fullRateDenominator: 1000 },
+} as const;
+
+export const pensionInsuranceEligibility2026 = {
+  metadata: metadata({
+    id: "jp-employees-pension-age-eligibility-2026",
+    domain: "pension-eligibility",
+    contextKey: "employees-pension:general",
+    effectiveFrom: "2026-01-01",
+    effectiveTo: "2026-12-31",
+    effectiveBasis: "salary-month",
+    status: "current",
+    publishedAt: "2025-09-01",
+    sourceTitle: "70歳到達による厚生年金保険の資格喪失",
+    sourceUrls: [pensionAgeEligibilityPage],
+    sourcePublisher: "日本年金機構",
+    notes:
+      "70歳到達日（誕生日の前日）に被保険者資格を喪失する。高齢任意加入は自動計算対象外。",
+  }),
+  value: {
+    maximumAgeExclusive: 70,
+    qualificationLostOn: "day-before-birthday" as const,
+    premiumThrough: "month-before-loss" as const,
+    exceptionalCoverage: "unsupported" as const,
+  },
 } as const;
 
 export const employmentInsuranceRules2026: readonly RuleRecord<{
@@ -432,10 +484,12 @@ export const standardBonusRule2026 = {
 
 export const socialInsuranceRules2026 = [
   ...healthInsuranceRules2026,
+  healthInsuranceEligibility2026,
   ...careInsuranceRules2026,
   careInsuranceEligibility2026,
   ...additionalInsuranceRules2026,
   pensionRule2026,
+  pensionInsuranceEligibility2026,
   ...employmentInsuranceRules2026,
   healthStandardRemunerationTable,
   pensionStandardRemunerationTable,

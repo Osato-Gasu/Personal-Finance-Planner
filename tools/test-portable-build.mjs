@@ -154,13 +154,24 @@ try {
 
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("button", { name: "2026年計算プランを作成" }).click();
-  await page.getByLabel("生年月日").fill("1990-01-01");
-  await page.getByLabel("生年月日").press("Tab");
+  await page.getByLabel("生年月日", { exact: true }).fill("1990-01-01");
+  await page.getByLabel("生年月日", { exact: true }).press("Tab");
+  await page.getByLabel("計算プランの生年月日").fill("1990-01-01");
+  await page.getByLabel("計算プランの生年月日").press("Tab");
+  await page.getByLabel("計算プランの居住都道府県").selectOption("JP-13");
   await page.getByLabel("年間課税給与（賞与を含む）").fill("6000000");
   await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
   await page.getByLabel("事業所都道府県").selectOption("JP-13");
   await page.getByLabel("月額報酬（標準報酬推定用）").fill("300000");
   await page.getByLabel("月額報酬（標準報酬推定用）").press("Tab");
+  for (let month = 1; month <= 12; month += 1) {
+    const wage = page.getByLabel(
+      `${String(month)}月の雇用保険対象賃金（賞与除く）`,
+      { exact: true },
+    );
+    await wage.fill("500000");
+    await wage.press("Tab");
+  }
   await page.getByLabel("住民税年額を入力する").check();
   await page.getByLabel("住民税年額", { exact: true }).fill("0");
   await page.getByLabel("住民税年額", { exact: true }).press("Tab");
@@ -188,6 +199,16 @@ try {
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await assertContains(page.getByTestId("household-income"), "439,597円");
   await page.getByRole("link", { name: "手取り計算" }).click();
+  await page
+    .getByLabel("社会保険計算方法")
+    .selectOption("unsupported-uncomputed");
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await assertContains(page.locator(".take-home-result"), "未対応条件");
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await assertContains(page.getByTestId("household-income"), "未計算");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
   await page.getByLabel("年間課税給与（賞与を含む）").fill("6100000");
   await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
   await page.getByRole("button", { name: "賞与を追加" }).click();
@@ -439,7 +460,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=82, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=88, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, unsupportedCondition=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();

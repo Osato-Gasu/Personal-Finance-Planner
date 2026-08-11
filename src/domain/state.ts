@@ -493,11 +493,6 @@ function validateCurrentMembersAndIncome(state: AppState): void {
         throw new Error("active link source is missing");
       if (plan.memberId !== target.memberId)
         throw new Error("active link source and target members must match");
-      const member = state.members.find(
-        (candidate) => candidate.id === plan.memberId,
-      );
-      if (!member || calculateTakeHome(plan, member).status !== "complete")
-        throw new Error("active link requires a complete take-home result");
       if (activeTargets.has(link.targetId))
         throw new Error("only one active link is allowed for a target");
       activeTargets.add(link.targetId);
@@ -848,6 +843,8 @@ function parseBudget(value: unknown): BudgetState {
 export function parseAppState(value: unknown): AppState {
   if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION)
     throw new Error("unsupported schema version");
+  const members = parseMembers(value, true);
+  const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
     schemaVersion: 3,
     activeRoute: (() => {
@@ -858,8 +855,14 @@ export function parseAppState(value: unknown): AppState {
         throw new Error("activeRoute is invalid");
       return value.activeRoute as RouteId;
     })(),
-    members: parseMembers(value, true),
-    takeHomePlans: requireArray(value, "takeHomePlans").map(parseTakeHomePlan),
+    members,
+    takeHomePlans: requireArray(value, "takeHomePlans").map((plan) => {
+      const memberId =
+        isRecord(plan) && typeof plan.memberId === "string"
+          ? plan.memberId
+          : "";
+      return parseTakeHomePlan(plan, memberProfiles.get(memberId));
+    }),
     incomeTargets: parseIncomeTargets(value),
     links: parseLinks(value),
     contributionSources: parseContributions(value),
