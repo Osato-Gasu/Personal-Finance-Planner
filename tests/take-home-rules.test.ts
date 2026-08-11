@@ -458,7 +458,7 @@ describe("2026 fixed rule package", () => {
     ]);
   });
 
-  it("applies the age-70 pension boundary to salary and bonus", () => {
+  it("does not expose a partial automatic result at the age-70 pension boundary", () => {
     const plan = manualPlan(6_000_000);
     plan.birthDate = "1956-06-02";
     plan.socialInsurance.mode = "kyokai-auto";
@@ -484,7 +484,14 @@ describe("2026 fixed rule package", () => {
         employmentInsuranceEligible: false,
       },
     ];
-    expect(calculateTakeHome(plan, member).pensionYen).toBe(146_400);
+    expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "unsupported",
+      pensionYen: null,
+      statutoryDeductionsYen: null,
+      annualTakeHomeYen: null,
+      averageMonthlyTakeHomeYen: null,
+      unsupportedConditions: [expect.stringContaining("介護保険第1号被保険者")],
+    });
   });
 
   it("does not complete the age-75 transition year without later medical premiums", () => {
@@ -532,7 +539,7 @@ describe("2026 fixed rule package", () => {
     });
   });
 
-  it("does not infer kyokai or voluntary pension deductions above age limits", () => {
+  it("does not infer a first-category care premium for people already aged 65 to 74", () => {
     const age70 = manualPlan(6_000_000);
     age70.birthDate = "1955-12-31";
     age70.socialInsurance.mode = "kyokai-auto";
@@ -543,8 +550,21 @@ describe("2026 fixed rule package", () => {
       () => 500_000,
     );
     expect(calculateTakeHome(age70, member)).toMatchObject({
-      status: "complete",
-      pensionYen: 0,
+      status: "unsupported",
+      healthInsuranceYen: null,
+      careInsuranceYen: null,
+      pensionYen: null,
+      statutoryDeductionsYen: null,
+      annualTakeHomeYen: null,
+      averageMonthlyTakeHomeYen: null,
+      unsupportedConditions: [
+        expect.stringContaining(
+          "介護保険第1号被保険者の保険料は自動計算対象外",
+        ),
+      ],
+      warnings: [
+        expect.stringContaining("第1号介護保険料を0円として扱っていません"),
+      ],
     });
     const age75 = structuredClone(age70);
     age75.birthDate = "1950-12-31";
@@ -585,7 +605,9 @@ describe("2026 fixed rule package", () => {
       annualTakeHomeYen: null,
       averageMonthlyTakeHomeYen: null,
       unsupportedConditions: [
-        "2026年中の65歳到達後に必要な第1号介護保険料は自動計算対象外です",
+        expect.stringContaining(
+          "介護保険第1号被保険者の保険料は自動計算対象外",
+        ),
       ],
     });
     plan.socialInsurance.mode = "manual";
@@ -596,6 +618,91 @@ describe("2026 fixed rule package", () => {
       status: "complete",
       healthInsuranceYen: 240_000,
       careInsuranceYen: 120_000,
+    });
+  });
+
+  it.each([
+    ["2025年末に65歳到達", "1961-01-01"],
+    ["2026年初日に65歳到達", "1961-01-02"],
+    ["66歳", "1960-01-02"],
+    ["69歳", "1957-01-02"],
+    ["70歳", "1956-01-02"],
+    ["74歳", "1952-01-02"],
+  ])("returns unsupported for %s in kyokai-auto mode", (_label, birthDate) => {
+    const plan = manualPlan(6_000_000);
+    plan.birthDate = birthDate;
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    const result = calculateTakeHome(plan, member);
+    expect(result).toMatchObject({
+      status: "unsupported",
+      healthInsuranceYen: null,
+      careInsuranceYen: null,
+      pensionYen: null,
+      statutoryDeductionsYen: null,
+      annualTakeHomeYen: null,
+      averageMonthlyTakeHomeYen: null,
+    });
+    expect(result.unsupportedConditions.join("\n")).toContain(
+      "介護保険第1号被保険者の保険料は自動計算対象外",
+    );
+    expect(result.warnings.join("\n")).toContain(
+      "第1号介護保険料を0円として扱っていません",
+    );
+    expect(result.warnings.join("\n")).toContain(
+      "社会保険計算方法を年額手入力へ切り替え",
+    );
+  });
+
+  it("keeps a person below age 65 throughout 2026 in automatic calculation", () => {
+    const plan = manualPlan(6_000_000);
+    plan.birthDate = "1962-01-02";
+    plan.socialInsurance.mode = "kyokai-auto";
+    plan.socialInsurance.employerPrefecture = "JP-13";
+    plan.socialInsurance.monthlyRemunerationYen = 300_000;
+    plan.compensation.monthlyEmploymentInsuranceWagesYen = Array.from(
+      { length: 12 },
+      () => 500_000,
+    );
+    expect(calculateTakeHome(plan, member).status).toBe("complete");
+  });
+
+  it("uses a fully entered manual first-category care premium exactly once", () => {
+    const withoutCare = manualPlan(1_000_000);
+    withoutCare.birthDate = "1956-01-02";
+    const withCare = structuredClone(withoutCare);
+    withCare.socialInsurance.manual.annualCareInsuranceYen = 120_000;
+    const withoutCareResult = calculateTakeHome(withoutCare, member);
+    const withCareResult = calculateTakeHome(withCare, member);
+    expect(withCareResult).toMatchObject({
+      status: "complete",
+      careInsuranceYen: 120_000,
+    });
+    expect(withoutCareResult.statutoryDeductionsYen).not.toBeNull();
+    expect(withCareResult.statutoryDeductionsYen).toBe(
+      (withoutCareResult.statutoryDeductionsYen ?? 0) + 120_000,
+    );
+    expect(withCareResult.annualTakeHomeYen).toBe(
+      (withoutCareResult.annualTakeHomeYen ?? 0) - 120_000,
+    );
+  });
+
+  it("keeps a 65-to-74 manual plan incomplete while a required premium is missing", () => {
+    const plan = manualPlan(6_000_000);
+    plan.birthDate = "1956-01-02";
+    plan.socialInsurance.manual.annualCareInsuranceYen = null;
+    expect(calculateTakeHome(plan, member)).toMatchObject({
+      status: "incomplete",
+      careInsuranceYen: null,
+      statutoryDeductionsYen: null,
+      annualTakeHomeYen: null,
+      averageMonthlyTakeHomeYen: null,
+      warnings: [expect.stringContaining("手入力の社会保険料に未入力")],
     });
   });
 

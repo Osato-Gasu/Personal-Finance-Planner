@@ -294,15 +294,6 @@ function automaticSocial(plan: CalculatedTakeHomePlan): SocialResult | string {
   if (
     reachesAgeDuringSupportYear(
       plan.birthDate,
-      careInsuranceEligibility2026.value.maximumAgeExclusive,
-      careInsuranceEligibility2026.value.ageReachedOn,
-    )
-  ) {
-    return "2026年中の65歳到達後に必要な第1号介護保険料は自動計算対象外です";
-  }
-  if (
-    reachesAgeDuringSupportYear(
-      plan.birthDate,
       healthInsuranceEligibility2026.value.maximumAgeExclusive,
       healthInsuranceEligibility2026.value.qualificationLostOn,
     )
@@ -311,6 +302,15 @@ function automaticSocial(plan: CalculatedTakeHomePlan): SocialResult | string {
   }
   if (healthMonths.size === 0)
     return "75歳以上の健康保険は協会けんぽ自動計算対象外です";
+  const careFirstCategoryStart = ageBoundaryDate(
+    plan.birthDate,
+    careInsuranceEligibility2026.value.maximumAgeExclusive,
+    careInsuranceEligibility2026.value.ageReachedOn,
+  );
+  const supportYearEnd = new Date(Date.UTC(SUPPORT_YEAR, 11, 31));
+  if (careFirstCategoryStart <= supportYearEnd) {
+    return "65～74歳の介護保険第1号被保険者の保険料は自動計算対象外です。第1号介護保険料を0円として扱っていません。社会保険計算方法を年額手入力へ切り替え、項目別に入力してください";
+  }
   if (
     plan.compensation.bonuses.filter((bonus) => bonus.socialInsuranceEligible)
       .length > standardBonusRule2026.value.maximumOrdinaryPaymentsPerYear

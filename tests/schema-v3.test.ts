@@ -605,17 +605,26 @@ describe("schema version 3 migration and storage", () => {
       expect(resolveIncomeTarget(reloaded, "budget-income-self").status).toBe(
         "broken-link",
       );
-      const imported = repository.prepareImport(
-        JSON.stringify(reloaded),
-      ).preview;
-      expect(resolveIncomeTarget(imported, "budget-income-self").status).toBe(
+      const prepared = repository.prepareImport(JSON.stringify(reloaded));
+      expect(
+        resolveIncomeTarget(prepared.preview, "budget-income-self").status,
+      ).toBe("broken-link");
+      const committed = repository.commitImport(prepared);
+      expect(resolveIncomeTarget(committed, "budget-income-self").status).toBe(
         "broken-link",
       );
+      expect(
+        resolveIncomeTarget(
+          repository.load() ?? committed,
+          "budget-income-self",
+        ).status,
+      ).toBe("broken-link");
     },
   );
 
   it.each([
     ["65", "1961-06-02", "第1号介護保険料"],
+    ["70", "1956-01-02", "介護保険第1号被保険者"],
     ["75", "1951-06-02", "後期高齢者医療保険料"],
   ])(
     "keeps a linked age-%s transition unresolved through save, reload, and import",

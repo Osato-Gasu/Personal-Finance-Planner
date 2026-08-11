@@ -310,6 +310,58 @@ try {
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
   await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await page.getByRole("button", { name: "家計連携を解除" }).click();
+  await page.getByLabel("計算プランの生年月日").fill("1956-01-02");
+  await page.getByLabel("計算プランの生年月日").press("Tab");
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await assertContains(
+    page.locator(".take-home-result"),
+    "介護保険第1号被保険者の保険料は自動計算対象外",
+  );
+  await assertContains(
+    page.locator(".take-home-result"),
+    "第1号介護保険料を0円として扱っていません",
+  );
+  await assertContains(
+    page.locator(".take-home-result"),
+    "社会保険計算方法を年額手入力へ切り替え",
+  );
+  assert.equal(
+    await page.getByRole("button", { name: "家計の月間手取りへ連携" }).count(),
+    0,
+  );
+  await page.getByLabel("社会保険計算方法").selectOption("manual");
+  for (const [label, value] of [
+    ["健康保険年額", "240000"],
+    ["介護保険年額", "120000"],
+    ["子ども・子育て支援金年額", "1000"],
+    ["厚生年金年額", "1"],
+    ["雇用保険年額", "30000"],
+  ]) {
+    await page.getByLabel(label).fill(value);
+    await page.getByLabel(label).press("Tab");
+  }
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await assertContains(page.locator(".take-home-result"), "120,000円");
+  await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  assert.ok(
+    !(await page.getByTestId("household-income").textContent())?.includes(
+      "未計算",
+    ),
+  );
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await assertContains(page.getByTestId("household-income"), "未計算");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.reload({ waitUntil: "load" });
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await assertContains(
+    page.locator(".take-home-result"),
+    "介護保険第1号被保険者",
+  );
   await page.getByLabel("計算プランの生年月日").fill("1961-06-02");
   await page.getByLabel("計算プランの生年月日").press("Tab");
   await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
@@ -583,7 +635,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=112, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=128, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();
