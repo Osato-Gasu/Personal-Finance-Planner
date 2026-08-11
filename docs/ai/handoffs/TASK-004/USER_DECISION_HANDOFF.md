@@ -1,65 +1,33 @@
----
-task_id: TASK-004
-title: 手取り計算ベータ
-status: needs_user_decision
-route: TWO_SESSION_FAST
-priority: high
-spec_revision: 2
-spec_status: accepted
-current_phase: user_decision
-current_role_id: USER
-next_actor: USER
-next_role: USER
-assigned_model: none
-assigned_effort: none
-session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-004/USER_DECISION_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: optional
-claude_implementation_review_recommendation: optional
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_requested
-claude_implementation_review_status: not_requested
-base_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
-base_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
-review_stage: implementation
-changes_requested_cycles: 2
-implementation_review_attempt: 2
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
-reviewed_spec_revision: 2
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: ChatGPT
-provider_substitution: none
+# RELAY HANDOFF — TASK-004
 
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
-updated_at: 2026-08-12
----
-
-# TASK-004 — 手取り計算ベータ
+- relay_schema: 2
+- task_id: TASK-004
+- decision: NEEDS_USER_DECISION
+- source_decision: CHANGES_REQUESTED
+- changes_requested_cycles: 2
+- relay_recipient: USER
+- relay_recipient_role: USER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-004-take-home-beta
+- reviewed_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- candidate_commit: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- reviewed_handoff_head: 2419ffe97bc1cec9387452d203811a6b6608b0df
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: user_decision
+- next_actor: USER
+- next_role: USER
+- model: none
+- effort: none
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-004-take-home-beta
+- resolved_commit: 2419ffe97bc1cec9387452d203811a6b6608b0df
+- next_action_blob: 56043090978b65df9abcf6db94831e8c1a71c86d
+- handoff_blob: 780b29b855bf121d56cdf021523120dd7b95b423
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- implementation_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 
 ## Purpose
 
@@ -109,6 +77,21 @@ updated_at: 2026-08-12
 - backend、cloud同期、runtime CDN、runtime外部API
 - main merge、tag、release、配布
 
+## Required changes
+
+- FINDING-004-R2-08 [MAJOR] src/domain/take-home-calculator.ts::taxableAndTax; TakeHomeResult reconstruction fields; tests/take-home-rules.test.ts: 復興特別所得税額を法定の1円単位額として保持せず、所得税及び復興特別所得税の最終100円未満切捨て後総額から基準所得税を引いた残差として表示している。 Evidence: candidateは基準所得税236,500円の例でreconstructionIncomeTaxYenを4,900円、iDeCo後210,500円の例で4,400円としている。公式計算はそれぞれfloor(236,500×2.1%)=4,966円、floor(210,500×2.1%)=4,420円で、その後に所得税等の合計241,466円／214,920円を100円未満切捨てして241,400円／214,900円とする。 Impact: 年間控除総額とiDeCo最終差額は合っていても、復興特別所得税の内訳、控除なし／あり比較、法定端数表示が誤る。税計算と端数は緩和禁止領域である。 Required: 控除なし／ありの双方で基準所得税、1円未満切捨て後の復興特別所得税、100円未満切捨て後の所得税等総額を別フィールドとして保持する。reconstructionIncomeTaxYen系は4,966円／4,420円を表示し、手取り控除とincomeTaxBefore/AfterIdecoYenには241,400円／214,900円を使う。1円端数と最終100円端数を独立検証するgolden testを追加する。
+- FINDING-004-R2-09 [MAJOR] src/domain/take-home-calculator.ts::automaticSocial; social-insurance age-transition result-state tests: 対象年中に65歳または75歳へ到達して自動計算対象の保険制度が切り替わるplanでも、切替前の協会けんぽ／介護保険料だけを計算して年間結果をcompleteとしている。 Evidence: healthMonthsが0件のときだけ75歳以上をunsupportedとし、1～5月だけ残る人は6月以降の後期高齢者医療保険料を持たないままcompleteになる。testも1951-06-02生まれをcompleteとしている。65歳到達時も第2号介護保険料を到達月前で停止するが、65歳以降の第1号介護保険料を計算・手入力要求しない。 Impact: 未計算の法定保険料を0円相当として年間手取りを完成扱いし、手取りを過大表示する。対象者・対象年月、未計算状態、社会保険計算は緩和禁止領域である。 Required: 年途中に自動計算対象外制度へ移行する場合は、移行後保険料のmanual入力を要求して不足中はincomplete、または年間plan全体をunsupportedとする。少なくとも65歳到達年と75歳到達年を、移行後保険料なしでcompleteにしない。移行月、給与・賞与、manual補完、家計link拒否をgolden／portable testへ追加する。
+- FINDING-004-R2-10 [MAJOR] src/modules/take-home/take-home-view.ts monthly employment wage inputs; CompensationInput completeness: 月別雇用保険対象賃金がnullの状態で1か月分だけ編集すると、残り11か月を未入力ではなく0円として自動保存し、計算をcompleteへ進め得る。 Evidence: UIはnull時も12入力を0表示し、最初のchangeでArray.from({length:12},()=>0)を生成して編集月だけ上書きする。parserは12個の非負整数であれば受理するため、未操作月と明示0円を区別できない。 Impact: 入力不足を0円で補完しない要件に反し、雇用保険料と年間手取りを過少控除・過大表示する。 Required: 各月をnumber|nullで保持する、または12か月すべての明示確認を別状態で保持し、未操作月を0円へ変換しない。全月が明示入力済みになるまでincompleteとする。1月だけ編集、明示0円月、全月入力、reload/importのunit／portable testを追加する。
+- FINDING-004-R2-11 [MAJOR] src/modules/take-home/take-home-view.ts::resultTable and manual/auto deduction UI: 必須の控除内訳とiDeCo比較を結果画面へ完全表示していない。その他法定控除、法定控除合計、控除率、iDeCo控除なし／ありの所得税等総額が欠落する。 Evidence: TakeHomeResultにはotherStatutoryDeductionYen、statutoryDeductionsYen、deductionRatePercent、incomeTaxBeforeIdecoYen、incomeTaxAfterIdecoYenがあるが、resultTableのrowsへ含まれない。またその他法定控除入力はmanual社会保険modeでだけ表示され、manualからautoへ切り替えても保存値は残って計算へ加算されるため、画面に見えない控除が発生する。 Impact: 年間手取りとの差額を利用者が検証できず、概算画面の控除内訳、控除率、iDeCo控除なし／あり比較という必須受入条件を満たさない。 Required: その他法定控除、法定控除合計、控除率、iDeCo控除なし／ありの所得税等総額と差額を表示する。その他法定控除をautoでも明示編集可能にするか、mode変更時にユーザー確認付きで0へ戻し、非表示の保存値を計算へ使わない。360px、keyboard、manual→auto、reloadのportable assertionを追加する。
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
+
 ## Acceptance criteria
 
 - REQUIREMENTS_DEFINED relayのname、SHA-256、bytes、schema、route_result、recipient identityを検証し、TASK-004、CODEX_HANDOFF、CURRENT_STATE、NEXT_ACTION、BACKLOG/Progressをimplementation/Codex/5.6 Sol/highへtransactionalに同期する
@@ -154,28 +137,10 @@ updated_at: 2026-08-12
 - PowerShell 7 governance、PowerShell 7 product identity smoke、PowerShell 5.1 governance、PowerShell 5.1 product identity smoke
 - npm ci、npm run typecheck、npm run lint、npm run format:check、npm run test、npm run build、npm run test:portable
 - 追加するrule validator、rule golden tests、migration testsをローカルとGitHub Actionsの両方で実行する
-
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run build
-- npm run test:portable
-- rule validator
-- rule golden tests
-- migration tests
-- candidate exact GitHub Actions success
-
-## Rollback
-
-relay importまたはvalidator失敗時は全変更をbyte-exact rollbackする。実装を破棄する場合はisolated TASK-004 branch/worktreeだけを廃棄し、mainを固定baselineに維持する
+- 復興特別所得税の1円未満切捨てと所得税等総額の100円未満切捨てを別々に検証するgolden tests
+- 65歳・75歳の年途中制度移行を移行後保険料なしでcompleteにしないstate／link／portable tests
+- 月別雇用保険対象賃金の未入力と明示0円を区別するunit／reload／import tests
+- その他法定控除、法定控除合計、控除率、iDeCo前後総額の結果UI portable assertions
 
 ## Forbidden changes
 
@@ -197,3 +162,5 @@ relay importまたはvalidator失敗時は全変更をbyte-exact rollbackする�
 - TASK外refactor
 - TASK-003から引き継いだschema v1改行表示名を本TASKで自動修正、trim、置換、削除すること
 - linked planのsilent deleteまたはlinked amountのコピー保存
+
+Validated full bundle: docs/ai/reports/TASK-004/RELAY_BUNDLE.json
