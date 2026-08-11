@@ -58,16 +58,22 @@ export function createFixtureState(): AppState {
       { id: "self", role: "self", displayName: "本人", active: true },
       { id: "partner", role: "partner", displayName: "相手", active: true },
     ],
-    takeHomeInputs: [
+    takeHomePlans: [
       {
         id: "take-home-self",
         memberId: "self",
-        fixtureMonthlyTakeHomeYen: 300_000,
+        targetYear: null,
+        mode: "legacy-manual",
+        manualAverageMonthlyTakeHomeYen: 300_000,
+        active: true,
       },
       {
         id: "take-home-partner",
         memberId: "partner",
-        fixtureMonthlyTakeHomeYen: 250_000,
+        targetYear: null,
+        mode: "legacy-manual",
+        manualAverageMonthlyTakeHomeYen: 250_000,
+        active: true,
       },
     ],
     incomeTargets: [

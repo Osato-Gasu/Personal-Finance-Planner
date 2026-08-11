@@ -64,10 +64,17 @@ export function runCalculationPipeline<TRuleValue>(options: {
     };
   }
 
-  const input = options.state.takeHomeInputs.find(
-    (candidate) => candidate.memberId === member.id,
+  const plan = options.state.takeHomePlans.find(
+    (candidate) =>
+      candidate.memberId === member.id && candidate.mode === "legacy-manual",
   );
-  if (!input) throw new Error("fixture take-home input is missing");
+  if (!plan || plan.mode !== "legacy-manual")
+    throw new Error("fixture take-home input is missing");
+  const input: TakeHomeInput = {
+    id: plan.id,
+    memberId: plan.memberId,
+    fixtureMonthlyTakeHomeYen: plan.manualAverageMonthlyTakeHomeYen,
+  };
   const takeHome = options.provider.calculate(input, resolution.value);
   steps.push("resolve-take-home");
   const livingExpenseYen = sumLivingExpenses(options.state, member.id);

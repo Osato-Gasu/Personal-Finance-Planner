@@ -1,6 +1,14 @@
 import { monthlyExpenseYen } from "./checked-arithmetic";
+import {
+  parseTakeHomePlan,
+  validateTakeHomePlan,
+  type BonusPayment,
+  type TakeHomePlan,
+} from "./take-home-plan";
+import { calculateTakeHome } from "./take-home-calculator";
 
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
+export const PREVIOUS_SCHEMA_VERSION = 2 as const;
 export const LEGACY_SCHEMA_VERSION = 1 as const;
 
 export type MemberRole = "self" | "partner";
@@ -16,6 +24,8 @@ export interface HouseholdMember {
   role: MemberRole;
   displayName: string;
   active: boolean;
+  birthDate?: string | undefined;
+  residencePrefecture?: string | undefined;
 }
 
 export interface TakeHomeInput {
@@ -92,6 +102,17 @@ export interface ExpenseItem {
 }
 
 export interface AppState {
+  schemaVersion: 3;
+  activeRoute: RouteId;
+  members: HouseholdMember[];
+  takeHomePlans: TakeHomePlan[];
+  incomeTargets: IncomeTarget[];
+  links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+}
+
+export interface SchemaVersion2AppState {
   schemaVersion: 2;
   activeRoute: RouteId;
   members: HouseholdMember[];
@@ -116,10 +137,37 @@ export interface LegacyAppState {
 export type AppAction =
   | { type: "navigate"; route: RouteId }
   | { type: "rename-member"; memberId: string; displayName: string }
+  | {
+      type: "update-member-profile";
+      memberId: string;
+      birthDate?: string | undefined;
+      residencePrefecture?: string | undefined;
+    }
   | { type: "set-partner-active"; memberId: string; active: boolean }
   | { type: "update-take-home"; sourceId: string; amountYen: number }
+  | { type: "add-take-home-plan"; plan: TakeHomePlan }
+  | { type: "update-take-home-plan"; planId: string; plan: TakeHomePlan }
+  | { type: "set-take-home-plan-active"; planId: string; active: boolean }
+  | { type: "delete-take-home-plan"; planId: string }
+  | { type: "add-take-home-bonus"; planId: string; bonus: BonusPayment }
+  | { type: "add-bonus"; planId: string; bonus: BonusPayment }
+  | {
+      type: "update-take-home-bonus";
+      planId: string;
+      bonusId: string;
+      bonus: BonusPayment;
+    }
+  | {
+      type: "update-bonus";
+      planId: string;
+      bonusId: string;
+      bonus: BonusPayment;
+    }
+  | { type: "delete-take-home-bonus"; planId: string; bonusId: string }
+  | { type: "delete-bonus"; planId: string; bonusId: string }
   | { type: "update-manual-income"; targetId: string; amountYen: number }
   | { type: "add-link"; link: LinkDefinition }
+  | { type: "link-budget-income-to-take-home-plan"; link: LinkDefinition }
   | { type: "unlink-income"; targetId: string; manualYen: number }
   | {
       type: "update-household";
@@ -291,7 +339,9 @@ function validateShare(
   }
 }
 
-function validateMembersAndIncome(state: AppState | LegacyAppState): void {
+function validateLegacyMembersAndIncome(
+  state: SchemaVersion2AppState | LegacyAppState,
+): void {
   uniqueIds(state.members, "member");
   uniqueIds(state.takeHomeInputs, "take-home input");
   uniqueIds(state.incomeTargets, "income target");
@@ -370,12 +420,114 @@ function validateMembersAndIncome(state: AppState | LegacyAppState): void {
   }
 }
 
+function validateCurrentMembersAndIncome(state: AppState): void {
+  uniqueIds(state.members, "member");
+  uniqueIds(state.takeHomePlans, "take-home plan");
+  uniqueIds(state.incomeTargets, "income target");
+  uniqueIds(state.links, "link");
+  uniqueIds(state.contributionSources, "contribution source");
+  const selfMembers = state.members.filter((member) => member.role === "self");
+  if (selfMembers.length !== 1) throw new Error("self must occur exactly once");
+  if (!selfMembers[0]?.active) throw new Error("self must be active");
+  if (state.members.filter((member) => member.role === "partner").length > 1)
+    throw new Error("at most one partner is allowed");
+  const memberIds = new Set(state.members.map((member) => member.id));
+  for (const member of state.members) {
+    if (opaque(member.role) !== "self" && opaque(member.role) !== "partner")
+      throw new Error("member role is invalid");
+    assertPersistedDisplayName(member.displayName);
+    if (member.birthDate !== undefined) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(member.birthDate))
+        throw new Error("member birthDate is invalid");
+      const [year, month, day] = member.birthDate.split("-").map(Number);
+      const date = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day));
+      if (
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() + 1 !== month ||
+        date.getUTCDate() !== day
+      )
+        throw new Error("member birthDate is invalid");
+    }
+    if (
+      member.residencePrefecture !== undefined &&
+      !/^JP-(0[1-9]|[1-3][0-9]|4[0-7])$/.test(member.residencePrefecture)
+    )
+      throw new Error("member residencePrefecture is invalid");
+  }
+  for (const plan of state.takeHomePlans) {
+    validateTakeHomePlan(plan);
+    if (!memberIds.has(plan.memberId))
+      throw new Error("take-home plan member is missing");
+  }
+  const activeCalculatedKeys = new Set<string>();
+  for (const plan of state.takeHomePlans) {
+    if (plan.mode !== "calculated" || !plan.active) continue;
+    const key = `${plan.memberId}\u0000${String(plan.targetYear)}`;
+    if (activeCalculatedKeys.has(key))
+      throw new Error(
+        "only one active calculated plan is allowed per member and year",
+      );
+    activeCalculatedKeys.add(key);
+  }
+  const targets = new Map(
+    state.incomeTargets.map((target) => [target.id, target]),
+  );
+  for (const target of state.incomeTargets) {
+    if (!memberIds.has(target.memberId))
+      throw new Error("income target member is missing");
+    assertSafeYen(target.manualYen, "manualYen");
+  }
+  const plans = new Map(state.takeHomePlans.map((plan) => [plan.id, plan]));
+  const activeTargets = new Set<string>();
+  for (const link of state.links) {
+    if (
+      opaque(link.sourceType) !== "take-home-result" ||
+      opaque(link.field) !== "averageMonthlyTakeHomeYen"
+    )
+      throw new Error("link source is invalid");
+    const target = targets.get(link.targetId);
+    if (!target) throw new Error("link target is missing");
+    if (link.active) {
+      const plan = plans.get(link.sourceId);
+      if (!plan || !plan.active)
+        throw new Error("active link source is missing");
+      if (plan.memberId !== target.memberId)
+        throw new Error("active link source and target members must match");
+      const member = state.members.find(
+        (candidate) => candidate.id === plan.memberId,
+      );
+      if (!member || calculateTakeHome(plan, member).status !== "complete")
+        throw new Error("active link requires a complete take-home result");
+      if (activeTargets.has(link.targetId))
+        throw new Error("only one active link is allowed for a target");
+      activeTargets.add(link.targetId);
+    }
+  }
+  const contributionKeys = new Set<string>();
+  for (const contribution of state.contributionSources) {
+    if (
+      opaque(contribution.kind) !== "asset-contribution" ||
+      !["nisa-fixture", "ideco-fixture"].includes(contribution.sourceType)
+    )
+      throw new Error("contribution source is invalid");
+    if (!memberIds.has(contribution.memberId))
+      throw new Error("contribution member is missing");
+    assertSafeYen(contribution.amountYen, "contribution amountYen");
+    if (contribution.active) {
+      const key = `${contribution.sourceType}\u0000${contribution.sourceId}`;
+      if (contributionKeys.has(key))
+        throw new Error("active contribution source must be unique");
+      contributionKeys.add(key);
+    }
+  }
+}
+
 export function validateAppState(state: AppState): void {
   if (opaque(state.schemaVersion) !== SCHEMA_VERSION)
     throw new Error("unsupported schema version");
   if (!routeIds.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
-  validateMembersAndIncome(state);
+  validateCurrentMembersAndIncome(state);
   uniqueIds(state.budget.categories, "budget category");
   uniqueIds(state.budget.items, "expense item");
   assertBasisPoints(
@@ -454,7 +606,7 @@ export function validateLegacyAppState(state: LegacyAppState): void {
     throw new Error("unsupported schema version");
   if (!routeIds.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
-  validateMembersAndIncome(state);
+  validateLegacyMembersAndIncome(state);
   uniqueIds(state.livingExpenses, "living expense");
   const memberIds = new Set(state.members.map((member) => member.id));
   for (const expense of state.livingExpenses) {
@@ -464,18 +616,46 @@ export function validateLegacyAppState(state: LegacyAppState): void {
   }
 }
 
-function parseMembers(value: Record<string, unknown>): HouseholdMember[] {
+export function validateSchemaVersion2AppState(
+  state: SchemaVersion2AppState,
+): void {
+  if (opaque(state.schemaVersion) !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  if (!routeIds.includes(state.activeRoute))
+    throw new Error("activeRoute is invalid");
+  validateLegacyMembersAndIncome(state);
+  uniqueIds(state.budget.categories, "budget category");
+  uniqueIds(state.budget.items, "expense item");
+  assertBasisPoints(
+    state.budget.globalSelfShareBasisPoints,
+    "globalSelfShareBasisPoints",
+  );
+  assertSafeYen(
+    state.budget.simpleMonthlyExpenseYen,
+    "simpleMonthlyExpenseYen",
+  );
+}
+
+function parseMembers(
+  value: Record<string, unknown>,
+  includeProfile = false,
+): HouseholdMember[] {
   return requireArray(value, "members").map((item) => {
     if (!isRecord(item)) throw new Error("member must be an object");
     const role = requireString(item, "role");
     if (role !== "self" && role !== "partner")
       throw new Error("member role is invalid");
-    return {
+    const member: HouseholdMember = {
       id: requireString(item, "id"),
       role,
       displayName: requireString(item, "displayName"),
       active: requireBoolean(item, "active"),
     };
+    if (includeProfile && item.birthDate !== undefined)
+      member.birthDate = requireString(item, "birthDate");
+    if (includeProfile && item.residencePrefecture !== undefined)
+      member.residencePrefecture = requireString(item, "residencePrefecture");
+    return member;
   });
 }
 
@@ -547,7 +727,7 @@ function parseContributions(
   });
 }
 
-function parseBase(value: Record<string, unknown>) {
+function parseLegacyBase(value: Record<string, unknown>) {
   if (
     typeof value.activeRoute !== "string" ||
     !routeIds.includes(value.activeRoute as RouteId)
@@ -555,7 +735,7 @@ function parseBase(value: Record<string, unknown>) {
     throw new Error("activeRoute is invalid");
   return {
     activeRoute: value.activeRoute as RouteId,
-    members: parseMembers(value),
+    members: parseMembers(value, false),
     takeHomeInputs: parseTakeHomeInputs(value),
     incomeTargets: parseIncomeTargets(value),
     links: parseLinks(value),
@@ -581,7 +761,7 @@ export function parseLegacyAppState(value: unknown): LegacyAppState {
   );
   const state: LegacyAppState = {
     schemaVersion: 1,
-    ...parseBase(value),
+    ...parseLegacyBase(value),
     livingExpenses,
   };
   validateLegacyAppState(state);
@@ -669,15 +849,43 @@ export function parseAppState(value: unknown): AppState {
   if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION)
     throw new Error("unsupported schema version");
   const state: AppState = {
-    schemaVersion: 2,
-    ...parseBase(value),
+    schemaVersion: 3,
+    activeRoute: (() => {
+      if (
+        typeof value.activeRoute !== "string" ||
+        !routeIds.includes(value.activeRoute as RouteId)
+      )
+        throw new Error("activeRoute is invalid");
+      return value.activeRoute as RouteId;
+    })(),
+    members: parseMembers(value, true),
+    takeHomePlans: requireArray(value, "takeHomePlans").map(parseTakeHomePlan),
+    incomeTargets: parseIncomeTargets(value),
+    links: parseLinks(value),
+    contributionSources: parseContributions(value),
     budget: parseBudget(value.budget),
   };
   validateAppState(state);
   return state;
 }
 
-export function cloneState<T extends AppState | LegacyAppState>(state: T): T {
+export function parseSchemaVersion2AppState(
+  value: unknown,
+): SchemaVersion2AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  const state: SchemaVersion2AppState = {
+    schemaVersion: 2,
+    ...parseLegacyBase(value),
+    budget: parseBudget(value.budget),
+  };
+  validateSchemaVersion2AppState(state);
+  return state;
+}
+
+export function cloneState<
+  T extends AppState | SchemaVersion2AppState | LegacyAppState,
+>(state: T): T {
   return structuredClone(state);
 }
 
@@ -727,6 +935,14 @@ function cleanExpense(item: ExpenseItem): ExpenseItem {
 }
 
 export function reduceState(state: AppState, action: AppAction): AppState {
+  if (action.type === "add-bonus")
+    return reduceState(state, { ...action, type: "add-take-home-bonus" });
+  if (action.type === "update-bonus")
+    return reduceState(state, { ...action, type: "update-take-home-bonus" });
+  if (action.type === "delete-bonus")
+    return reduceState(state, { ...action, type: "delete-take-home-bonus" });
+  if (action.type === "link-budget-income-to-take-home-plan")
+    return reduceState(state, { ...action, type: "add-link" });
   assertActionApplicable(state, action);
   const next = cloneState(state);
   switch (action.type) {
@@ -739,6 +955,18 @@ export function reduceState(state: AppState, action: AppAction): AppState {
         "rename member is missing",
       ).displayName = action.displayName.trim();
       break;
+    case "update-member-profile": {
+      const member = requirePresent(
+        next.members.find((item) => item.id === action.memberId),
+        "member is missing",
+      );
+      if (action.birthDate) member.birthDate = action.birthDate;
+      else delete member.birthDate;
+      if (action.residencePrefecture)
+        member.residencePrefecture = action.residencePrefecture;
+      else delete member.residencePrefecture;
+      break;
+    }
     case "set-partner-active":
       requirePresent(
         next.members.find((m) => m.id === action.memberId),
@@ -746,11 +974,71 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       ).active = action.active;
       break;
     case "update-take-home":
-      requirePresent(
-        next.takeHomeInputs.find((i) => i.id === action.sourceId),
-        "take-home source is missing",
-      ).fixtureMonthlyTakeHomeYen = action.amountYen;
+      {
+        const plan = requirePresent(
+          next.takeHomePlans.find((item) => item.id === action.sourceId),
+          "take-home source is missing",
+        );
+        if (plan.mode !== "legacy-manual")
+          throw new Error("calculated plan requires update-take-home-plan");
+        plan.manualAverageMonthlyTakeHomeYen = action.amountYen;
+      }
       break;
+    case "add-take-home-plan":
+      next.takeHomePlans.push(structuredClone(action.plan));
+      break;
+    case "update-take-home-plan":
+      next.takeHomePlans[
+        next.takeHomePlans.findIndex((plan) => plan.id === action.planId)
+      ] = structuredClone(action.plan);
+      break;
+    case "set-take-home-plan-active":
+      requirePresent(
+        next.takeHomePlans.find((plan) => plan.id === action.planId),
+        "take-home plan is missing",
+      ).active = action.active;
+      break;
+    case "delete-take-home-plan":
+      next.takeHomePlans = next.takeHomePlans.filter(
+        (plan) => plan.id !== action.planId,
+      );
+      break;
+    case "add-take-home-bonus": {
+      const plan = requirePresent(
+        next.takeHomePlans.find((item) => item.id === action.planId),
+        "take-home plan is missing",
+      );
+      if (plan.mode !== "calculated")
+        throw new Error("legacy plan cannot contain bonuses");
+      plan.compensation.bonuses.push(structuredClone(action.bonus));
+      break;
+    }
+    case "update-take-home-bonus": {
+      const plan = requirePresent(
+        next.takeHomePlans.find((item) => item.id === action.planId),
+        "take-home plan is missing",
+      );
+      if (plan.mode !== "calculated")
+        throw new Error("legacy plan cannot contain bonuses");
+      plan.compensation.bonuses[
+        plan.compensation.bonuses.findIndex(
+          (bonus) => bonus.id === action.bonusId,
+        )
+      ] = structuredClone(action.bonus);
+      break;
+    }
+    case "delete-take-home-bonus": {
+      const plan = requirePresent(
+        next.takeHomePlans.find((item) => item.id === action.planId),
+        "take-home plan is missing",
+      );
+      if (plan.mode !== "calculated")
+        throw new Error("legacy plan cannot contain bonuses");
+      plan.compensation.bonuses = plan.compensation.bonuses.filter(
+        (bonus) => bonus.id !== action.bonusId,
+      );
+      break;
+    }
     case "update-manual-income":
       requirePresent(
         next.incomeTargets.find((t) => t.id === action.targetId),
@@ -918,6 +1206,25 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
         throw new Error("rename member is missing");
       assertTrimmedText(action.displayName.trim(), "member displayName", 1, 50);
       return;
+    case "update-member-profile": {
+      const member = state.members.find((item) => item.id === action.memberId);
+      if (!member) throw new Error("member is missing");
+      validateAppState({
+        ...cloneState(state),
+        members: state.members.map((item) =>
+          item.id === action.memberId
+            ? {
+                ...item,
+                ...(action.birthDate ? { birthDate: action.birthDate } : {}),
+                ...(action.residencePrefecture
+                  ? { residencePrefecture: action.residencePrefecture }
+                  : {}),
+              }
+            : item,
+        ),
+      });
+      return;
+    }
     case "set-partner-active":
       if (
         !state.members.some(
@@ -927,10 +1234,119 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
         throw new Error("set-partner-active requires an existing partner");
       return;
     case "update-take-home":
-      if (!state.takeHomeInputs.some((i) => i.id === action.sourceId))
+      if (
+        !state.takeHomePlans.some(
+          (plan) =>
+            plan.id === action.sourceId && plan.mode === "legacy-manual",
+        )
+      )
         throw new Error("take-home source is missing");
       assertSafeYen(action.amountYen, "amountYen");
       return;
+    case "add-take-home-plan":
+      if (state.takeHomePlans.some((plan) => plan.id === action.plan.id))
+        throw new Error("take-home plan ID is already in use");
+      validateTakeHomePlan(action.plan);
+      {
+        const member = state.members.find(
+          (candidate) => candidate.id === action.plan.memberId,
+        );
+        if (!member) throw new Error("take-home plan member is missing");
+        if (calculateTakeHome(action.plan, member).status === "out-of-range")
+          throw new Error("take-home plan exceeds the supported range");
+      }
+      return;
+    case "update-take-home-plan":
+      if (!state.takeHomePlans.some((plan) => plan.id === action.planId))
+        throw new Error("take-home plan is missing");
+      if (action.plan.id !== action.planId)
+        throw new Error("take-home plan ID cannot change");
+      validateTakeHomePlan(action.plan);
+      {
+        const member = state.members.find(
+          (candidate) => candidate.id === action.plan.memberId,
+        );
+        if (!member) throw new Error("take-home plan member is missing");
+        if (calculateTakeHome(action.plan, member).status === "out-of-range")
+          throw new Error("take-home plan exceeds the supported range");
+      }
+      return;
+    case "delete-take-home-plan":
+      if (!state.takeHomePlans.some((plan) => plan.id === action.planId))
+        throw new Error("take-home plan is missing");
+      if (
+        state.links.some(
+          (link) => link.active && link.sourceId === action.planId,
+        )
+      )
+        throw new Error(
+          "linked take-home plan must be unlinked before deletion",
+        );
+      return;
+    case "set-take-home-plan-active":
+      if (!state.takeHomePlans.some((plan) => plan.id === action.planId))
+        throw new Error("take-home plan is missing");
+      if (
+        !action.active &&
+        state.links.some(
+          (link) => link.active && link.sourceId === action.planId,
+        )
+      )
+        throw new Error(
+          "linked take-home plan must be unlinked before deactivation",
+        );
+      validateAppState({
+        ...cloneState(state),
+        takeHomePlans: state.takeHomePlans.map((plan) =>
+          plan.id === action.planId ? { ...plan, active: action.active } : plan,
+        ),
+      });
+      return;
+    case "add-take-home-bonus":
+    case "update-take-home-bonus":
+    case "delete-take-home-bonus": {
+      const plan = state.takeHomePlans.find(
+        (item) => item.id === action.planId,
+      );
+      if (!plan || plan.mode !== "calculated")
+        throw new Error("calculated take-home plan is missing");
+      if (action.type === "add-take-home-bonus") {
+        if (
+          plan.compensation.bonuses.some(
+            (bonus) => bonus.id === action.bonus.id,
+          )
+        )
+          throw new Error("bonus ID is already in use");
+        parseTakeHomePlan({
+          ...structuredClone(plan),
+          compensation: {
+            ...structuredClone(plan.compensation),
+            bonuses: [...plan.compensation.bonuses, action.bonus],
+          },
+        });
+      } else {
+        const bonusId =
+          action.type === "update-take-home-bonus"
+            ? action.bonusId
+            : action.bonusId;
+        if (!plan.compensation.bonuses.some((bonus) => bonus.id === bonusId))
+          throw new Error("bonus is missing");
+        if (action.type === "update-take-home-bonus") {
+          if (action.bonus.id !== action.bonusId)
+            throw new Error("bonus ID cannot change");
+          parseTakeHomePlan({
+            ...structuredClone(plan),
+            compensation: {
+              ...structuredClone(plan.compensation),
+              bonuses: plan.compensation.bonuses.map((bonus) =>
+                bonus.id === action.bonusId ? action.bonus : bonus,
+              ),
+            },
+          });
+        }
+      }
+      return;
+    }
     case "update-manual-income":
       if (!state.incomeTargets.some((t) => t.id === action.targetId))
         throw new Error("income target is missing");
@@ -945,12 +1361,17 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
         (t) => t.id === action.link.targetId,
       );
       if (!target) throw new Error("link target is missing");
-      const source = state.takeHomeInputs.find(
+      const source = state.takeHomePlans.find(
         (s) => s.id === action.link.sourceId,
       );
-      if (!source) throw new Error("link source is missing");
+      if (!source || !source.active) throw new Error("link source is missing");
       if (target.memberId !== source.memberId)
         throw new Error("link source and target members must match");
+      const member = state.members.find(
+        (candidate) => candidate.id === source.memberId,
+      );
+      if (!member || calculateTakeHome(source, member).status !== "complete")
+        throw new Error("only a complete take-home result can be linked");
       if (!action.link.active) throw new Error("added link must be active");
       if (hasActiveLink(state, action.link.targetId))
         throw new Error("only one active link is allowed for a target");
@@ -965,12 +1386,20 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
             candidate.active && candidate.targetId === action.targetId,
         );
         if (!link) throw new Error("active link is missing for unlink target");
-        const source = state.takeHomeInputs.find(
+        const source = state.takeHomePlans.find(
           (candidate) => candidate.id === link.sourceId,
         );
         if (!source) throw new Error("active link source is missing");
         assertSafeYen(action.manualYen, "manualYen");
-        if (action.manualYen !== source.fixtureMonthlyTakeHomeYen) {
+        const member = state.members.find(
+          (candidate) => candidate.id === source.memberId,
+        );
+        if (!member) throw new Error("active link member is missing");
+        const result = calculateTakeHome(source, member);
+        if (
+          result.averageMonthlyTakeHomeYen === null ||
+          action.manualYen !== result.averageMonthlyTakeHomeYen
+        ) {
           throw new Error(
             "unlink manual value must equal the current linked value",
           );
@@ -1128,7 +1557,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },
@@ -1139,7 +1568,7 @@ export function createInitialState(): AppState {
         active: false,
       },
     ],
-    takeHomeInputs: [],
+    takeHomePlans: [],
     incomeTargets: [
       { id: "budget-income-self", memberId: "member-self", manualYen: 0 },
       { id: "budget-income-partner", memberId: "member-partner", manualYen: 0 },

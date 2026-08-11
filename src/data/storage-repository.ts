@@ -1,7 +1,8 @@
 import { migrateToCurrentState } from "../domain/migration";
 import { cloneState, validateAppState, type AppState } from "../domain/state";
 
-export const STORAGE_KEY = "personal-finance-planner:state:v2";
+export const STORAGE_KEY = "personal-finance-planner:state:v3";
+export const PREVIOUS_STORAGE_KEY = "personal-finance-planner:state:v2";
 export const LEGACY_STORAGE_KEY = "personal-finance-planner:state:v1";
 export const MAX_IMPORT_BYTES = 1_000_000;
 
@@ -60,6 +61,12 @@ export class StorageRepository {
   load(): AppState | null {
     const current = this.#storage.getItem(STORAGE_KEY);
     if (current !== null) return this.#parseAndValidate(current);
+    const previous = this.#storage.getItem(PREVIOUS_STORAGE_KEY);
+    if (previous !== null) {
+      const migrated = this.#parseAndValidate(previous);
+      this.save(migrated);
+      return cloneState(migrated);
+    }
     const legacy = this.#storage.getItem(LEGACY_STORAGE_KEY);
     if (legacy === null) return null;
     const migrated = this.#parseAndValidate(legacy);

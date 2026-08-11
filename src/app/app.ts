@@ -11,6 +11,7 @@ import {
   createBudgetRenderer,
   type EntityIdFactory,
 } from "../modules/budget/budget-view";
+import { createTakeHomeRenderer } from "../modules/take-home/take-home-view";
 
 const routeLabels: Record<RouteId, string> = {
   overview: "総合サマリー",
@@ -72,6 +73,13 @@ export function startApp(
     createId: options.createId ?? defaultIdFactory(browserWindow),
     requestRender: () => render(currentRoute),
   });
+  const takeHomeRenderer = createTakeHomeRenderer({
+    browserWindow,
+    document,
+    store,
+    createId: options.createId ?? defaultIdFactory(browserWindow),
+    requestRender: () => render(currentRoute),
+  });
 
   render = (route: RouteId): void => {
     currentRoute = route;
@@ -96,6 +104,8 @@ export function startApp(
     main.append(element(document, "h2", routeLabels[route]));
     if (route === "budget") {
       budgetRenderer(main);
+    } else if (route === "take-home") {
+      takeHomeRenderer(main);
     } else {
       main.append(
         element(

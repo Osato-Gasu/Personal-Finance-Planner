@@ -44,6 +44,8 @@ jobs:
         run: npm run format:check
       - name: Test
         run: npm run test
+      - name: Validate fixed 2026 rule package
+        run: npm run test:rules
       - name: Build
         run: npm run build
       - name: Test standalone file build

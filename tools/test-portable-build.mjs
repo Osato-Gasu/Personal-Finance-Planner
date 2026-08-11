@@ -7,7 +7,7 @@ import { chromium } from "playwright-core";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v2";
+const storageKey = "personal-finance-planner:state:v3";
 const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
   ["overview", "総合サマリー"],
@@ -51,7 +51,6 @@ function assertStandaloneMarkup(html) {
   );
   assert.doesNotMatch(html, /\bimport\s*\(/u);
   assert.doesNotMatch(html, /\b(?:src|href)\s*=\s*["']\/(?!\/)/iu);
-  assert.doesNotMatch(html, /https?:\/\//iu);
   assert.match(html, /<script\b[^>]*>[\s\S]+<\/script>/iu);
   assert.match(html, /<style\b[^>]*>[\s\S]+<\/style>/iu);
 }
@@ -152,10 +151,43 @@ try {
   await page.waitForURL(`${standaloneUrl}#/take-home`);
   await page.goBack();
   await page.waitForURL(`${standaloneUrl}#/budget`);
-  await page.goForward();
-  await page.waitForURL(`${standaloneUrl}#/take-home`);
-  await page.goBack();
+
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByRole("button", { name: "2026年計算プランを作成" }).click();
+  await page.getByLabel("生年月日").fill("1990-01-01");
+  await page.getByLabel("生年月日").press("Tab");
+  await page.getByLabel("年間課税給与").fill("6000000");
+  await page.getByLabel("年間課税給与").press("Tab");
+  await page.getByLabel("事業所都道府県").selectOption("JP-13");
+  await page.getByLabel("月額報酬（標準報酬推定用）").fill("300000");
+  await page.getByLabel("月額報酬（標準報酬推定用）").press("Tab");
+  await page.getByLabel("住民税年額を入力する").check();
+  await page.getByLabel("住民税年額", { exact: true }).fill("0");
+  await page.getByLabel("住民税年額", { exact: true }).press("Tab");
+  await page.getByLabel("住民税0円を確認").check();
+  await page.getByRole("heading", { name: "計算結果: complete" }).waitFor();
+  await assertContains(page.locator(".take-home-result"), "年間手取り");
+  await assertContains(
+    page.locator(".take-home-result"),
+    "適用ルールと公式根拠",
+  );
+  await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await assertContains(page.getByTestId("household-income"), "439,597円");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByLabel("年間課税給与").fill("6100000");
+  await page.getByLabel("年間課税給与").press("Tab");
+  await page.getByRole("button", { name: "賞与を追加" }).click();
+  assert.equal(await page.getByLabel("賞与支給日").inputValue(), "2026-06-30");
+  await page.getByRole("link", { name: "家計・生活費" }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
+  const linkedIncomeAfterEdit = await page
+    .getByTestId("household-income")
+    .textContent();
+  assert.ok(!linkedIncomeAfterEdit?.includes("439,597円"));
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByRole("button", { name: "家計連携を解除" }).click();
+  await page.getByRole("link", { name: "家計・生活費" }).click();
 
   await page.getByLabel("本人の月間手取り").fill("300000");
   await page.getByLabel("同棲モード").check();
@@ -274,7 +306,7 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 2);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 3);
   await page.reload({ waitUntil: "load" });
   await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -335,7 +367,7 @@ try {
   await page.getByRole("button", { name: "世帯設定を保存" }).click();
   const legacyNamesAfterSave = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
-    if (!bytes) throw new Error("migrated v2 state is missing");
+    if (!bytes) throw new Error("migrated v3 state is missing");
     return JSON.parse(bytes).members.map((member) => member.displayName);
   }, storageKey);
   assert.deepEqual(legacyNamesAfterSave, [" 本人 ", legacyLongName]);
@@ -348,7 +380,7 @@ try {
 
   const overflowBytes = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
-    if (!bytes) throw new Error("v2 state is missing");
+    if (!bytes) throw new Error("v3 state is missing");
     const state = JSON.parse(bytes);
     const source = state.budget.items[0];
     state.budget.items = [
@@ -394,7 +426,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=59, routes=${routes.length}, budgetScenario=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=78, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();

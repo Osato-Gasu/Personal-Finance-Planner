@@ -110,7 +110,7 @@ describe("Store and state invariants", () => {
     expect(
       store
         .getState()
-        .takeHomeInputs.some((input) => input.memberId === "partner"),
+        .takeHomePlans.some((input) => input.memberId === "partner"),
     ).toBe(true);
   });
 
@@ -272,8 +272,8 @@ describe("Store and state invariants", () => {
       state.members.find((member) => member.id === "partner"),
     ).toMatchObject({ displayName: "家族", active: false });
     expect(
-      state.takeHomeInputs.find((input) => input.id === "take-home-partner"),
-    ).toMatchObject({ fixtureMonthlyTakeHomeYen: 200_000 });
+      state.takeHomePlans.find((input) => input.id === "take-home-partner"),
+    ).toMatchObject({ manualAverageMonthlyTakeHomeYen: 200_000 });
     expect(
       state.incomeTargets.find(
         (target) => target.id === "budget-income-partner",

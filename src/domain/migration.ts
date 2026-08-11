@@ -2,12 +2,14 @@ import {
   SCHEMA_VERSION,
   parseAppState,
   parseLegacyAppState,
+  parseSchemaVersion2AppState,
   validateAppState,
   type AppState,
   type BudgetCategory,
   type ExpenseItem,
   type HouseholdMember,
   type IncomeTarget,
+  type SchemaVersion2AppState,
 } from "./state";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -25,6 +27,8 @@ function uniqueId(preferred: string, used: Set<string>): string {
 export function migrateToCurrentState(value: unknown): AppState {
   if (!isRecord(value)) throw new Error("state must be an object");
   if (value.schemaVersion === SCHEMA_VERSION) return parseAppState(value);
+  if (value.schemaVersion === 2)
+    return migrateV2(parseSchemaVersion2AppState(value));
   if (value.schemaVersion !== 1) throw new Error("unsupported schema version");
 
   const legacy = parseLegacyAppState(value);
@@ -91,8 +95,8 @@ export function migrateToCurrentState(value: unknown): AppState {
     }
   }
 
-  const migrated: AppState = {
-    schemaVersion: SCHEMA_VERSION,
+  const migrated: SchemaVersion2AppState = {
+    schemaVersion: 2,
     activeRoute: legacy.activeRoute,
     members,
     takeHomeInputs: legacy.takeHomeInputs.map((input) => ({ ...input })),
@@ -106,6 +110,29 @@ export function migrateToCurrentState(value: unknown): AppState {
       items,
     },
     contributionSources: legacy.contributionSources.map((source) => ({
+      ...source,
+    })),
+  };
+  return migrateV2(migrated);
+}
+
+function migrateV2(previous: SchemaVersion2AppState): AppState {
+  const migrated: AppState = {
+    schemaVersion: 3,
+    activeRoute: previous.activeRoute,
+    members: previous.members.map((member) => ({ ...member })),
+    takeHomePlans: previous.takeHomeInputs.map((input) => ({
+      id: input.id,
+      memberId: input.memberId,
+      targetYear: null,
+      mode: "legacy-manual" as const,
+      manualAverageMonthlyTakeHomeYen: input.fixtureMonthlyTakeHomeYen,
+      active: true,
+    })),
+    incomeTargets: previous.incomeTargets.map((target) => ({ ...target })),
+    links: previous.links.map((link) => ({ ...link })),
+    budget: structuredClone(previous.budget),
+    contributionSources: previous.contributionSources.map((source) => ({
       ...source,
     })),
   };

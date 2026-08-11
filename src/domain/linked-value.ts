@@ -1,4 +1,5 @@
 import type { AppState } from "./state";
+import { calculateTakeHome } from "./take-home-calculator";
 
 export type LinkedValueResult =
   | { status: "selected"; valueYen: number; sourceId: string }
@@ -17,19 +18,30 @@ export function resolveIncomeTarget(
     (candidate) => candidate.targetId === targetId && candidate.active,
   );
   if (!link) return { status: "manual", valueYen: target.manualYen };
-  const source = state.takeHomeInputs.find(
+  const source = state.takeHomePlans.find(
     (candidate) => candidate.id === link.sourceId,
   );
-  if (!source || source.memberId !== target.memberId) {
+  const member = state.members.find(
+    (candidate) => candidate.id === target.memberId,
+  );
+  if (!source || !member || source.memberId !== target.memberId) {
     return {
       status: "broken-link",
       warning: `broken-link:${link.sourceType}:${link.sourceId}`,
       sourceId: link.sourceId,
     };
   }
+  const result = calculateTakeHome(source, member);
+  if (result.averageMonthlyTakeHomeYen === null) {
+    return {
+      status: "broken-link",
+      warning: `uncomputed-link:${result.status}:${source.id}`,
+      sourceId: source.id,
+    };
+  }
   return {
     status: "selected",
-    valueYen: source.fixtureMonthlyTakeHomeYen,
+    valueYen: result.averageMonthlyTakeHomeYen,
     sourceId: source.id,
   };
 }
