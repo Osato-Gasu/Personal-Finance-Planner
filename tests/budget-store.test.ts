@@ -8,15 +8,24 @@ function required<T>(value: T | undefined, message: string): T {
   return value;
 }
 
-function rejectedWithoutEffects(action: AppAction, message: string): void {
-  const initial = createFixtureState();
-  const writer = { save: vi.fn() };
+function rejectedWithoutEffects(
+  action: AppAction,
+  message: string,
+  initial = createFixtureState(),
+): void {
+  let persistedBytes = JSON.stringify(initial);
+  const writer = {
+    save: vi.fn((state) => {
+      persistedBytes = JSON.stringify(state);
+    }),
+  };
   const listener = vi.fn();
   const store = new Store(initial, writer);
   store.subscribe(listener);
   const before = JSON.stringify(store.getState());
   expect(() => store.dispatch(action)).toThrow(message);
   expect(JSON.stringify(store.getState())).toBe(before);
+  expect(persistedBytes).toBe(before);
   expect(writer.save).not.toHaveBeenCalled();
   expect(listener).not.toHaveBeenCalled();
 }
@@ -172,11 +181,19 @@ describe("budget Store actions", () => {
         active: true,
       },
     });
+    const sourceBeforeDuplicate = JSON.stringify(
+      store.getState().budget.items.find((item) => item.id === "expense-new"),
+    );
     store.dispatch({
       type: "duplicate-expense",
       itemId: "expense-new",
       newId: "expense-copy",
     });
+    expect(
+      JSON.stringify(
+        store.getState().budget.items.find((item) => item.id === "expense-new"),
+      ),
+    ).toBe(sourceBeforeDuplicate);
     store.dispatch({
       type: "set-expense-active",
       itemId: "expense-new",
@@ -199,6 +216,66 @@ describe("budget Store actions", () => {
     expect(
       store.getState().budget.items.some((item) => item.id === "expense-new"),
     ).toBe(false);
+  });
+
+  it.each([
+    ["inactive category", "living-self", "active category"],
+    ["inactive partner", "living-partner", "active partner"],
+  ] as const)(
+    "rejects duplicate-expense for %s without state, bytes, writer, listener, or source changes",
+    (condition, itemId, message) => {
+      const initial = createFixtureState();
+      if (condition === "inactive category") {
+        required(initial.budget.categories[0], "category").active = false;
+      } else {
+        required(
+          initial.members.find((member) => member.role === "partner"),
+          "partner",
+        ).active = false;
+      }
+      const sourceBefore = JSON.stringify(
+        initial.budget.items.find((item) => item.id === itemId),
+      );
+      rejectedWithoutEffects(
+        { type: "duplicate-expense", itemId, newId: `copy-${itemId}` },
+        message,
+        initial,
+      );
+      expect(
+        JSON.stringify(initial.budget.items.find((item) => item.id === itemId)),
+      ).toBe(sourceBefore);
+    },
+  );
+
+  it("duplicates a partner expense under an active category and active partner", () => {
+    const initial = createFixtureState();
+    const store = new Store(initial);
+    const sourceBefore = JSON.stringify(
+      store
+        .getState()
+        .budget.items.find((item) => item.id === "living-partner"),
+    );
+    store.dispatch({
+      type: "duplicate-expense",
+      itemId: "living-partner",
+      newId: "living-partner-copy",
+    });
+    expect(
+      store
+        .getState()
+        .budget.items.find((item) => item.id === "living-partner-copy"),
+    ).toMatchObject({
+      id: "living-partner-copy",
+      purpose: "相手生活費（コピー）",
+      scope: "partner",
+    });
+    expect(
+      JSON.stringify(
+        store
+          .getState()
+          .budget.items.find((item) => item.id === "living-partner"),
+      ),
+    ).toBe(sourceBefore);
   });
 
   it("preserves detailed and simple data while switching modes", () => {
@@ -306,15 +383,7 @@ describe("budget Store actions", () => {
         initial.members.find((member) => member.role === "partner"),
         "partner",
       ).active = false;
-      const writer = { save: vi.fn() };
-      const listener = vi.fn();
-      const store = new Store(initial, writer);
-      store.subscribe(listener);
-      const before = JSON.stringify(store.getState());
-      expect(() => store.dispatch(action as AppAction)).toThrow(message);
-      expect(JSON.stringify(store.getState())).toBe(before);
-      expect(writer.save).not.toHaveBeenCalled();
-      expect(listener).not.toHaveBeenCalled();
+      rejectedWithoutEffects(action, message, initial);
       return;
     }
     rejectedWithoutEffects(action, message);

@@ -267,6 +267,12 @@ function assertTrimmedText(
   }
 }
 
+function assertPersistedDisplayName(value: unknown): asserts value is string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error("member displayName must be a non-empty string");
+  }
+}
+
 function validateShare(
   shareMode: ShareMode,
   basisPoints: number | undefined,
@@ -299,7 +305,9 @@ function validateMembersAndIncome(state: AppState | LegacyAppState): void {
     if (opaque(member.role) !== "self" && opaque(member.role) !== "partner") {
       throw new Error("member role is invalid");
     }
-    assertTrimmedText(member.displayName, "member displayName", 1, 50);
+    // Persisted names retain the schema v1 contract so migration never trims
+    // or truncates previously valid bytes. UI actions enforce current limits.
+    assertPersistedDisplayName(member.displayName);
   }
   for (const input of state.takeHomeInputs) {
     if (!memberIds.has(input.memberId))
@@ -1063,12 +1071,20 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       assertExpenseDestination(state, { ...current, ...action.changes });
       return;
     }
-    case "duplicate-expense":
-      if (!state.budget.items.some((i) => i.id === action.itemId))
-        throw new Error("expense item is missing");
+    case "duplicate-expense": {
+      const source = state.budget.items.find((i) => i.id === action.itemId);
+      if (!source) throw new Error("expense item is missing");
       if (state.budget.items.some((i) => i.id === action.newId))
         throw new Error("expense ID is already in use");
+      const duplicate = cleanExpense({
+        ...source,
+        source: { ...source.source },
+        id: action.newId,
+        purpose: `${source.purpose}（コピー）`,
+      });
+      assertExpenseDestination(state, duplicate);
       return;
+    }
     case "set-expense-active": {
       const item = state.budget.items.find(
         (candidate) => candidate.id === action.itemId,

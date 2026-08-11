@@ -182,6 +182,7 @@ try {
     occurrences: 1,
     scope: "self",
   });
+
   await addExpense(page, {
     purpose: "昼食",
     amount: 500,
@@ -190,6 +191,35 @@ try {
     occurrences: 3,
     scope: "self",
   });
+
+  const search = page.getByLabel("用途検索");
+  await search.click();
+  await page.keyboard.type("昼食");
+  assert.equal(await search.inputValue(), "昼食");
+  assert.equal(
+    await search.evaluate(
+      (element) => element === element.ownerDocument.activeElement,
+    ),
+    true,
+  );
+  const expenseList = page.locator(".expense-list");
+  await expenseList
+    .getByRole("heading", { name: "昼食", exact: true })
+    .waitFor();
+  assert.equal(await expenseList.getByRole("heading", { level: 4 }).count(), 1);
+  await page.keyboard.press("Backspace");
+  assert.equal(await search.inputValue(), "昼");
+  assert.equal(
+    await search.evaluate(
+      (element) => element === element.ownerDocument.activeElement,
+    ),
+    true,
+  );
+  await page.keyboard.type("食");
+  assert.equal(await search.inputValue(), "昼食");
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Backspace");
+  assert.equal(await search.inputValue(), "");
 
   await assertContains(page.getByTestId("household-income"), "500,000円");
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -270,7 +300,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=37, routes=${routes.length}, budgetScenario=passed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=46, routes=${routes.length}, budgetScenario=passed, sequentialJapaneseSearch=passed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();

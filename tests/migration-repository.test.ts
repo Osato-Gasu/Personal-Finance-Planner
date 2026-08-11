@@ -89,6 +89,44 @@ describe("schema version 1 to 2 migration", () => {
     ).toBe(0);
   });
 
+  it.each([
+    ["surrounding whitespace", " 本人 "],
+    ["more than 50 characters", "長".repeat(51)],
+  ])(
+    "preserves a baseline-valid legacy display name with %s",
+    (_label, displayName) => {
+      const legacy = createLegacyFixtureState();
+      required(
+        legacy.members.find((member) => member.role === "self"),
+        "legacy self",
+      ).displayName = displayName;
+      const legacyBefore = JSON.stringify(legacy);
+      const migrated = migrateToCurrentState(legacy);
+      expect(
+        required(
+          migrated.members.find((member) => member.role === "self"),
+          "migrated self",
+        ).displayName,
+      ).toBe(displayName);
+      expect(JSON.stringify(legacy)).toBe(legacyBefore);
+      validateAppState(migrated);
+    },
+  );
+
+  it("rejects an empty legacy display name without changing v1 or v2 bytes", () => {
+    const storage = new ByteStorage();
+    const legacy = createLegacyFixtureState();
+    required(legacy.members[0], "legacy member").displayName = "";
+    const legacyBytes = JSON.stringify(legacy);
+    const currentBytes = storage.getItem(STORAGE_KEY);
+    storage.values.set(LEGACY_STORAGE_KEY, legacyBytes);
+    expect(() => new StorageRepository(storage).load()).toThrow(
+      "displayName must be a non-empty string",
+    );
+    expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(legacyBytes);
+    expect(storage.getItem(STORAGE_KEY)).toBe(currentBytes);
+  });
+
   it("adds one inactive partner and missing manual income targets", () => {
     const migrated = migrateToCurrentState(withoutPartnerAndTargets());
     const partner = migrated.members.find(

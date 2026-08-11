@@ -972,19 +972,48 @@ export function createBudgetRenderer(options: {
         ["monthly", "月換算額"],
       ],
     );
-    const update = (): void => {
+    const captureSearchAndRender = (): void => {
+      const selectionStart = search.input.selectionStart;
+      const selectionEnd = search.input.selectionEnd;
+      const selectionDirection = search.input.selectionDirection;
       ui.search = search.input.value;
+      options.requestRender();
+      const restored = options.document.querySelector<HTMLInputElement>(
+        'input[name="expense-search"]',
+      );
+      if (!restored) return;
+      restored.focus();
+      if (selectionStart !== null && selectionEnd !== null) {
+        restored.setSelectionRange(
+          selectionStart,
+          selectionEnd,
+          selectionDirection ?? undefined,
+        );
+      }
+    };
+    let composing = false;
+    search.input.addEventListener("compositionstart", () => {
+      composing = true;
+    });
+    search.input.addEventListener("compositionend", () => {
+      composing = false;
+      captureSearchAndRender();
+    });
+    search.input.addEventListener("input", () => {
+      ui.search = search.input.value;
+      if (!composing) captureSearchAndRender();
+    });
+    const updateFilters = (): void => {
       ui.categoryFilter = category.select.value;
       ui.scopeFilter = scope.select.value as BudgetUiState["scopeFilter"];
       ui.activeFilter = active.select.value as BudgetUiState["activeFilter"];
       ui.sort = sort.select.value as BudgetUiState["sort"];
       options.requestRender();
     };
-    search.input.addEventListener("input", update);
-    category.select.addEventListener("change", update);
-    scope.select.addEventListener("change", update);
-    active.select.addEventListener("change", update);
-    sort.select.addEventListener("change", update);
+    category.select.addEventListener("change", updateFilters);
+    scope.select.addEventListener("change", updateFilters);
+    active.select.addEventListener("change", updateFilters);
+    sort.select.addEventListener("change", updateFilters);
     controls.append(
       search.wrapper,
       category.wrapper,
