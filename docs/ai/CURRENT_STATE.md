@@ -1,7 +1,8 @@
 ---
 updated_at: 2026-08-11
-active_tasks: []
-next_action: ChatGPT defines TASK-003 requirements from the permanent handoff and BACKLOG
+active_tasks:
+  - TASK-003
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-003
 ---
 
 # Current state

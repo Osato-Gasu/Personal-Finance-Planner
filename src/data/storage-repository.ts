@@ -1,16 +1,14 @@
-import {
-  cloneState,
-  parseAppState,
-  validateAppState,
-  type AppState,
-} from "../domain/state";
+import { migrateToCurrentState } from "../domain/migration";
+import { cloneState, validateAppState, type AppState } from "../domain/state";
 
-export const STORAGE_KEY = "personal-finance-planner:state:v1";
+export const STORAGE_KEY = "personal-finance-planner:state:v2";
+export const LEGACY_STORAGE_KEY = "personal-finance-planner:state:v1";
 export const MAX_IMPORT_BYTES = 1_000_000;
 
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem(key: string): void;
 }
 
 export interface PreparedImport {
@@ -60,15 +58,18 @@ export class StorageRepository {
   }
 
   load(): AppState | null {
-    const serialized = this.#storage.getItem(STORAGE_KEY);
-    if (serialized === null) return null;
-    return this.#parseAndValidate(serialized);
+    const current = this.#storage.getItem(STORAGE_KEY);
+    if (current !== null) return this.#parseAndValidate(current);
+    const legacy = this.#storage.getItem(LEGACY_STORAGE_KEY);
+    if (legacy === null) return null;
+    const migrated = this.#parseAndValidate(legacy);
+    this.save(migrated);
+    return cloneState(migrated);
   }
 
   save(state: AppState): void {
     validateAppState(state);
-    const serialized = JSON.stringify(state);
-    this.#storage.setItem(STORAGE_KEY, serialized);
+    this.#setAtomically(STORAGE_KEY, JSON.stringify(state));
   }
 
   export(state: AppState): string {
@@ -100,6 +101,22 @@ export class StorageRepository {
     return cloneState(state);
   }
 
+  #setAtomically(key: string, serialized: string): void {
+    const before = this.#storage.getItem(key);
+    try {
+      this.#storage.setItem(key, serialized);
+    } catch (error) {
+      try {
+        if (before === null) this.#storage.removeItem(key);
+        else this.#storage.setItem(key, before);
+      } catch {
+        // Preserve the original write error; browser storage normally fails
+        // before mutation, while test storage verifies byte restoration.
+      }
+      throw error;
+    }
+  }
+
   #parseAndValidate(serialized: string): AppState {
     let parsed: unknown;
     try {
@@ -109,8 +126,8 @@ export class StorageRepository {
     }
     assertNoDangerousKeys(parsed);
     assertImportEnvelope(parsed);
-    const migrated = this.#migrationHook(parsed);
-    assertNoDangerousKeys(migrated);
-    return parseAppState(migrated);
+    const prepared = this.#migrationHook(parsed);
+    assertNoDangerousKeys(prepared);
+    return migrateToCurrentState(prepared);
   }
 }

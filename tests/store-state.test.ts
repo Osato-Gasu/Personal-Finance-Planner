@@ -70,7 +70,7 @@ describe("Store and state invariants", () => {
       displayName: "相手2",
       active: true,
     });
-    expect(() => validateAppState(state)).toThrow("at most one active partner");
+    expect(() => validateAppState(state)).toThrow("at most one partner");
   });
 
   it("rejects unsafe monetary values before persistence", () => {
@@ -264,7 +264,7 @@ describe("Store and state invariants", () => {
     store.dispatch({
       type: "unlink-income",
       targetId: "budget-income-partner",
-      manualYen: 190_000,
+      manualYen: 200_000,
     });
 
     const state = store.getState();
@@ -278,7 +278,7 @@ describe("Store and state invariants", () => {
       state.incomeTargets.find(
         (target) => target.id === "budget-income-partner",
       ),
-    ).toMatchObject({ manualYen: 190_000 });
+    ).toMatchObject({ manualYen: 200_000 });
     expect(state.links.find((link) => link.id === "link-partner")?.active).toBe(
       false,
     );

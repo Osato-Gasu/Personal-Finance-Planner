@@ -7,7 +7,7 @@ import {
   StorageRepository,
   type StorageLike,
 } from "../src/data/storage-repository";
-import { createFixtureState } from "./fixtures/state";
+import { createFixtureState, createLegacyFixtureState } from "./fixtures/state";
 
 class MemoryStorage implements StorageLike {
   readonly values = new Map<string, string>();
@@ -20,6 +20,9 @@ class MemoryStorage implements StorageLike {
     if (this.failWrites) throw new Error("write failed");
     this.values.set(key, value);
   }
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
 }
 
 describe("StorageRepository export/import transaction", () => {
@@ -28,7 +31,7 @@ describe("StorageRepository export/import transaction", () => {
     const repository = new StorageRepository(storage);
     const state = createFixtureState();
     repository.save(state);
-    expect(STORAGE_KEY).toContain(":v1");
+    expect(STORAGE_KEY).toContain(":v2");
     expect(repository.load()).toEqual(state);
     expect(JSON.parse(repository.export(state))).toEqual(state);
   });
@@ -78,10 +81,10 @@ describe("StorageRepository export/import transaction", () => {
       const record = value as Record<string, unknown>;
       return { ...record, schemaVersion: 1 };
     });
-    const state = { ...createFixtureState(), schemaVersion: 0 };
+    const state = { ...createLegacyFixtureState(), schemaVersion: 0 };
     expect(
       repository.prepareImport(JSON.stringify(state)).preview.schemaVersion,
-    ).toBe(1);
+    ).toBe(2);
   });
 
   it("rejects invariant violations", () => {

@@ -1,4 +1,5 @@
 import type { AppState, ContributionSource, MemberId } from "./state";
+import { calculateBudgetSummary } from "./budget";
 
 export function deriveAssetContributions(
   state: Readonly<AppState>,
@@ -14,9 +15,10 @@ export function sumLivingExpenses(
   state: Readonly<AppState>,
   memberId: MemberId,
 ): number {
-  return state.livingExpenses
-    .filter((expense) => expense.memberId === memberId)
-    .reduce((total, expense) => total + expense.amountYen, 0);
+  const summary = calculateBudgetSummary(state);
+  if (summary.self.memberId === memberId) return summary.self.expenseYen;
+  if (summary.partner.memberId === memberId) return summary.partner.expenseYen;
+  throw new Error("living expense member is missing");
 }
 
 export function sumAssetContributions(

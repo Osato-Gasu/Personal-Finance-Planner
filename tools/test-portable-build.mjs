@@ -7,7 +7,7 @@ import { chromium } from "playwright-core";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v1";
+const storageKey = "personal-finance-planner:state:v2";
 const routes = [
   ["overview", "総合サマリー"],
   ["budget", "家計・生活費"],
@@ -61,6 +61,30 @@ async function expectRoute(page, standaloneUrl, route, label) {
   assert.equal(new globalThis.URL(page.url()).hash, `#/${route}`);
 }
 
+async function assertContains(locator, expected) {
+  await locator.waitFor();
+  const text = await locator.textContent();
+  assert.ok(
+    text?.includes(expected),
+    `Expected ${JSON.stringify(text)} to contain ${expected}`,
+  );
+}
+
+async function addExpense(page, values) {
+  const section = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "費目管理" }) });
+  const form = section.locator("form.expense-form").first();
+  await form.getByLabel("費目カテゴリ").selectOption({ label: "生活費" });
+  await form.getByLabel("用途").fill(values.purpose);
+  await form.getByLabel("1回あたり出費").fill(String(values.amount));
+  await form.getByLabel("周期値").fill(String(values.cycle));
+  await form.getByLabel("周期単位").selectOption(values.unit);
+  await form.getByLabel("周期内回数").fill(String(values.occurrences));
+  await form.getByLabel("費目範囲").selectOption(values.scope);
+  await form.getByRole("button", { name: "費目を追加" }).click();
+}
+
 const temporaryDirectory = await mkdtemp(
   path.join(tmpdir(), "Personal Finance Planner ポータブル "),
 );
@@ -76,7 +100,9 @@ try {
 
   const launched = await launchSystemChromium();
   browser = launched.browser;
-  const page = await browser.newPage();
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
   const consoleErrors = [];
   const pageErrors = [];
   const unexpectedRequests = [];
@@ -127,16 +153,88 @@ try {
   await page.waitForURL(`${standaloneUrl}#/budget`);
   await page.goForward();
   await page.waitForURL(`${standaloneUrl}#/take-home`);
+  await page.goBack();
+  await page.waitForURL(`${standaloneUrl}#/budget`);
 
-  await page.getByRole("link", { name: "設定" }).click();
-  await page.waitForURL(`${standaloneUrl}#/settings`);
-  await page.getByRole("heading", { level: 2, name: "設定" }).waitFor();
-  await page.waitForFunction(
-    (key) =>
-      JSON.parse(globalThis.localStorage.getItem(key)).activeRoute ===
-      "settings",
-    storageKey,
-  );
+  await page.getByLabel("本人の月間手取り").fill("300000");
+  await page.getByLabel("同棲モード").check();
+  await page.getByLabel("相手の月間手取り").fill("200000");
+  await page.getByLabel("本人の既定負担割合（%）").fill("60");
+  await page.getByRole("button", { name: "世帯設定を保存" }).click();
+
+  await page.getByLabel("カテゴリ名").fill("生活費");
+  await page.getByLabel("カテゴリ説明").fill("毎月の生活費");
+  await page.getByRole("button", { name: "カテゴリを追加" }).click();
+
+  await addExpense(page, {
+    purpose: "家賃",
+    amount: 100_000,
+    cycle: 1,
+    unit: "month",
+    occurrences: 1,
+    scope: "shared",
+  });
+  await addExpense(page, {
+    purpose: "日用品",
+    amount: 4_500,
+    cycle: 2,
+    unit: "month",
+    occurrences: 1,
+    scope: "self",
+  });
+  await addExpense(page, {
+    purpose: "昼食",
+    amount: 500,
+    cycle: 1,
+    unit: "week",
+    occurrences: 3,
+    scope: "self",
+  });
+
+  await assertContains(page.getByTestId("household-income"), "500,000円");
+  await assertContains(page.getByTestId("household-expense"), "108,772円");
+  await assertContains(page.getByTestId("household-remaining"), "391,228円");
+  await assertContains(page.getByTestId("self-summary"), "負担額 68,772円");
+  await assertContains(page.getByTestId("partner-summary"), "負担額 40,000円");
+  await page.getByText("2か月あたり1回", { exact: false }).waitFor();
+  await page.getByText("月換算：2,250円", { exact: true }).waitFor();
+  await page.getByText("月換算：6,522円", { exact: true }).waitFor();
+
+  const categoryCard = page.locator("article.entity-card").filter({
+    has: page.getByRole("heading", { name: "生活費", exact: true }),
+  });
+  await categoryCard.getByText("編集", { exact: true }).click();
+  await categoryCard
+    .getByLabel("生活費カテゴリ負担設定")
+    .selectOption("custom");
+  await categoryCard.getByLabel("生活費カテゴリ本人割合（%）").fill("70");
+  await categoryCard
+    .getByRole("button", { name: "カテゴリ編集を保存" })
+    .click();
+  await assertContains(page.getByTestId("self-summary"), "負担額 78,772円");
+
+  const rentCard = page
+    .locator("article.entity-card")
+    .filter({ has: page.getByRole("heading", { name: "家賃", exact: true }) });
+  await rentCard.getByText("編集", { exact: true }).click();
+  await rentCard.getByLabel("費目負担設定").selectOption("custom");
+  await rentCard.getByLabel("費目本人割合（%）").fill("80");
+  await rentCard.getByRole("button", { name: "費目編集を保存" }).click();
+  await assertContains(page.getByTestId("self-summary"), "負担額 88,772円");
+
+  await page.getByRole("button", { name: "日用品を無効化" }).click();
+  await assertContains(page.getByTestId("household-expense"), "106,522円");
+  await page.getByRole("button", { name: "日用品を有効化" }).click();
+  await assertContains(page.getByTestId("household-expense"), "108,772円");
+
+  await page.getByLabel("簡易集計").check();
+  await page.getByLabel("月間世帯生活費").fill("50000");
+  await page.getByRole("button", { name: "簡易生活費を保存" }).click();
+  await assertContains(page.getByTestId("household-expense"), "50,000円");
+  await page.getByLabel("詳細集計").check();
+  await assertContains(page.getByTestId("household-expense"), "108,772円");
+  await page.getByRole("heading", { name: "家賃", exact: true }).waitFor();
+
   const savedBeforeReload = await page.evaluate(
     (key) => globalThis.localStorage.getItem(key),
     storageKey,
@@ -145,20 +243,34 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).activeRoute, "settings");
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 2);
   await page.reload({ waitUntil: "load" });
-  await page.getByRole("heading", { level: 2, name: "設定" }).waitFor();
+  await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
+  await assertContains(page.getByTestId("household-expense"), "108,772円");
   const savedAfterReload = await page.evaluate(
     (key) => globalThis.localStorage.getItem(key),
     storageKey,
   );
   assert.equal(savedAfterReload, savedBeforeReload);
 
+  await page.setViewportSize({ width: 360, height: 800 });
+  const viewportFits = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth <=
+      globalThis.document.documentElement.clientWidth,
+  );
+  assert.equal(viewportFits, true);
+  await page.keyboard.press("Tab");
+  assert.notEqual(
+    await page.evaluate(() => globalThis.document.activeElement?.tagName),
+    "BODY",
+  );
+
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=15, routes=${routes.length}, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=37, routes=${routes.length}, budgetScenario=passed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
   );
 } finally {
   await browser?.close();

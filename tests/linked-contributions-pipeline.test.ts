@@ -54,7 +54,7 @@ describe("linked values", () => {
     store.dispatch({
       type: "unlink-income",
       targetId: "budget-income-self",
-      manualYen: 280_000,
+      manualYen: 300_000,
     });
     store.dispatch({
       type: "update-take-home",
@@ -64,7 +64,7 @@ describe("linked values", () => {
     expect(resolveIncomeTarget(store.getState(), "budget-income-self")).toEqual(
       {
         status: "manual",
-        valueYen: 280_000,
+        valueYen: 300_000,
       },
     );
   });
@@ -75,7 +75,7 @@ describe("linked values", () => {
       id: "duplicate-link",
       targetId: "budget-income-self",
       sourceType: "take-home-result",
-      sourceId: "take-home-partner",
+      sourceId: "take-home-self",
       field: "averageMonthlyTakeHomeYen",
       active: true,
     });
