@@ -103,6 +103,16 @@ function Invoke-Relay([string]$Project,[string]$BundlePath) {
     } finally { $ErrorActionPreference = $previousErrorAction }
     [pscustomobject]@{ ExitCode=$exitCode; Output=($output -join "`n") }
 }
+function Invoke-ProjectScript([string]$Project,[string]$RelativePath) {
+    $script = Join-Path $Project $RelativePath
+    $previousErrorAction = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = @(& $powershellExe -NoProfile -ExecutionPolicy Bypass -File $script 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorAction }
+    [pscustomobject]@{ ExitCode=$exitCode; Output=($output -join "`n") }
+}
 
 $sourceStatus = @(git -C $root status --porcelain=v1 --untracked-files=all)
 if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -ne 0) { throw 'product identity smoke requires a clean source worktree' }
@@ -128,6 +138,23 @@ try {
     & (Join-Path $success 'tools/validate-ai-governance.ps1') | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'project validator failed after valid REQUIREMENTS_DEFINED import' }
 
+    [IO.Directory]::CreateDirectory((Join-Path $success 'src')) | Out-Null
+    [IO.Directory]::CreateDirectory((Join-Path $success 'tests')) | Out-Null
+    [IO.File]::WriteAllText((Join-Path $success 'package.json'),'{"private":true}',$utf8NoBom)
+    [IO.File]::WriteAllText((Join-Path $success 'src/main.ts'),'export const ready = true;',$utf8NoBom)
+    [IO.File]::WriteAllText((Join-Path $success 'tests/smoke.test.ts'),'export const smoke = true;',$utf8NoBom)
+    $codePathOverlayResult = Invoke-ProjectScript $success 'tools/validate-project-overlay.ps1'
+    if ($codePathOverlayResult.ExitCode -ne 0) { throw "permanent overlay rejected TASK-002 code paths: $($codePathOverlayResult.Output)" }
+    $codePathGovernanceResult = Invoke-ProjectScript $success 'tools/validate-ai-governance.ps1'
+    if ($codePathGovernanceResult.ExitCode -ne 0) { throw "project validator rejected TASK-002 code paths: $($codePathGovernanceResult.Output)" }
+
+    $mismatchBranch = 'codex/task-002-product-identity-mismatch'
+    $mismatch = New-Fixture 'mismatch' $mismatchBranch
+    $mismatchProductPath = Join-Path $mismatch 'docs/product/REQUIREMENTS.md'
+    [IO.File]::AppendAllText($mismatchProductPath,"`nidentity mismatch fixture",$utf8NoBom)
+    $mismatchResult = Invoke-ProjectScript $mismatch 'tools/validate-project-overlay.ps1'
+    if ($mismatchResult.ExitCode -eq 0 -or $mismatchResult.Output -notmatch 'product identity byte hash mismatch') { throw "product identity mismatch was not rejected: $($mismatchResult.Output)" }
+
     $invalidBranch = 'codex/task-002-invalid-product-identity'
     $invalid = New-Fixture 'invalid' $invalidBranch
     $invalidAdapterPath = Join-Path $invalid 'docs/ai/PROJECT_ADAPTER.psd1'
@@ -144,7 +171,7 @@ try {
     if ($invalidResult.ExitCode -eq 0 -or $invalidResult.Output -notmatch 'accepted product identity reference is invalid' -or -not (Test-Snapshot $before $after) -or $invalidStatus.Count -ne 0) { throw "invalid product identity reference was not rejected before write: $($invalidResult.Output)" }
     if (Test-Path -LiteralPath (Join-Path $invalid 'docs/ai/tasks/TASK-002.md')) { throw 'invalid product identity reference created TASK-002' }
 
-    Write-Output 'Product identity REQUIREMENTS_DEFINED smoke passed: valid import and invalid pre-write rejection.'
+    Write-Output 'Product identity REQUIREMENTS_DEFINED smoke passed: valid import, TASK-002 code paths, identity mismatch rejection, and invalid pre-write rejection.'
 } finally {
     $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
     if ($temporaryRoot.StartsWith($tempBase,[StringComparison]::OrdinalIgnoreCase) -and (Split-Path -Leaf $temporaryRoot) -like 'pfp-task001-product-identity-*' -and (Test-Path -LiteralPath $temporaryRoot -PathType Container)) { Remove-Item -LiteralPath $temporaryRoot -Recurse -Force }
