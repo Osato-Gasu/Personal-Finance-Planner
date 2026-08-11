@@ -2,42 +2,42 @@
 
 - task_id: TASK-004
 - spec_revision: 2
-- phase: implementation
-- status: changes_requested
+- phase: implementation_review
+- status: review_requested
 - baseline_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 - baseline_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-- implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
-- candidate_commit: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
-- candidate_tree: ffc699f116f4fa9544c7cd9c42abc5076c33bc5d
+- implementation_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- candidate_commit: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- candidate_tree: 2621ee0500e4d2ee81654c4b1160325e225f45b6
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - product_bytes: 11767
 - product_blob: 9d7509bcb8c7726903942d6dc4fb2b768cc3f654
 - source_match: requirements product identity matched
-- build_result: passed; standalone dist/index.html 109.98 kB
-- tests_passed: 215 Vitest tests; 49 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; typecheck; lint; format; build
+- build_result: passed; standalone dist/index.html 115.36 kB
+- tests_passed: 231 Vitest tests; 60 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; portable
 - tests_failed: none
-- browser_evidence: Edge file:// portable suite passed 82 checks including annual-mode bonus, rule metadata, standard remuneration/bonus evidence, reload, keyboard, focus, and 360px
+- browser_evidence: Edge file:// portable suite passed 88 checks including unsupported link, plan identity, reload, keyboard, focus, and 360px
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: FINDING-004-R2-01 through FINDING-004-R2-07 accepted for correction
-- worktree: relay_imported
+- unresolved: none
+- worktree: clean_candidate
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: implementation
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: changes_requested
-- request_review_status: completed
+- review_status: requested
+- request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- reviewed_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 - reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: changes_requested
-- review_findings_count: 7
-- review_finding_ids: FINDING-004-R2-01, FINDING-004-R2-02, FINDING-004-R2-03, FINDING-004-R2-04, FINDING-004-R2-05, FINDING-004-R2-06, FINDING-004-R2-07
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
 - repository_write_access: available
 - write_probe_method: clean isolated TASK-004 worktree
 - user_relay_required: false
@@ -57,8 +57,8 @@
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: not_applicable_prewrite_validated
 - execution_started_at: 2026-08-12 02:47:50 JST
-- workflow_run_id: 31523161952
-- workflow_head_sha: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- workflow_run_id: 31529422834
+- workflow_head_sha: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 - workflow_conclusion: success
 - review_stage: implementation
 - changes_requested_cycles: 1
@@ -67,7 +67,7 @@
 - implementation_review_terminated: false
 - final_review: false
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_finished_at: 2026-08-12 03:35:00 JST
+- execution_finished_at: 2026-08-12 04:48:33 JST
 
 ## Attempt 1 review relay
 
@@ -78,6 +78,20 @@
 - reviewed_handoff_head: b99d48cf8ffabe4062ff5b70be723c0c1b33bdb0
 - decision: CHANGES_REQUESTED
 - next_review: attempt 2 / standard
+
+## Attempt 1 findings resolved
+
+- FINDING-004-R2-01: 月別年齢資格ruleと40／65／70／75歳の給与・賞与golden tests
+- FINDING-004-R2-02: 月別雇用保険賃金根拠、料率期間差、賞与eligible、その他課税給与、月別端数tests
+- FINDING-004-R2-03: iDeCo控除なし／あり双方の課税所得・基準所得税・復興特別所得税・最終100円丸めtests
+- FINDING-004-R2-04: linked planの未計算状態保存、writer／listener、budget unresolved、reload／import tests
+- FINDING-004-R2-05: unsupportedConditionsと状態分離のunit／UI／link tests
+- FINDING-004-R2-06: 50／32等級全値と公式source identity、削除・境界・上限改変negative tests
+- FINDING-004-R2-07: plan profile identityの作成・UI・save・load・import・旧candidate v3 normalization tests
+- candidate_workflow_run_id: 31529422834
+- candidate_workflow_head_sha: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- candidate_workflow_conclusion: success
+- portable: 88 checks; runtime requests 0; console errors 0; page errors 0
 
 ## Spec revision 2 implementation evidence
 

@@ -14,19 +14,19 @@
 - branch: codex/task-004-take-home-beta
 - baseline_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 - baseline_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-- implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
-- candidate_commit: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
-- candidate_tree: ffc699f116f4fa9544c7cd9c42abc5076c33bc5d
+- implementation_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- candidate_commit: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- candidate_tree: 2621ee0500e4d2ee81654c4b1160325e225f45b6
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - spec_revision: 2
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_terminated: false
-- review_attempt: 1
+- review_attempt: 2
 - review_profile: standard
 - final_review: false
 
@@ -37,26 +37,27 @@
 - out_of_scope: 複数勤務先、給与所得以外、組合健保自動、全国住民税自動、2027年以降、住宅ローン控除、iDeCo上限、deployment、release
 - acceptance_criteria: docs/ai/tasks/TASK-004.mdのspec revision 2 Acceptance criteria全件
 - forbidden_changes: docs/product/**、generated shared snapshot、main、tag、release、非公式制度値
-- tests_and_build: PowerShell 5.1/7 governance and product identity smoke PASS; npm ci/typecheck/lint/format/test/build/test:rules/test:portable PASS; 215 Vitest tests, 49 rule tests, 82 portable browser checks PASS
-- browser_evidence: system Edge file:// PASS; 2026計算、賞与、標準報酬・標準賞与根拠、live budget link、reload、360px、keyboard、runtime requests 0
+- tests_and_build: PowerShell 5.1/7 governance and product identity smoke PASS; npm ci/typecheck/lint/format/test/build/test:rules/test:portable PASS; 231 Vitest tests, 60 rule tests, 88 portable browser checks PASS
+- browser_evidence: system Edge file:// PASS; age eligibility、employment wage evidence、unsupported link、plan identity、reload、360px、keyboard、console/page errors 0、runtime requests 0
 - commit_policy: implementation candidateを変更せずexact reviewする
 - stop_conditions: 計算・端数・data preservation・migration・rollback・validator・required test・security・backward compatibility・standalone portability・candidate identityの失敗
 - return_to: Codex
 - report: docs/ai/reports/TASK-004/IMPLEMENTATION_REPORT.md
-- execution_started_at: 2026-08-12 02:47:50 JST
-- workflow_run_id: 31523161952
-- workflow_head_sha: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- execution_started_at: 2026-08-12 03:35:00 JST
+- workflow_run_id: 31529422834
+- workflow_head_sha: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 - workflow_conclusion: success
-- execution_finished_at: 2026-08-12 03:35:00 JST
+- execution_finished_at: 2026-08-12 04:48:33 JST
 
-## Spec revision 2 changes to review
+## Attempt 1 findings resolved
 
-- annual salary mode treats annual taxable salary as bonus-inclusive and rejects bonus totals that exceed it; annual employment-insurance base does not double count bonuses
-- automatic social insurance requires explicit monthly remuneration evidence instead of silently treating missing annual-mode evidence as zero
-- health-insurance standard bonus accumulation uses the April-to-March fiscal-year cap and retains payment-date-specific evidence
-- TakeHomeResult preserves complete applied-rule metadata and derived employer-prefecture, standard-remuneration, and standard-bonus evidence without persisting derived values
-- rule validator rejects invalid effective basis, verifier, publisher, and mismatched official-source hosts
-- UI exposes calculation status, rule ID, effective period/basis, verification date, publisher, employer prefecture, standard remuneration, and standard bonus evidence
+- FINDING-004-R2-01: health、additional、pension、careの年齢資格を月別rule化し、給与・賞与へ40/65/70/75歳境界を適用した
+- FINDING-004-R2-02: 雇用保険autoを月別実賃金根拠へ変更し、年収12等分を廃止した
+- FINDING-004-R2-03: iDeCo控除なし／ありの課税所得・基準所得税・復興特別所得税・最終総額を独立再計算した
+- FINDING-004-R2-04: active link後の未計算plan更新を保存可能にし、家計側をnull／unresolvedのまま維持した
+- FINDING-004-R2-05: unsupported、incomplete、missing-rule、out-of-rangeを分離し、unsupportedConditionsを表示した
+- FINDING-004-R2-06: 健康保険50等級・厚生年金32等級の全境界、全標準額、公式source identityを固定検証した
+- FINDING-004-R2-07: planへbirthDate／residencePrefectureを保持し、人物プロフィール変更から独立させた
 
 ## Primary sources and verification
 
@@ -68,8 +69,8 @@
 
 ## Review policy
 
-- attempt 1 uses the standard profile.
-- after one failed review, attempt 2 may progressively relax only non-required UI, wording, or optional optimization.
+- attempt 2 uses the standard profile.
+- no acceptance criterion is relaxed for attempt 2.
 - calculation accuracy, data preservation, rollback, raw-byte portability, validator, required tests, release gates, security, and backward compatibility are never relaxable.
 - a failed attempt 3 terminates review without attempt 4.
 
@@ -77,7 +78,7 @@
 
 - corrected route bundles were exact-validated at 16329 bytes with SHA-256 B05C87B548AA496188F8BE565CAE29C15709051FDB4BFBACAD4BED0787F866CB and 60C69D9433EE56DCC2BFD7055875C5C4D715478102D451A9D290CE3468AC8206.
 - spec revision 2 adoption is isolated in commit 591938617d3d84622fb846e61118b94b26d70ba4; historical spec revision 1 relay evidence remains byte-exact.
-- candidate exact workflow 31523161952 succeeded for head SHA 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819.
-- migration write-failure and invalid annual bonus totals preserve State, storage bytes, writer count, and listener count.
-- TakeHomeResult derived evidence is not copied into AppState or persisted storage.
-- standalone HTML file launch passed 82 browser checks with console errors 0, page errors 0, and runtime requests 0.
+- candidate exact workflow 31529422834 succeeded for head SHA d83ceb854cf0c9f812d99675c3e9f2e2ae182026.
+- complete→incomplete／unsupported／missing-ruleのlinked plan更新は永続化・通知され、家計値は0円化せずunresolvedになる。
+- previous candidate v3、save/load/import、plan profile identity、rule golden／negative、migrationの回帰testを含む231 testsが成功した。
+- standalone HTML file launch passed 88 browser checks with console errors 0, page errors 0, and runtime requests 0.

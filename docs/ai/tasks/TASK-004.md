@@ -1,23 +1,23 @@
 ---
 task_id: TASK-004
 title: 手取り計算ベータ
-status: changes_requested
+status: review_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 2
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-004/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -29,7 +29,7 @@ base_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 base_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+implementation_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 review_stage: implementation
 changes_requested_cycles: 1
 implementation_review_attempt: 2
@@ -40,19 +40,19 @@ review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
 repository_access: true
-review_status: changes_requested
-request_review_status: completed
+review_status: requested
+request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+reviewed_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 reviewed_spec_revision: 2
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: changes_requested
-review_findings_count: 7
-review_finding_ids: FINDING-004-R2-01, FINDING-004-R2-02, FINDING-004-R2-03, FINDING-004-R2-04, FINDING-004-R2-05, FINDING-004-R2-06, FINDING-004-R2-07
-actual_executor: Codex
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
+actual_executor: ChatGPT
 provider_substitution: none
 
 shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
