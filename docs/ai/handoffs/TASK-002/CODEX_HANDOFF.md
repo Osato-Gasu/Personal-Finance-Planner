@@ -19,6 +19,8 @@
 - effort: high
 - routing_mode: legacy_unspecified
 - review_stage: implementation
+- spec_revision: 2
+- user_approved_spec_revision: true
 
 ## Purpose
 
@@ -31,6 +33,7 @@
 - 単一Store、StorageRepository、有効期間付きRuleResolver
 - 最大2人物State、linked value、資産形成拠出分離、最小計算パイプライン
 - transactional export/importとactive TASK非依存governance smoke
+- standalone single HTML buildと`file://`実browser portable test
 
 ## Out of scope
 
@@ -39,7 +42,10 @@
 
 ## Required changes
 
-- none
+- source module分離と`npm run dev`を維持する。
+- `npm run build`でJavaScript／CSSをinlineしたstandalone `dist/index.html`を生成する。
+- HTML単体を空白・日本語を含む別folderへコピーし、system Edge／Chromeの`file://`で5 route、history、reload、same-path localStorage、runtime request 0を検証する。
+- README、製品正本、PRODUCT_IDENTITIESを承認済み仕様へ同期する。
 
 ## User decisions required
 
@@ -57,6 +63,8 @@
 - active TASK branchからproduct identity smokeが成功する
 - PowerShell 5.1と7のgovernance検証およびnpm typecheck、lint、format、test、buildが成功する
 - candidate exact commitのGitHub Actionsが成功する
+- `npm run test:portable`がactual browserで成功する
+- ビルド済みアプリの利用時にHTTP server、Node.js、npm、外部asset、runtime networkを必要としない
 
 ## Tests
 
@@ -65,11 +73,18 @@
 - export/import transactionと失敗時不変性
 - active TASK product identity smokeとproduct identity拒否境界
 - PowerShell 5.1/7、npm typecheck/lint/format/test/build、GitHub Actions
+- standalone HTML構造検証と`file://` actual browser smoke
 
 ## Forbidden changes
 
-- docs/product/**とgenerated shared snapshotを変更しない
+- generated shared snapshotを直接変更しない
 - 実制度値、完成UI、外部runtime CDNを実装しない
 - main、tag、release、source branchを変更しない
+
+## Spec revision audit
+
+- spec revision 1のreview attempt 1～3とcandidate evidenceは既存handoff／Git履歴へ保持する。
+- spec revision 2はユーザー承認済み仕様変更であり、implementation review attempt 1／standardから開始する。
+- accepted unresolved issue: active link整合性問題は既知事項として保持し、portable build scopeでは修正しない。
 
 Validated full bundle: docs/ai/reports/TASK-002/RELAY_BUNDLE.json

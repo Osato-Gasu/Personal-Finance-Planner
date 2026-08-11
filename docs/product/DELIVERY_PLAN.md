@@ -17,9 +17,12 @@
 - link解除
 - asset contribution分離
 - export/import transaction
+- source module分離を維持したstandalone single HTML build
+- Windows Chromium系browserでの`file://` portable test
+- same-path localStorage reloadとruntime network request 0の検証
 - stale copy、二重計上、rule境界の自動テスト
 
-完了条件: 実制度値や完成UIなしで横断データフローの安全性を証明する。
+完了条件: 実制度値や完成UIなしで横断データフローの安全性を証明し、ビルド済み`dist/index.html`単体をダブルクリックして利用できる。
 
 ## TASK-003 家計・生活費MVP
 
@@ -80,7 +83,7 @@
 ## TASK-009 配布
 
 - GitHub Actions
-- static deployment
+- standalone HTML配布と必要に応じたstatic deployment
 - release checklist
 - 制度確認日とversion表示
 

@@ -11,17 +11,20 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:portable": "npm run build && node tools/test-portable-build.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests vite.config.ts",
-    "format:check": "prettier --check index.html src tests package.json package-lock.json tsconfig.json vite.config.ts eslint.config.js .github/workflows/ci.yml"
+    "lint": "eslint src tests tools/test-portable-build.mjs vite.config.ts",
+    "format:check": "prettier --check index.html src tests tools/test-portable-build.mjs package.json package-lock.json tsconfig.json vite.config.ts eslint.config.js .github/workflows/ci.yml"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.1",
+    "playwright-core": "^1.62.1",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
     "vite": "^8.2.1",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.10"
   }
 }

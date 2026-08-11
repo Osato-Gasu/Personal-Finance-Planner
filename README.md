@@ -5,7 +5,7 @@
 ## 現在の状態
 
 - 設計基準: v0.2
-- 実装状態: 未着手
+- 実装状態: M1横断アーキテクチャスパイク
 - 対象: 日本国内の個人利用
 - 保存方式: 初期版はブラウザ内保存とJSONバックアップ
 - 計算結果: 税務・社会保険・投資判断を代替しない概算
@@ -18,6 +18,21 @@
 - NISA・iDeCo
 - 設定
 
+## 開発と利用
+
+開発時はsource moduleを分離したままViteを使用する。
+
+```text
+npm install
+npm run dev
+```
+
+配布用HTMLは`npm run build`で生成する。end userは生成済みの`dist/index.html`をダブルクリックするだけで起動でき、利用時にHTTP server、Node.js、npmは不要である。JavaScriptとCSSはHTMLへinlineされるため、`index.html`だけを別folderへコピーしても利用でき、runtimeの外部通信も行わない。
+
+`npm run test:portable`はbuild後のHTMLだけを別folderへコピーし、system EdgeまたはChromeの`file://`でroute、browser history、reload、保存、runtime通信なしを検証する。
+
+Stateは同じfile pathのlocalStorageへ保存される。HTMLの移動・folder名変更・file名変更によりbrowser上の保存領域が変わり、以前のStateが見えなくなる可能性があるため、移動前にJSON backupを取得する。
+
 ## 技術方針
 
 - Vite
@@ -27,6 +42,7 @@
 - Vitest
 - ESLint / Prettier
 - 初期版はバックエンドなし
+- 配布物はstandalone single HTML
 
 ## 設計正本
 

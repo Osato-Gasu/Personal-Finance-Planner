@@ -1,24 +1,24 @@
 ---
 task_id: TASK-002
 title: 基盤・横断アーキテクチャスパイク
-status: review_requested
+status: ready
 route: TWO_SESSION_FAST
 priority: high
-spec_revision: 1
+spec_revision: 2
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
-assigned_model: 5.6 Sol-Pro
-assigned_effort: Pro
+current_phase: implementation
+current_role_id: IMPLEMENTER
+next_actor: Codex
+next_role: IMPLEMENTER
+assigned_model: 5.6 Sol
+assigned_effort: high
 session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-002/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-002/CODEX_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
-browser_evidence_required: false
+return_to: ChatGPT
+browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
 claude_design_review_required: false
@@ -28,31 +28,7 @@ claude_implementation_review_status: not_requested
 base_commit: 530b9708b43fc593ae8571f69b03ba62b91f628d
 base_tree: 21aa743bc67fb63ddf9d1b0c3589bba9e92c3a71
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#architecture_*
-accepted_product_sha256: E6692D69EF6D6E52BDAF36999C8C5EF75D8859C369DBD77CF4156E3A76B76BBE
-implementation_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
-review_stage: implementation
-changes_requested_cycles: 2
-implementation_review_attempt: 3
-implementation_review_profile: relaxed
-implementation_review_final: true
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol-Pro
-review_effort: Pro
-reviewed_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
-reviewed_spec_revision: 1
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: ChatGPT
-provider_substitution: none
+accepted_product_sha256: 359008B7D3F54AF15B28020EBDD89AD734B361081E5243D0DB6704982B96D72C
 updated_at: 2026-08-11
 ---
 
@@ -69,6 +45,8 @@ updated_at: 2026-08-11
 - 単一Store、StorageRepository、有効期間付きRuleResolver
 - 最大2人物State、linked value、資産形成拠出分離、最小計算パイプライン
 - transactional export/importとactive TASK非依存governance smoke
+- source module分離を維持したstandalone single HTML build
+- Windows Chromium系browserによる`file://` portable smoke
 
 ## Out of scope
 
@@ -83,6 +61,9 @@ updated_at: 2026-08-11
 - active TASK branchからproduct identity smokeが成功する
 - PowerShell 5.1と7のgovernance検証およびnpm typecheck、lint、format、test、buildが成功する
 - candidate exact commitのGitHub Actionsが成功する
+- `dist/index.html`単体を別folderへコピーしてダブルクリック相当の`file://`起動ができる
+- 5 route、未知route正規化、navigation、戻る／進む、reloadが`file://`で動作する
+- same-path localStorageがreload後も保持され、runtime network requestが発生しない
 
 ## Tests
 
@@ -91,6 +72,7 @@ updated_at: 2026-08-11
 - export/import transactionと失敗時不変性
 - active TASK product identity smokeとproduct identity拒否境界
 - PowerShell 5.1/7、npm typecheck/lint/format/test/build、GitHub Actions
+- `npm run test:portable`によるsingle HTML構造、別folder単体copy、system Edge／Chromeでの動的検証
 
 ## Build
 
@@ -100,6 +82,7 @@ updated_at: 2026-08-11
 - npm run format:check
 - npm run test
 - npm run build
+- npm run test:portable
 
 ## Rollback
 
@@ -107,6 +90,12 @@ discard the TASK-002 isolated branch and preserve main at the fixed baseline
 
 ## Forbidden changes
 
-- docs/product/**とgenerated shared snapshotを変更しない
+- generated shared snapshotを直接変更しない
 - 実制度値、完成UI、外部runtime CDNを実装しない
 - main、tag、release、source branchを変更しない
+
+## Spec revision audit
+
+- spec revision 1のimplementation review attempt 1～3とcandidate evidenceは既存handoff／Git履歴へ保持する。
+- ユーザー承認済み仕様変更によりspec revision 2へ移行し、implementation reviewはattempt 1／standardへresetする。
+- spec revision 1で受容されたactive link整合性問題は既知事項として保持し、本revisionのportable build scopeでは修正しない。

@@ -11,19 +11,28 @@
 
 ## 2. 技術構成
 
-| 項目 | 採用 |
-|---|---|
-| Build | Vite |
-| Language | TypeScript |
-| UI | HTML、CSS、Vanilla DOM API |
-| Routing | hash route |
-| Test | Vitest |
-| Lint / Format | ESLint、Prettier |
-| Storage | localStorage behind repository |
-| Chart | MVPでは表・数値表示、後続で選定 |
-| Backend | なし |
+| 項目          | 採用                            |
+| ------------- | ------------------------------- |
+| Build         | Vite                            |
+| Language      | TypeScript                      |
+| UI            | HTML、CSS、Vanilla DOM API      |
+| Routing       | hash route                      |
+| Test          | Vitest                          |
+| Lint / Format | ESLint、Prettier                |
+| Storage       | localStorage behind repository  |
+| Chart         | MVPでは表・数値表示、後続で選定 |
+| Backend       | なし                            |
+| Build output  | standalone `dist/index.html`    |
 
 UIフレームワークを導入しない。状態管理・ルーティングも必要最小限のプロジェクト内実装とする。ただし独自フレームワーク化はしない。
+
+### 2.1 開発sourceとstandalone build
+
+開発sourceは`index.html`、`src/**/*.ts`、`src/**/*.css`と必要なmoduleへ分離し、手作業で1枚HTMLへ統合しない。`npm run dev`は開発用Vite serverを使用する。
+
+`npm run build`はsingle-file build処理により、application JavaScript、CSS、必要な静的assetを`dist/index.html`へinlineする。build outputには`<script src>`、外部stylesheet、modulepreload、実行時dynamic import、絶対pathを残さず、複数chunkや外部assetを実行に要求しない。end userはHTMLをダブルクリックして`file://`で起動でき、HTTP server、Node.js、npm、runtime CDN、外部networkを必要としない。
+
+portable browser testは生成HTMLだけを空白・日本語を含む一時folderへコピーし、system Chromium browserで5 route、hash正規化、navigation、history、reload、console／page error、runtime request、same-path localStorageを動的に検証する。
 
 ## 3. モジュール境界
 
@@ -163,6 +172,8 @@ commitImport()
 
 保存単位はAppState全体とし、書込前にserialize可能性・schema version・invariantを検証する。保存失敗時はメモリ上の操作を維持してエラーを表示し、成功したと誤表示しない。
 
+`file://`利用時は同一file pathでlocalStorageを再利用する。HTMLの移動・folder名変更・file名変更ではbrowser origin相当の保存領域が変わる可能性があるため、移動前のJSON backupを案内する。
+
 ### インポート
 
 ```text
@@ -241,6 +252,7 @@ tests/
 8. リンク元更新による自動再計算
 9. リンク解除によるmanual切替
 10. export/importの検証後置換
+11. standalone single HTML buildと`file://`実browser検証
 
 実税率や完成UIはスパイクに含めない。以下を自動テストで証明する。
 
@@ -249,3 +261,4 @@ tests/
 - 同一sourceを二重計上しない。
 - rule境界日で選択が変わる。
 - import失敗で現行Stateが変わらない。
+- HTML単体を別folderへコピーしても5 routeとsame-path保存が動作し、runtime network requestが発生しない。

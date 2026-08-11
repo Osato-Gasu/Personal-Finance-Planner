@@ -1,37 +1,38 @@
 # IMPLEMENTATION REPORT — TASK-002
 
 - task_id: TASK-002
-- phase: implementation_review
-- status: review_requested
+- spec_revision: 2
+- phase: implementation
+- status: ready
 - baseline_commit: 530b9708b43fc593ae8571f69b03ba62b91f628d
 - baseline_tree: 21aa743bc67fb63ddf9d1b0c3589bba9e92c3a71
-- candidate_commit: 5529ec7eebdf7e182df4444621201469a7399fe9
-- candidate_tree: 0a50da29a6cb932eb2c7ba05fc59102e42efc952
-- product_sha256: E6692D69EF6D6E52BDAF36999C8C5EF75D8859C369DBD77CF4156E3A76B76BBE
-- product_bytes: 6714
-- product_blob: ccd20c1b8b7547c1af0185ad847dc2d31c786e10
-- changed_files: 36
-- tests_passed: 61 unit/integration tests; PowerShell 5.1/7 governance and product identity smoke; npm typecheck/lint/format/test/build
+- candidate_commit: pending
+- candidate_tree: pending
+- product_sha256: 359008B7D3F54AF15B28020EBDD89AD734B361081E5243D0DB6704982B96D72C
+- product_bytes: 8458
+- product_blob: 883716b428a744569ac2b7ea2b196e95f2d4b055
+- changed_files: pending
+- tests_passed: 61 unit/integration tests retained; local system Edge portable file smoke passed; remaining candidate gates pending
 - tests_failed: none
 - build_result: passed
 - source_match: architecture product identity matched
-- browser_evidence: not_required
-- network: npm registry dependency installation only; runtime has no external dependency
-- unresolved: none
+- browser_evidence: local_system_edge_passed_candidate_pending
+- network: npm registry dependency installation only; portable smoke observed zero runtime requests
+- unresolved: accepted active link integrity issue from spec revision 1 remains out of portable build scope
 - risks: fixture-only architecture must not be represented as actual制度計算
-- worktree: clean_at_candidate
+- worktree: implementation_in_progress
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: none
-- review_role: ORCHESTRATOR_AND_REVIEWER
-- execution_mode: separate_session
+- review_role: none
+- execution_mode: existing_session
 - repository_access: true
-- review_status: requested
-- request_review_status: requested
-- review_model: 5.6 Sol-Pro
-- review_effort: Pro
-- reviewed_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
-- reviewed_spec_revision: 1
+- review_status: not_requested
+- request_review_status: none
+- review_model: none
+- review_effort: none
+- reviewed_candidate: none
+- reviewed_spec_revision: none
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
@@ -56,13 +57,16 @@
 - finding_dispositions: not_applicable
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: verified
-- execution_started_at: 2026-08-11 19:23:00 JST
-- workflow_run_id: 31482370511
-- workflow_head_sha: 5529ec7eebdf7e182df4444621201469a7399fe9
-- workflow_conclusion: success
-- supersedes_candidate: b9d01423965ac94b2f24152ad53a5af8e3b1ef18
-- resolved_findings: FINDING-002-01,FINDING-002-02,FINDING-002-03
-- implementation_review_attempt: 3
-- implementation_review_profile: relaxed
-- final_review: true
-- execution_finished_at: 2026-08-11 19:31:06 JST
+- execution_started_at: 2026-08-11 19:47:00 JST
+- workflow_run_id: pending
+- workflow_head_sha: pending
+- workflow_conclusion: pending
+- supersedes_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
+- spec_revision_1_candidate: 5529ec7eebdf7e182df4444621201469a7399fe9
+- spec_revision_1_workflow_run_id: 31482370511
+- spec_revision_1_review_attempts: 1,2,3
+- spec_revision_1_user_decision: accepted active link integrity issue and approved spec revision 2
+- next_implementation_review_attempt: 1
+- next_implementation_review_profile: standard
+- final_review: false
+- execution_finished_at: pending

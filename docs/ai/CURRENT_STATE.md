@@ -2,9 +2,9 @@
 updated_at: 2026-08-11
 active_tasks:
   - TASK-002
-next_action: ChatGPT performs TASK-002 implementation review attempt 3 with the relaxed final profile
+next_action: Codex implements the user-approved TASK-002 spec revision 2 portable standalone build
 ---
 
 # Current state
 
-TASK-002 implementation candidate 5529ec7eebdf7e182df4444621201469a7399fe9 is fixed for implementation review attempt 3 after exact candidate CI success.
+TASK-002 spec revision 2 is in implementation after the user-approved standalone file distribution requirement reset implementation review to attempt 1 standard.

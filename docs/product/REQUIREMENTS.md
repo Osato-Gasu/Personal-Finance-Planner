@@ -23,15 +23,29 @@
 
 トップレベル画面はURLを持つSPAページとし、見た目をタブ型ナビゲーションにする。
 
-| 画面 | route | 主目的 |
-|---|---|---|
-| 総合サマリー | `#/overview` | 全モジュールの主要結果を統合表示 |
-| 家計・生活費 | `#/budget` | 支出平準化、カテゴリ、負担割合 |
-| 手取り計算 | `#/take-home` | 給与、税、社会保険、手取りの概算 |
-| NISA・iDeCo | `#/investments` | 積立、上限、将来資産、節税効果 |
-| 設定 | `#/settings` | 人物、制度年月、保存、バックアップ |
+| 画面         | route           | 主目的                             |
+| ------------ | --------------- | ---------------------------------- |
+| 総合サマリー | `#/overview`    | 全モジュールの主要結果を統合表示   |
+| 家計・生活費 | `#/budget`      | 支出平準化、カテゴリ、負担割合     |
+| 手取り計算   | `#/take-home`   | 給与、税、社会保険、手取りの概算   |
+| NISA・iDeCo  | `#/investments` | 積立、上限、将来資産、節税効果     |
+| 設定         | `#/settings`    | 人物、制度年月、保存、バックアップ |
 
 再読み込み、戻る、進む、URL直開きに対応する。画面切替で保存済み入力を失わない。
+
+### 3.1 起動・配布
+
+- 開発sourceは`index.html`、TypeScript、CSS、その他moduleへ分離する。
+- 開発時は`npm run dev`でViteを利用する。
+- `npm run build`はJavaScript、CSS、必要な静的assetをinlineしたstandalone `dist/index.html`を生成する。
+- end userはビルド済み`dist/index.html`をダブルクリックし、`file://`で起動する。
+- ビルド済みアプリの利用時にHTTP server、Node.js、npmを必要としない。
+- `dist/index.html`だけを空の別folderへコピーしても起動する。
+- runtime CDN、外部script、外部stylesheet、modulepreload、dynamic import、外部network requestへ依存しない。
+- routingはhashだけを使用し、file pathをrouteとして扱わない。
+- Windows 10／11上のChromium系browserを初期対象とする。
+- 同じfile pathではlocalStorageのStateをreload後も復元する。
+- HTMLの移動・folder名変更・file名変更によりbrowserの保存領域が変わる可能性を利用者へ明示する。
 
 ## 4. 共通プロフィール
 
@@ -211,14 +225,14 @@
 
 各値の正本を固定する。
 
-| 値 | 正本 |
-|---|---|
-| 額面給与・賞与 | 手取り計算 |
+| 値               | 正本           |
+| ---------------- | -------------- |
+| 額面給与・賞与   | 手取り計算     |
 | 法定控除後手取り | 手取り計算結果 |
-| 生活費 | 家計・生活費 |
-| NISA拠出 | NISA計画 |
-| iDeCo掛金 | iDeCo計画 |
-| 投資後手残り | 総合計算結果 |
+| 生活費           | 家計・生活費   |
+| NISA拠出         | NISA計画       |
+| iDeCo掛金        | iDeCo計画      |
+| 投資後手残り     | 総合計算結果   |
 
 連携値はコピー保存せず、正本への参照から再計算する。正本更新時は連携先へ即時反映する。手入力へ変更する場合だけ、利用者が明示的に連携解除する。
 
@@ -248,6 +262,7 @@
 - 色だけで状態を表現しない
 - ユーザー入力を未エスケープHTMLとして挿入しない
 - 初期版の実行時外部依存を持たない
+- standalone HTMLの実行時にdocument本体以外のnetwork requestを行わない
 - ビルド、テスト、lintをCIで実行
 - 計算結果に概算・適用制度・未対応条件を表示
 
@@ -299,5 +314,8 @@
 - 最終バックアップ日時と通知が機能する。
 - 重要計算に自動テストがある。
 - `npm run build`、`npm run test`、`npm run lint`が成功する。
+- `npm run test:portable`が、空白・日本語を含む別folderのHTML単体を実browserの`file://`で検証する。
+- standalone HTMLで5 route、未知route正規化、戻る、進む、reload、same-path localStorage復元が機能する。
+- standalone HTMLに外部script、外部stylesheet、modulepreload、runtime network dependencyがない。
 - スマートフォン幅とキーボードで主要操作が可能。
 - すべての制度計算結果に概算・適用ルール・未対応条件を表示する。
