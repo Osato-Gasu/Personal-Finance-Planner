@@ -1,23 +1,23 @@
 ---
 task_id: TASK-002
 title: 基盤・横断アーキテクチャスパイク
-status: ready
+status: review_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
+assigned_model: 5.6 Sol-Pro
+assigned_effort: Pro
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-002/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-002/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: false
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -29,6 +29,26 @@ base_commit: 530b9708b43fc593ae8571f69b03ba62b91f628d
 base_tree: 21aa743bc67fb63ddf9d1b0c3589bba9e92c3a71
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#architecture_*
 accepted_product_sha256: E6692D69EF6D6E52BDAF36999C8C5EF75D8859C369DBD77CF4156E3A76B76BBE
+implementation_candidate: 906c4aa0bb10cb61f456466c0f26943f718ef40b
+review_stage: implementation
+review_kind: implementation
+review_role: ORCHESTRATOR_AND_REVIEWER
+execution_mode: separate_session
+repository_access: true
+review_status: requested
+request_review_status: requested
+review_model: 5.6 Sol-Pro
+review_effort: Pro
+reviewed_candidate: 906c4aa0bb10cb61f456466c0f26943f718ef40b
+reviewed_spec_revision: 1
+review_request_id: none
+review_started_at: none
+review_completed_at: none
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
+actual_executor: ChatGPT
+provider_substitution: none
 
 updated_at: 2026-08-11
 ---
