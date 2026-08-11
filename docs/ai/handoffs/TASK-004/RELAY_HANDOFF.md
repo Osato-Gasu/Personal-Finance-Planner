@@ -1,65 +1,36 @@
----
-task_id: TASK-004
-title: 手取り計算ベータ
-status: changes_requested
-route: TWO_SESSION_FAST
-priority: high
-spec_revision: 2
-spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
-session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-004/RELAY_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: optional
-claude_implementation_review_recommendation: optional
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_requested
-claude_implementation_review_status: not_requested
-base_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
-base_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
-review_stage: implementation
-changes_requested_cycles: 1
-implementation_review_attempt: 2
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: changes_requested
-request_review_status: completed
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
-reviewed_spec_revision: 2
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: changes_requested
-review_findings_count: 7
-review_finding_ids: FINDING-004-R2-01, FINDING-004-R2-02, FINDING-004-R2-03, FINDING-004-R2-04, FINDING-004-R2-05, FINDING-004-R2-06, FINDING-004-R2-07
-actual_executor: Codex
-provider_substitution: none
+# RELAY HANDOFF — TASK-004
 
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
-updated_at: 2026-08-12
----
-
-# TASK-004 — 手取り計算ベータ
+- relay_schema: 2
+- task_id: TASK-004
+- decision: CHANGES_REQUESTED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-004-take-home-beta
+- reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- candidate_commit: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- reviewed_handoff_head: b99d48cf8ffabe4062ff5b70be723c0c1b33bdb0
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: implementation
+- next_actor: Codex
+- next_role: IMPLEMENTER
+- model: 5.6 Sol
+- effort: high
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-004-take-home-beta
+- resolved_commit: b99d48cf8ffabe4062ff5b70be723c0c1b33bdb0
+- next_action_blob: 615dd972812f143c1475965098aaa2c101ea97c2
+- handoff_blob: 9d6da2bf62fc53883225c06ccc5e5ada5182793b
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
 
 ## Purpose
 
@@ -109,6 +80,24 @@ updated_at: 2026-08-12
 - backend、cloud同期、runtime CDN、runtime外部API
 - main merge、tag、release、配布
 
+## Required changes
+
+- FINDING-004-R2-01 [MAJOR] src/domain/take-home-calculator.ts::automaticSocial: 健康保険と厚生年金の年齢資格を月別に判定していない。介護保険の40歳・65歳だけを判定し、健康保険料・追加保険料・厚生年金保険料を全年齢へ12か月無条件加算するため、70歳以上へ厚生年金、75歳以上へ協会けんぽを控除したcomplete結果を返し得る。 Evidence: careEligibilityMonthsは40歳・65歳だけを扱い、月次loopはhealth、additional、pensionを年齢条件なしで加算している。日本年金機構の公式案内では厚生年金保険料は70歳到達前まで、健康保険料は75歳到達前までである。 Impact: 制度対象者・対象月と社会保険料が誤り、年間手取りを過少表示する。税・社会保険計算および対象年月・対象者は緩和禁止領域である。 Required: 健康保険・追加保険料・厚生年金・介護保険の年齢資格を公式一次資料付きruleとして実装し、誕生日到達月を含む月別境界を正しく適用する。高齢任意加入等を自動対応しない場合は推測控除せずunsupportedとする。39→40、64→65、69→70、74→75、既に70歳・75歳以上の給与・賞与golden testを追加する。
+- FINDING-004-R2-02 [MAJOR] src/domain/take-home-calculator.ts::automaticSocial / CompensationInput: 年収入力modeの雇用保険料を、年間賃金額または単一annual overrideを12等分した推定月額から計算している。spec revision 2が禁止する、根拠のない月給推測である。 Evidence: annualEmploymentBaseを算出後、Math.floor(base / 12)と余りを各月へ配分し、2026年1～3月と4～12月の異なる料率を適用している。公式案内は被保険者負担額を毎月の賃金総額にその月の料率を乗じて控除する。 Impact: 月ごとの賃金が均等でない利用者では、年度途中の料率変更を誤った賃金配分へ適用し、雇用保険料と手取りが誤る。annualOtherTaxableSalaryYenも雇用保険算定基礎から脱落する。 Required: 年収modeでauto雇用保険を行うには、少なくとも各月または料率期間別の実賃金根拠を入力させる。不足時はincomplete、または雇用保険だけmanualへ誘導する。単一annual overrideの12等分は禁止する。1～3月と4～12月の賃金が異なる境界test、賞与eligible、その他課税給与の算定基礎testを追加する。
+- FINDING-004-R2-03 [MAJOR] src/domain/take-home-calculator.ts::taxableAndTax / iDeCo comparison: iDeCo控除なし側では基準所得税だけを計算し、復興特別所得税と100円未満切捨てを再計算していない。incomeTaxBenefitFromIdecoYenは基準所得税同士の差だけで、控除なし／ありの完全な別計算になっていない。 Evidence: combinedTaxはafterIdeco.taxに対して1回だけ算出され、benefitはbeforeIdeco.tax-afterIdeco.taxである。既存goldenの年収600万円・iDeCo24万円では基準所得税差26,000円を期待するが、所得税及び復興特別所得税の別計算後総額は241,400円と214,900円で差額26,500円となる。 Impact: 表示するiDeCo税軽減額が実際に手取りへ反映される国税減少額と一致せず、法定端数境界でも誤る。 Required: 控除なし／ありの両方について、課税所得、基準所得税、復興特別所得税、最終100円切捨て後総額を独立計算する。比較UIで基準所得税・復興特別所得税・合計差を明確化し、住民税分未計算を維持する。上記26,500円例と100円境界golden testを追加する。
+- FINDING-004-R2-04 [MAJOR] src/domain/state.ts::validateCurrentMembersAndIncome / src/domain/linked-value.ts: active link元planをcompleteからincomplete・unsupported・missing-ruleへ更新すると、AppState validationが保存前に拒否する。plan更新を家計へ即時反映し、未計算を0円化せずunresolvedとして表示する必須経路が成立しない。 Evidence: active link validationがcalculateTakeHome(...).status === completeを常時要求する一方、resolveIncomeTargetにはuncomputed-linkを返す実装がある。Store経由の有効Stateでは後者が到達不能である。 Impact: 住民税を未計算へ戻す、rule対象外へ変更する等の正当なplan更新が保存できず、linked valueの即時反映要件を満たさない。 Required: link作成時はcompleteを要求してよいが、作成後のplan更新ではsource存在・人物一致・一意性を維持したまま未計算状態を保存可能にする。家計selectorはnull/unresolved warningを返し0円化しない。complete→incomplete/unsupported/missing-rule更新、writer/listener、budget summary、reloadのtestを追加する。
+- FINDING-004-R2-05 [MAJOR] src/domain/take-home-calculator.ts::calculateTakeHome status mapping: socialInsurance.modeが文字どおりunsupported-uncomputedでもresult.statusをincompleteとして返し、unsupportedConditionsも空になる。入力不足と製品非対応を区別できていない。 Evidence: unsupported-uncomputed分岐がemptyResult(plan, incomplete, ...)を呼び、emptyResultはstatusがunsupportedのときだけunsupportedConditionsへ理由を入れる。 Impact: 組合健保・共済等の非対応状態を単なる未入力として表示し、結果状態・warning・未対応条件の必須区別に違反する。 Required: 社会保険のunsupported-uncomputedはunsupportedとし、具体的なunsupportedConditionsを保持・表示する。manual項目欠落はincomplete、rule欠落はmissing-ruleへ分離する。各状態のUI・link・import testを追加する。
+- FINDING-004-R2-06 [MAJOR] src/rules/jp/take-home/validator.ts::validateTakeHomeRulePackage: 標準報酬等級validatorが配列同士の同数性と昇順だけを確認し、健康保険50等級・厚生年金32等級、各境界値・標準額の公式表一致を検証しない。両配列から同じ等級を1件削除してもvalidatorが通る。 Evidence: validatorはlowerBoundsYen.length === standardMonthlyValuesYen.lengthとvalidateAscendingのみで、期待等級数や公式境界fixtureを持たない。negative testにも等級欠落・境界改変がない。 Impact: rule packageの等級欠落・誤値をCIが検出できず、多数の利用者の健康保険・厚生年金額が誤る。 Required: 健康保険50等級、厚生年金32等級を明示検証し、公式表の全lower boundとstandard valueをgolden fixtureまたは固定identityで照合する。等級削除、境界値変更、上下限変更のnegative testを追加する。
+- FINDING-004-R2-07 [MAJOR] src/domain/take-home-plan.ts::CalculatedTakeHomePlan / schema v3: accepted spec revision 2がCalculatedTakeHomePlanの最低保持項目とした生年月日・居住都道府県を、planではなくHouseholdMemberだけに保存している。planのsave/load/import invariantとして検証されない。 Evidence: CalculatedTakeHomePlan interfaceにはbirthDateとresidencePrefectureがなく、calculateTakeHomeは外部のHouseholdMember.birthDateを参照する。 Impact: plan単体の制度入力identityが成立せず、人物プロフィール変更が既存planの年齢条件を遡及変更する。accepted data modelとmigration/import受入条件に不一致となる。 Required: birthDateとresidencePrefectureをCalculatedTakeHomePlanへ保持し、作成時の初期値、UI編集、save/load/import invariantを実装する。既存revision 2 candidate内v3データの移行方針を定め、plan別保持と人物プロフィール変更非干渉のtestを追加する。正式に別モデルへ変更する場合は実装で独自解釈せず新spec revisionのユーザー承認を得る。
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
+
 ## Acceptance criteria
 
 - REQUIREMENTS_DEFINED relayのname、SHA-256、bytes、schema、route_result、recipient identityを検証し、TASK-004、CODEX_HANDOFF、CURRENT_STATE、NEXT_ACTION、BACKLOG/Progressをimplementation/Codex/5.6 Sol/highへtransactionalに同期する
@@ -154,28 +143,13 @@ updated_at: 2026-08-12
 - PowerShell 7 governance、PowerShell 7 product identity smoke、PowerShell 5.1 governance、PowerShell 5.1 product identity smoke
 - npm ci、npm run typecheck、npm run lint、npm run format:check、npm run test、npm run build、npm run test:portable
 - 追加するrule validator、rule golden tests、migration testsをローカルとGitHub Actionsの両方で実行する
-
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run build
-- npm run test:portable
-- rule validator
-- rule golden tests
-- migration tests
-- candidate exact GitHub Actions success
-
-## Rollback
-
-relay importまたはvalidator失敗時は全変更をbyte-exact rollbackする。実装を破棄する場合はisolated TASK-004 branch/worktreeだけを廃棄し、mainを固定baselineに維持する
+- 70歳・75歳の健康保険／厚生年金資格境界と給与・賞与控除golden tests
+- 年収modeの1～3月／4～12月別雇用保険賃金根拠、欠落時incomplete、月別端数tests
+- iDeCo控除なし／あり双方の所得税・復興特別所得税・100円切捨て比較tests
+- linked plan complete→uncomputed更新の保存、即時反映、0円化拒否、reload tests
+- unsupported／incomplete／missing-ruleの状態・unsupportedConditions分離tests
+- 標準報酬50／32等級の欠落・境界改変negative validator tests
+- CalculatedTakeHomePlanのbirthDate／residencePrefecture save/load/import invariant tests
 
 ## Forbidden changes
 
@@ -197,3 +171,5 @@ relay importまたはvalidator失敗時は全変更をbyte-exact rollbackする�
 - TASK外refactor
 - TASK-003から引き継いだschema v1改行表示名を本TASKで自動修正、trim、置換、削除すること
 - linked planのsilent deleteまたはlinked amountのコピー保存
+
+Validated full bundle: docs/ai/reports/TASK-004/RELAY_BUNDLE.json

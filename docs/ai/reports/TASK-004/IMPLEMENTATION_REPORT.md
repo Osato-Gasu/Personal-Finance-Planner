@@ -2,8 +2,8 @@
 
 - task_id: TASK-004
 - spec_revision: 2
-- phase: implementation_review
-- status: review_requested
+- phase: implementation
+- status: changes_requested
 - baseline_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 - baseline_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
 - implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
@@ -18,16 +18,16 @@
 - tests_failed: none
 - browser_evidence: Edge file:// portable suite passed 82 checks including annual-mode bonus, rule metadata, standard remuneration/bonus evidence, reload, keyboard, focus, and 360px
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: none
-- worktree: clean_candidate
+- unresolved: FINDING-004-R2-01 through FINDING-004-R2-07 accepted for correction
+- worktree: relay_imported
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: implementation
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: requested
-- request_review_status: requested
+- review_status: changes_requested
+- request_review_status: completed
 - review_model: 5.6 Sol
 - review_effort: high
 - reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
@@ -35,9 +35,9 @@
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: none
-- review_findings_count: 0
-- review_finding_ids: none
+- review_result: changes_requested
+- review_findings_count: 7
+- review_finding_ids: FINDING-004-R2-01, FINDING-004-R2-02, FINDING-004-R2-03, FINDING-004-R2-04, FINDING-004-R2-05, FINDING-004-R2-06, FINDING-004-R2-07
 - repository_write_access: available
 - write_probe_method: clean isolated TASK-004 worktree
 - user_relay_required: false
@@ -61,13 +61,23 @@
 - workflow_head_sha: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
 - workflow_conclusion: success
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_terminated: false
 - final_review: false
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
 - execution_finished_at: 2026-08-12 03:35:00 JST
+
+## Attempt 1 review relay
+
+- source_bundle: task-004-review-attempt-1-changes-requested.json
+- source_sha256: E85A1EABB9F77F040D6508C1F999F8ACDEE968FBDA081C99438D804A70C98A7A
+- source_bytes: 24183
+- reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- reviewed_handoff_head: b99d48cf8ffabe4062ff5b70be723c0c1b33bdb0
+- decision: CHANGES_REQUESTED
+- next_review: attempt 2 / standard
 
 ## Spec revision 2 implementation evidence
 
