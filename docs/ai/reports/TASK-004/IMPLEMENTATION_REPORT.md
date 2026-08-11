@@ -2,36 +2,36 @@
 
 - task_id: TASK-004
 - spec_revision: 2
-- phase: implementation
-- status: ready
+- phase: implementation_review
+- status: review_requested
 - baseline_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 - baseline_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-- implementation_candidate: none
-- candidate_commit: none
-- candidate_tree: none
+- implementation_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- candidate_commit: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- candidate_tree: ffc699f116f4fa9544c7cd9c42abc5076c33bc5d
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - product_bytes: 11767
 - product_blob: 9d7509bcb8c7726903942d6dc4fb2b768cc3f654
 - source_match: requirements product identity matched
-- build_result: pending
-- tests_passed: pending revision 2 validation
+- build_result: passed; standalone dist/index.html 109.98 kB
+- tests_passed: 215 Vitest tests; 49 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; typecheck; lint; format; build
 - tests_failed: none
-- browser_evidence: pending revision 2 candidate
-- network: pending revision 2 candidate
+- browser_evidence: Edge file:// portable suite passed 82 checks including annual-mode bonus, rule metadata, standard remuneration/bonus evidence, reload, keyboard, focus, and 360px
+- network: runtime_requests_0; console_errors_0; page_errors_0
 - unresolved: none
-- worktree: governance_transition_in_progress
+- worktree: clean_candidate
 - actual_executor: Codex
 - provider_substitution: none
-- independent_review_kind: none
-- review_role: none
-- execution_mode: existing_session
+- independent_review_kind: implementation
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
 - repository_access: true
-- review_status: not_requested
-- request_review_status: none
-- review_model: none
-- review_effort: none
-- reviewed_candidate: none
-- reviewed_spec_revision: none
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
@@ -57,9 +57,9 @@
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: not_applicable_prewrite_validated
 - execution_started_at: 2026-08-12 02:47:50 JST
-- workflow_run_id: none
-- workflow_head_sha: none
-- workflow_conclusion: none
+- workflow_run_id: 31523161952
+- workflow_head_sha: 6c02e510de16a9ce0c3ce5bc0ef52ffc9e206819
+- workflow_conclusion: success
 - review_stage: implementation
 - changes_requested_cycles: 0
 - implementation_review_attempt: 1
@@ -67,7 +67,25 @@
 - implementation_review_terminated: false
 - final_review: false
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_finished_at: pending
+- execution_finished_at: 2026-08-12 03:35:00 JST
+
+## Spec revision 2 implementation evidence
+
+- annual taxable salary includes registered bonuses and is validated against the summed bonus amount without double counting
+- annual-mode automatic social insurance requires explicit monthly remuneration or standard-remuneration evidence
+- health standard bonus caps are accumulated by April-to-March fiscal year and expose per-payment evidence
+- applied rules retain complete metadata and their official source host must match the declared publisher
+- TakeHomeResult includes derived employer-prefecture and standard remuneration/bonus evidence but AppState and persisted JSON do not
+- invalid migration saves and invalid annual bonus totals preserve State, storage bytes, writer calls, and listener calls
+- npm run test:portable passed 82 checks with runtime requests 0
+
+## Official source identity
+
+- 国税庁: 令和8年度税制改正、令和8年分年末調整関係資料、給与所得控除、所得税速算、復興特別所得税
+- 全国健康保険協会: 令和7・8年度都道府県別健康保険料率、介護保険料率、子ども・子育て支援金率、保険料額表
+- 日本年金機構: 厚生年金保険料率、標準報酬月額、標準賞与額、端数処理
+- 厚生労働省: 令和7・8年度雇用保険料率、労働者負担端数処理
+- verified_at: 2026-08-12
 
 ## Spec revision 1 retained audit
 
