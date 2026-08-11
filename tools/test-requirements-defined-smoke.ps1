@@ -95,8 +95,13 @@ function Invoke-Relay([string]$Project,[string]$BundlePath) {
     $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $BundlePath).Hash
     $bytes = (Get-Item -LiteralPath $BundlePath).Length
     $script = Join-Path $Project 'docs/ai/generated/shared/tools/relay-bundle.ps1'
-    $output = @(& $powershellExe -NoProfile -ExecutionPolicy Bypass -File $script -Action Import -ProjectRoot $Project -BundlePath $BundlePath -ExpectedSha256 $sha -ExpectedBytes $bytes 2>&1)
-    [pscustomobject]@{ ExitCode=$LASTEXITCODE; Output=($output -join "`n") }
+    $previousErrorAction = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = @(& $powershellExe -NoProfile -ExecutionPolicy Bypass -File $script -Action Import -ProjectRoot $Project -BundlePath $BundlePath -ExpectedSha256 $sha -ExpectedBytes $bytes 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorAction }
+    [pscustomobject]@{ ExitCode=$exitCode; Output=($output -join "`n") }
 }
 
 $sourceStatus = @(git -C $root status --porcelain=v1 --untracked-files=all)
