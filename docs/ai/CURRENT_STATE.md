@@ -2,9 +2,9 @@
 updated_at: 2026-08-12
 active_tasks:
   - TASK-010
-next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-010
+next_action: ChatGPT performs TASK-010 implementation review attempt 1 with the standard profile
 ---
 
 # Current state
 
-TASK-004 final implementation review is terminated after attempt 3. Candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122e is not approved and remains unmerged. FINDING-004-R2-09-REMAINDER is transferred to the separate ready TASK-010; TASK-010 is not active yet and starts at review attempt 1.
+TASK-010 candidate 072fdb6c8fba4aaa506b48be957966bd008ecac4 makes 65～74歳のkyokai-auto plan unsupported when the municipality-determined first-category care premium is uncomputed. Candidate exact workflow 31543796574 succeeded; implementation review attempt 1 uses the standard profile.

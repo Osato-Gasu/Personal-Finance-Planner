@@ -1,0 +1,83 @@
+# IMPLEMENTATION REPORT — TASK-010
+
+- task_id: TASK-010
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- baseline_commit: 7c4b7185f43bf1434f8babd8f659a0b231d382f9
+- baseline_tree: 798b6f9f722e820208c8035044f8c3d8e9eec3b0
+- carry_forward_candidate: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
+- carry_forward_tree: e139244d9cd538e3177dc35c176fa161910f12ee
+- implementation_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- candidate_commit: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- candidate_tree: bca2bb6a2dfdae8c134ac1db237f1239e583c4dc
+- shared_version: 0.12.20
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
+- product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
+- product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
+- source_match: requirements product identity matched
+- changed_files: src/domain/take-home-calculator.ts; tests/take-home-rules.test.ts; tests/schema-v3.test.ts; tools/test-portable-build.mjs
+- build_result: passed; standalone dist/index.html single-file build
+- tests_passed: 247 Vitest tests; 69 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; portable
+- tests_failed: none
+- browser_evidence: Edge file:// portable suite passed 128 checks including 65～74歳auto unsupported、manual complete、新規link拒否、既存link unresolved、reload、360px、keyboard、focus
+- network: runtime_requests_0; console_errors_0; page_errors_0
+- unresolved: none
+- worktree: clean_candidate
+- actual_executor: Codex
+- provider_substitution: none
+- independent_review_kind: implementation
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- repository_write_access: available
+- user_relay_required: false
+- relay_bundle_name: task-010-requirements-relay.json
+- relay_bundle_sha256: BFAF218DA97DE51251704DECF0B423C23668AA46DD07A26CF303AB8197A2D76A
+- relay_bundle_bytes: 16695
+- relay_bundle_format: JSON
+- relay_identity_verified: true
+- relay_import_result: passed
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- canonical_relay_bundle: docs/ai/reports/TASK-010/RELAY_BUNDLE.json
+- routing_mode: local_script
+- workflow_run_id: 31543796574
+- workflow_head_sha: 072fdb6c8fba4aaa506b48be957966bd008ecac4
+- workflow_conclusion: success
+- review_stage: implementation
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_terminated: false
+- final_review: false
+- official_source_1: https://www.kyoukaikenpo.or.jp/shibu/ibaraki/public_relations/009/index.html
+- official_source_2: https://www.kaigokensaku.mhlw.go.jp/commentary/about.html
+- excluded_source: https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000198659_00017.html resolved to unrelated current content and was not used as evidence
+- official_sources_verified_at: 2026-08-12
+- protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
+- execution_started_at: 2026-08-12 07:34:51 JST
+- execution_finished_at: 2026-08-12 07:49:38 JST
+
+## Implementation evidence
+
+- 65～74歳のkyokai-autoでは第1号介護保険料を推測せず、年間plan全体をunsupportedとする。
+- annualTakeHomeYen、averageMonthlyTakeHomeYen、statutoryDeductionsYenをnullとし、0円補完を防止する。
+- 2025-12-31／2026-01-01の65歳到達境界、66／69／70／74歳、2026年中65歳、75歳移行、75歳以上、65歳未満を回帰検証した。
+- manual全項目入力時のcompleteと介護保険料1回控除、欠落時incompleteを検証した。
+- save、reload、v3 import preview/commit後も既存linkはuncomputed-linkであり、budgetを0円化しない。
+- standalone file://でmanual誘導、新規link非表示、既存link未計算化、reload、runtime request 0を検証した。
