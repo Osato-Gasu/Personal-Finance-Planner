@@ -2,42 +2,42 @@
 
 - task_id: TASK-004
 - spec_revision: 2
-- phase: implementation
-- status: changes_requested
+- phase: implementation_review
+- status: review_requested
 - baseline_commit: bfb64e6cc6edf5e2e6a1fd43bff670db2e3de054
 - baseline_tree: c375ef6c3b817fa1b733ebb7010ff03e365dbdfc
-- implementation_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
-- candidate_commit: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
-- candidate_tree: 2621ee0500e4d2ee81654c4b1160325e225f45b6
+- implementation_candidate: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
+- candidate_commit: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
+- candidate_tree: e139244d9cd538e3177dc35c176fa161910f12ee
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - product_bytes: 11767
 - product_blob: 9d7509bcb8c7726903942d6dc4fb2b768cc3f654
 - source_match: requirements product identity matched
-- build_result: passed; standalone dist/index.html 115.36 kB
-- tests_passed: 231 Vitest tests; 60 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; portable
+- build_result: passed; standalone dist/index.html 117.41 kB
+- tests_passed: 237 Vitest tests; 60 focused rule tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; portable
 - tests_failed: none
-- browser_evidence: Edge file:// portable suite passed 88 checks including unsupported link, plan identity, reload, keyboard, focus, and 360px
+- browser_evidence: Edge file:// portable suite passed 112 checks including 65/75 transitions, monthly wage null/zero, required results, manual-to-auto, reload, keyboard, focus, and 360px
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: FINDING-004-R2-08 through FINDING-004-R2-11 accepted for attempt 3 correction
-- worktree: user_approved_attempt_3_transition
+- unresolved: none
+- worktree: clean_candidate
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: implementation
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: changes_requested
-- request_review_status: completed
+- review_status: requested
+- request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- reviewed_candidate: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
 - reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: changes_requested
-- review_findings_count: 4
-- review_finding_ids: FINDING-004-R2-08, FINDING-004-R2-09, FINDING-004-R2-10, FINDING-004-R2-11
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
 - repository_write_access: available
 - write_probe_method: clean isolated TASK-004 worktree
 - user_relay_required: false
@@ -57,17 +57,17 @@
 - relay_semantic_round_trip: verified
 - relay_transaction_rollback: not_applicable_prewrite_validated
 - execution_started_at: 2026-08-12 02:47:50 JST
-- workflow_run_id: 31529422834
-- workflow_head_sha: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- workflow_run_id: 31536781347
+- workflow_head_sha: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
 - workflow_conclusion: success
 - review_stage: implementation
-- changes_requested_cycles: 1
+- changes_requested_cycles: 2
 - implementation_review_attempt: 3
 - implementation_review_profile: relaxed
 - implementation_review_terminated: false
 - final_review: true
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_finished_at: 2026-08-12 04:48:33 JST
+- execution_finished_at: 2026-08-12 06:15:13 JST
 
 ## Attempt 1 review relay
 
@@ -92,6 +92,27 @@
 - candidate_workflow_head_sha: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
 - candidate_workflow_conclusion: success
 - portable: 88 checks; runtime requests 0; console errors 0; page errors 0
+
+## Attempt 2 review relay
+
+- source_bundle: task-004-review-attempt-2-changes-requested.json
+- source_sha256: D4CF9E1E7D85D72A77A6F9F2797F4B897537438582AAF4DC64461E90AF70BF3C
+- source_bytes: 20765
+- reviewed_candidate: d83ceb854cf0c9f812d99675c3e9f2e2ae182026
+- reviewed_handoff_head: 2419ffe97bc1cec9387452d203811a6b6608b0df
+- decision: CHANGES_REQUESTED
+- next_review: attempt 3 / relaxed / final
+
+## Attempt 2 findings resolved
+
+- FINDING-004-R2-08: 基準所得税、floorした復興特別所得税、丸め前合計、100円未満切捨て後総額を別フィールドで固定した
+- FINDING-004-R2-09: 65／75歳移行年は自動計算をunsupportedとし、manual項目別補完と家計link未計算を検証した
+- FINDING-004-R2-10: 月別雇用保険賃金の未入力nullと明示0円をsave／reload／v3 importで保持した
+- FINDING-004-R2-11: その他法定控除、法定控除合計、控除率、iDeCo前後総額・差額をauto／manual／360pxで表示した
+- candidate_workflow_run_id: 31536781347
+- candidate_workflow_head_sha: 0f7ae95e296caa741ab3fdde03b9180c3bea122e
+- candidate_workflow_conclusion: success
+- portable: 112 checks; runtime requests 0; console errors 0; page errors 0
 
 ## Spec revision 2 implementation evidence
 
