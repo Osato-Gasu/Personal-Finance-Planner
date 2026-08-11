@@ -1,20 +1,20 @@
 schema_version: 1
 task_id: TASK-010
 feature: 65～74歳介護保険未計算安全化
-phase: implementation_review
-status: review_requested
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
+phase: release
+status: approved
+next_actor: Codex
+next_role: IMPLEMENTER
 model: 5.6 Sol
 effort: high
 session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-010/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-010/RELEASE_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
+return_to: ChatGPT
 actual_executor: ChatGPT
 provider_substitution: none
 review_kind: implementation
@@ -30,7 +30,7 @@ reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: none
+review_result: approved
 review_findings_count: 0
 review_finding_ids: none
 write_bridge: required_for_state_transition
