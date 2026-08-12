@@ -33,8 +33,8 @@ function yen(value: number | null): string {
 function numberField(
   document: Document,
   text: string,
-  value: number,
-  onChange: (value: number) => void,
+  value: number | null,
+  onChange: (value: number | null) => void,
   testId?: string,
 ): HTMLLabelElement {
   const label = node(document, "label", text);
@@ -42,9 +42,12 @@ function numberField(
   input.type = "number";
   input.min = "0";
   input.step = "1";
-  input.value = String(value);
+  input.value = value === null ? "" : String(value);
+  input.placeholder = "明示入力が必要（0円も入力）";
   if (testId) input.dataset.testid = testId;
-  input.addEventListener("change", () => onChange(Number(input.value)));
+  input.addEventListener("change", () =>
+    onChange(input.value === "" ? null : Number(input.value)),
+  );
   label.append(input);
   return label;
 }
@@ -88,6 +91,15 @@ function resultView(
     );
   }
   const dl = node(document, "dl");
+  const reachText = (
+    reach: NisaProjectionResult["lifetimeLimitReach"],
+  ): string => {
+    if (reach.status === "uncomputed") return "未計算";
+    if (reach.status === "starting-reached")
+      return "開始時点ですでに一致または超過";
+    if (reach.status === "not-reached") return "計画期間内に到達しない";
+    return `${reach.month ?? "未計算"}に最初に到達`;
+  };
   for (const [label, value] of [
     ["将来拠出額", result.futureContributionsYen],
     ["将来元本", result.projectedPrincipalYen],
@@ -100,6 +112,15 @@ function resultView(
     dl.append(node(document, "dt", label), node(document, "dd", yen(value)));
   }
   section.append(dl);
+  const reach = node(document, "dl");
+  reach.append(
+    node(document, "dt", "非課税保有限度額1,800万円への到達"),
+    node(document, "dd", reachText(result.lifetimeLimitReach)),
+    node(document, "dt", "成長投資枠内数1,200万円への到達"),
+    node(document, "dd", reachText(result.lifetimeGrowthLimitReach)),
+  );
+  reach.dataset.testid = "nisa-limit-reach";
+  section.append(reach);
   const years = node(document, "section");
   years.append(node(document, "h5", "暦年別の取得価額"));
   for (const [year, value] of Object.entries(result.annualContributions)) {
@@ -107,7 +128,7 @@ function resultView(
       node(
         document,
         "p",
-        `${year}年: つみたて投資枠 ${yen(value.tsumitateYen)}／成長投資枠 ${yen(value.growthYen)}／合計 ${yen(value.tsumitateYen + value.growthYen)}`,
+        `${year}年: つみたて投資枠 上限 ${yen(value.tsumitateLimitYen)}／使用 ${yen(value.tsumitateYen)}／残枠 ${yen(value.tsumitateRemainingYen)}、成長投資枠 上限 ${yen(value.growthLimitYen)}／使用 ${yen(value.growthYen)}／残枠 ${yen(value.growthRemainingYen)}、年間合計 上限 ${yen(value.combinedLimitYen)}／使用 ${yen(value.combinedYen)}／残枠 ${yen(value.combinedRemainingYen)}`,
       ),
     );
   }
@@ -240,12 +261,12 @@ export function createInvestmentsRenderer(
         japanResidentConfirmed: false,
         startMonth: "2026-01",
         targetMonth: "2035-12",
-        currentBalanceYen: 0,
-        currentBookValueYen: 0,
-        usedLimitYen: 0,
-        usedGrowthLimitYen: 0,
-        monthlyTsumitateYen: 0,
-        monthlyGrowthYen: 0,
+        currentBalanceYen: null,
+        currentBookValueYen: null,
+        usedLimitYen: null,
+        usedGrowthLimitYen: null,
+        monthlyTsumitateYen: null,
+        monthlyGrowthYen: null,
         additionalPurchases: [],
         contributionTiming: "end",
         activeScenarioId: ids.standard,
@@ -409,11 +430,17 @@ export function createInvestmentsRenderer(
               updatePlan(plan, (draft) => {
                 draft.currentBalanceYen = value;
               }),
+            "nisa-current-balance",
           ),
-          numberField(document, "現在簿価", plan.currentBookValueYen, (value) =>
-            updatePlan(plan, (draft) => {
-              draft.currentBookValueYen = value;
-            }),
+          numberField(
+            document,
+            "現在簿価",
+            plan.currentBookValueYen,
+            (value) =>
+              updatePlan(plan, (draft) => {
+                draft.currentBookValueYen = value;
+              }),
+            "nisa-current-book-value",
           ),
           numberField(
             document,
@@ -423,6 +450,7 @@ export function createInvestmentsRenderer(
               updatePlan(plan, (draft) => {
                 draft.usedLimitYen = value;
               }),
+            "nisa-used-limit",
           ),
           numberField(
             document,
@@ -432,6 +460,7 @@ export function createInvestmentsRenderer(
               updatePlan(plan, (draft) => {
                 draft.usedGrowthLimitYen = value;
               }),
+            "nisa-used-growth-limit",
           ),
           numberField(
             document,
@@ -539,7 +568,7 @@ export function createInvestmentsRenderer(
               id: options.createId(),
               month: draft.startMonth,
               bucket: "tsumitate",
-              amountYen: 0,
+              amountYen: null,
             });
           }),
         );

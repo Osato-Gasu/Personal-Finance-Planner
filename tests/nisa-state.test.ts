@@ -184,6 +184,58 @@ describe("AppState schema v4 migration", () => {
 });
 
 describe("NISA Store transitions and persistence", () => {
+  it("persists blank money as null and distinguishes it from explicit zero across reload and import", () => {
+    const state = stateWithNisa();
+    state.nisaPlans[0] = plan({
+      currentBalanceYen: null,
+      currentBookValueYen: null,
+      usedLimitYen: null,
+      usedGrowthLimitYen: null,
+      monthlyTsumitateYen: null,
+      monthlyGrowthYen: null,
+      additionalPurchases: [
+        {
+          id: "blank-extra",
+          month: "2026-06",
+          bucket: "growth",
+          amountYen: null,
+        },
+      ],
+    });
+    const storage = new MemoryStorage();
+    const repository = new StorageRepository(storage);
+    repository.save(state);
+    const blankBytes = required(storage.getItem(STORAGE_KEY), "blank bytes");
+    expect(blankBytes).toContain('"currentBalanceYen":null');
+    const loaded = required(repository.load(), "loaded blank state");
+    expect(loaded.nisaPlans[0]?.currentBalanceYen).toBeNull();
+    expect(loaded.nisaPlans[0]?.additionalPurchases[0]?.amountYen).toBeNull();
+    expect(
+      calculateNisaPlan(
+        required(loaded.nisaPlans[0], "blank plan"),
+        loaded.investmentScenarios[0],
+        required(loaded.members[0], "member"),
+      ).status,
+    ).toBe("incomplete");
+
+    const explicitZero = structuredClone(loaded);
+    const zeroPlan = required(explicitZero.nisaPlans[0], "zero plan");
+    zeroPlan.currentBalanceYen = 0;
+    zeroPlan.currentBookValueYen = 0;
+    zeroPlan.usedLimitYen = 0;
+    zeroPlan.usedGrowthLimitYen = 0;
+    zeroPlan.monthlyTsumitateYen = 0;
+    zeroPlan.monthlyGrowthYen = 0;
+    required(zeroPlan.additionalPurchases[0], "zero purchase").amountYen = 0;
+    const imported = repository.prepareImport(JSON.stringify(explicitZero));
+    expect(storage.getItem(STORAGE_KEY)).toBe(blankBytes);
+    repository.commitImport(imported);
+    expect(repository.load()?.nisaPlans[0]?.currentBalanceYen).toBe(0);
+    expect(
+      repository.load()?.nisaPlans[0]?.additionalPurchases[0]?.amountYen,
+    ).toBe(0);
+  });
+
   it("adds scenarios and a plan, switches scenario, and derives fresh results", () => {
     const state = createFixtureState();
     state.members[0] = {

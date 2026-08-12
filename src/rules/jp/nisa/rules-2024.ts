@@ -27,6 +27,15 @@ export interface NisaRuleSource {
 
 export const nisaRuleSources: readonly NisaRuleSource[] = [
   {
+    title: "NISAのよくある質問 Q3・Q48",
+    url: "https://www.jsda.or.jp/nisa/faq/",
+    publisher: "日本証券業協会",
+    retrievedAt: "2026-08-12",
+    verifiedAt: "2026-08-12",
+    purpose:
+      "年齢計算に関する法律により1月2日生まれを当年の成人NISA対象へ含める境界",
+  },
+  {
     title: "NISAを知る",
     url: "https://www.fsa.go.jp/policy/nisa2/know/index.html",
     publisher: "金融庁",
@@ -99,8 +108,39 @@ export const adultNisaRule2024: AdultNisaRule = {
 
 export const adultNisaRules: readonly AdultNisaRule[] = [adultNisaRule2024];
 
+function isRealIsoDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return false;
+  const [year, month, day] = value.split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined)
+    return false;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() + 1 === month &&
+    date.getUTCDate() === day
+  );
+}
+
+function requireText(value: unknown, field: string): asserts value is string {
+  if (typeof value !== "string" || value.trim().length === 0)
+    throw new Error(`${field} is required`);
+}
+
+function requireIsoDate(
+  value: unknown,
+  field: string,
+): asserts value is string {
+  if (!isRealIsoDate(value))
+    throw new Error(`${field} must be a real ISO date`);
+}
+
+function opaque(value: unknown): unknown {
+  return value;
+}
+
 export function resolveAdultNisaRule(targetDate: string): AdultNisaRule | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return null;
+  if (!isRealIsoDate(targetDate)) return null;
   const matches = adultNisaRules.filter(
     (rule) =>
       targetDate >= rule.metadata.effectiveFrom &&
@@ -113,34 +153,63 @@ export function resolveAdultNisaRule(targetDate: string): AdultNisaRule | null {
 }
 
 export function validateNisaRule(rule: AdultNisaRule): void {
+  if (typeof opaque(rule) !== "object" || opaque(rule) === null)
+    throw new Error("NISA rule must be an object");
+  if (
+    typeof opaque(rule.metadata) !== "object" ||
+    opaque(rule.metadata) === null
+  )
+    throw new Error("NISA rule metadata is required");
   if (!/^jp-nisa-[a-z0-9-]+$/.test(rule.metadata.id))
     throw new Error("NISA rule ID is invalid");
   const domain: unknown = rule.metadata.domain;
   const jurisdiction: unknown = rule.metadata.jurisdiction;
   if (domain !== "nisa" || jurisdiction !== "JP")
     throw new Error("NISA rule context is invalid");
+  if (opaque(rule.metadata.status) !== "current")
+    throw new Error("NISA rule status is invalid");
+  for (const [field, value] of Object.entries({
+    "metadata.id": rule.metadata.id,
+    "metadata.verifiedBy": rule.metadata.verifiedBy,
+    "metadata.sourceTitle": rule.metadata.sourceTitle,
+    "metadata.sourcePublisher": rule.metadata.sourcePublisher,
+    "metadata.notes": rule.metadata.notes,
+  }))
+    requireText(value, field);
+  for (const [field, value] of Object.entries({
+    "metadata.publishedAt": rule.metadata.publishedAt,
+    "metadata.verifiedAt": rule.metadata.verifiedAt,
+    "metadata.sourceRetrievedAt": rule.metadata.sourceRetrievedAt,
+    "metadata.effectiveFrom": rule.metadata.effectiveFrom,
+  }))
+    requireIsoDate(value, field);
+  if (rule.metadata.effectiveTo !== null)
+    requireIsoDate(rule.metadata.effectiveTo, "metadata.effectiveTo");
   if (!/^https:\/\//.test(rule.metadata.sourceUrl))
     throw new Error("NISA source URL must use https");
-  if (rule.metadata.sources.length < 2)
+  if (
+    !Array.isArray(opaque(rule.metadata.sources)) ||
+    rule.metadata.sources.length < 2
+  )
     throw new Error("NISA rule requires corroborating official sources");
   for (const source of rule.metadata.sources) {
-    if (
-      !source.title ||
-      !source.publisher ||
-      !source.purpose ||
-      !/^https:\/\//.test(source.url) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(source.retrievedAt) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(source.verifiedAt)
-    )
+    if (typeof opaque(source) !== "object" || opaque(source) === null)
       throw new Error("NISA rule source metadata is invalid");
+    requireText(source.title, "source.title");
+    requireText(source.publisher, "source.publisher");
+    requireText(source.purpose, "source.purpose");
+    if (typeof source.url !== "string" || !/^https:\/\//.test(source.url))
+      throw new Error("NISA rule source metadata is invalid");
+    requireIsoDate(source.retrievedAt, "source.retrievedAt");
+    requireIsoDate(source.verifiedAt, "source.verifiedAt");
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(rule.metadata.effectiveFrom))
-    throw new Error("NISA effectiveFrom is invalid");
   if (
     rule.metadata.effectiveTo !== null &&
     rule.metadata.effectiveTo < rule.metadata.effectiveFrom
   )
     throw new Error("NISA rule period is invalid");
+  if (rule.minimumAgeOnJanuaryFirst !== 18)
+    throw new Error("adult NISA minimum age must be 18");
   const limits = [
     rule.annualTsumitateLimitYen,
     rule.annualGrowthLimitYen,

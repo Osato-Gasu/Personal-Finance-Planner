@@ -11,7 +11,7 @@ export interface ScheduledNisaContribution {
   id: string;
   month: string;
   bucket: NisaBucket;
-  amountYen: number;
+  amountYen: number | null;
 }
 
 export interface InvestmentScenario {
@@ -29,12 +29,12 @@ export interface NisaPlan {
   japanResidentConfirmed: boolean;
   startMonth: string;
   targetMonth: string;
-  currentBalanceYen: number;
-  currentBookValueYen: number;
-  usedLimitYen: number;
-  usedGrowthLimitYen: number;
-  monthlyTsumitateYen: number;
-  monthlyGrowthYen: number;
+  currentBalanceYen: number | null;
+  currentBookValueYen: number | null;
+  usedLimitYen: number | null;
+  usedGrowthLimitYen: number | null;
+  monthlyTsumitateYen: number | null;
+  monthlyGrowthYen: number | null;
   additionalPurchases: ScheduledNisaContribution[];
   contributionTiming: ContributionTiming;
   activeScenarioId: string;
@@ -68,9 +68,7 @@ export interface NisaProjectionResult {
     annualFeeBasisPoints: number;
     annualInflationBasisPoints: number;
   } | null;
-  annualContributions: Readonly<
-    Record<string, { tsumitateYen: number; growthYen: number }>
-  >;
+  annualContributions: Readonly<Record<string, NisaAnnualLimitSummary>>;
   futureContributionsYen: number | null;
   futureGrowthContributionsYen: number | null;
   projectedPrincipalYen: number | null;
@@ -79,8 +77,27 @@ export interface NisaProjectionResult {
   realValueYen: number | null;
   lifetimeRemainingYen: number | null;
   lifetimeGrowthRemainingYen: number | null;
+  lifetimeLimitReach: NisaLimitReach;
+  lifetimeGrowthLimitReach: NisaLimitReach;
   issues: NisaLimitIssue[];
   messages: string[];
+}
+
+export interface NisaAnnualLimitSummary {
+  tsumitateYen: number;
+  tsumitateLimitYen: number;
+  tsumitateRemainingYen: number;
+  growthYen: number;
+  growthLimitYen: number;
+  growthRemainingYen: number;
+  combinedYen: number;
+  combinedLimitYen: number;
+  combinedRemainingYen: number;
+}
+
+export interface NisaLimitReach {
+  status: "starting-reached" | "reached" | "not-reached" | "uncomputed";
+  month: string | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,7 +175,11 @@ export function parseNisaPlan(value: unknown): NisaPlan {
   return parsed;
 }
 
-function assertSafeYen(value: unknown, field: string): asserts value is number {
+function assertNullableSafeYen(
+  value: unknown,
+  field: string,
+): asserts value is number | null {
+  if (value === null) return;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
     throw new Error(`${field} must be a non-negative safe integer`);
 }
@@ -230,8 +251,12 @@ export function validateNisaPlan(plan: NisaPlan): void {
     monthlyTsumitateYen: plan.monthlyTsumitateYen,
     monthlyGrowthYen: plan.monthlyGrowthYen,
   }))
-    assertSafeYen(value, field);
-  if (plan.usedGrowthLimitYen > plan.usedLimitYen)
+    assertNullableSafeYen(value, field);
+  if (
+    plan.usedGrowthLimitYen !== null &&
+    plan.usedLimitYen !== null &&
+    plan.usedGrowthLimitYen > plan.usedLimitYen
+  )
     throw new Error("growth limit use cannot exceed total limit use");
   const contributionTiming: unknown = plan.contributionTiming;
   if (contributionTiming !== "beginning" && contributionTiming !== "end")
@@ -247,11 +272,14 @@ export function validateNisaPlan(plan: NisaPlan): void {
     const bucket: unknown = purchase.bucket;
     if (bucket !== "tsumitate" && bucket !== "growth")
       throw new Error("additional purchase bucket is invalid");
-    assertSafeYen(purchase.amountYen, "additional purchase amountYen");
+    assertNullableSafeYen(purchase.amountYen, "additional purchase amountYen");
   }
 }
 
-function ageOnJanuaryFirst(birthDate: string, year: number): number | null {
+export function legalAgeOnJanuaryFirst(
+  birthDate: string,
+  year: number,
+): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return null;
   const [birthYear, birthMonth, birthDay] = birthDate.split("-").map(Number);
   if (
@@ -267,7 +295,9 @@ function ageOnJanuaryFirst(birthDate: string, year: number): number | null {
     calendarDate.getUTCDate() !== birthDay
   )
     return null;
-  return year - birthYear - (birthDate.slice(5) > "01-01" ? 1 : 0);
+  // Japanese legal age is reached at the end of the day before the birthday.
+  // Therefore a January 2 birthday is included in the age held for that NISA year.
+  return year - birthYear - (birthDate.slice(5) > "01-02" ? 1 : 0);
 }
 
 function safeRound(value: number): number {
@@ -299,6 +329,8 @@ export function calculateNisaPlan(
     realValueYen: null,
     lifetimeRemainingYen: null,
     lifetimeGrowthRemainingYen: null,
+    lifetimeLimitReach: { status: "uncomputed", month: null },
+    lifetimeGrowthLimitReach: { status: "uncomputed", month: null },
     issues: [],
     messages,
   });
@@ -318,7 +350,7 @@ export function calculateNisaPlan(
         ["日本国内の居住者であることを確認してください。"],
         rule,
       );
-    const age = ageOnJanuaryFirst(member.birthDate, startYear);
+    const age = legalAgeOnJanuaryFirst(member.birthDate, startYear);
     if (age === null)
       return empty("incomplete", ["生年月日が不正です。"], rule);
     if (age < rule.minimumAgeOnJanuaryFirst)
@@ -331,6 +363,21 @@ export function calculateNisaPlan(
       return empty(
         "incomplete",
         ["利用するシナリオを選択してください。"],
+        rule,
+      );
+    const requiredMoney = [
+      plan.currentBalanceYen,
+      plan.currentBookValueYen,
+      plan.usedLimitYen,
+      plan.usedGrowthLimitYen,
+      plan.monthlyTsumitateYen,
+      plan.monthlyGrowthYen,
+      ...plan.additionalPurchases.map((purchase) => purchase.amountYen),
+    ];
+    if (requiredMoney.some((value) => value === null))
+      return empty(
+        "incomplete",
+        ["金額の空欄を入力してください。空欄は0円として扱いません。"],
         rule,
       );
     validateInvestmentScenario(scenario);
@@ -347,31 +394,65 @@ export function calculateNisaPlan(
 
     const start = monthNumber(plan.startMonth);
     const target = monthNumber(plan.targetMonth);
-    const annual: Record<string, { tsumitateYen: number; growthYen: number }> =
-      {};
+    const annualUsed: Record<
+      string,
+      { tsumitateYen: number; growthYen: number }
+    > = {};
     const purchases = new Map<string, { tsumitate: number; growth: number }>();
     for (const purchase of plan.additionalPurchases) {
       const entry = purchases.get(purchase.month) ?? {
         tsumitate: 0,
         growth: 0,
       };
-      entry[purchase.bucket] += purchase.amountYen;
+      entry[purchase.bucket] += purchase.amountYen as number;
       purchases.set(purchase.month, entry);
     }
     let futureTotal = 0;
     let futureGrowth = 0;
+    let runningTotal = plan.usedLimitYen as number;
+    let runningGrowth = plan.usedGrowthLimitYen as number;
+    let lifetimeLimitReach: NisaLimitReach = {
+      status:
+        runningTotal >= rule.lifetimeTotalLimitYen
+          ? "starting-reached"
+          : "not-reached",
+      month: null,
+    };
+    let lifetimeGrowthLimitReach: NisaLimitReach = {
+      status:
+        runningGrowth >= rule.lifetimeGrowthLimitYen
+          ? "starting-reached"
+          : "not-reached",
+      month: null,
+    };
     for (let cursor = start; cursor <= target; cursor += 1) {
       const month = monthText(cursor);
       const year = month.slice(0, 4);
       const extra = purchases.get(month) ?? { tsumitate: 0, growth: 0 };
-      const tsumitate = plan.monthlyTsumitateYen + extra.tsumitate;
-      const growth = plan.monthlyGrowthYen + extra.growth;
-      const entry = annual[year] ?? { tsumitateYen: 0, growthYen: 0 };
+      const tsumitate = (plan.monthlyTsumitateYen as number) + extra.tsumitate;
+      const growth = (plan.monthlyGrowthYen as number) + extra.growth;
+      const entry = annualUsed[year] ?? { tsumitateYen: 0, growthYen: 0 };
       entry.tsumitateYen += tsumitate;
       entry.growthYen += growth;
-      annual[year] = entry;
+      annualUsed[year] = entry;
       futureTotal += tsumitate + growth;
       futureGrowth += growth;
+      const previousTotal = runningTotal;
+      const previousGrowth = runningGrowth;
+      runningTotal += tsumitate + growth;
+      runningGrowth += growth;
+      if (
+        lifetimeLimitReach.status === "not-reached" &&
+        previousTotal < rule.lifetimeTotalLimitYen &&
+        runningTotal >= rule.lifetimeTotalLimitYen
+      )
+        lifetimeLimitReach = { status: "reached", month };
+      if (
+        lifetimeGrowthLimitReach.status === "not-reached" &&
+        previousGrowth < rule.lifetimeGrowthLimitYen &&
+        runningGrowth >= rule.lifetimeGrowthLimitYen
+      )
+        lifetimeGrowthLimitReach = { status: "reached", month };
       if (
         ![entry.tsumitateYen, entry.growthYen, futureTotal, futureGrowth].every(
           Number.isSafeInteger,
@@ -379,9 +460,21 @@ export function calculateNisaPlan(
       )
         throw new Error("NISA contribution exceeds the supported range");
     }
+    const annual: Record<string, NisaAnnualLimitSummary> = {};
     const issues: NisaLimitIssue[] = [];
-    for (const [year, value] of Object.entries(annual)) {
+    for (const [year, value] of Object.entries(annualUsed)) {
       const combined = value.tsumitateYen + value.growthYen;
+      annual[year] = {
+        ...value,
+        tsumitateLimitYen: rule.annualTsumitateLimitYen,
+        tsumitateRemainingYen:
+          rule.annualTsumitateLimitYen - value.tsumitateYen,
+        growthLimitYen: rule.annualGrowthLimitYen,
+        growthRemainingYen: rule.annualGrowthLimitYen - value.growthYen,
+        combinedYen: combined,
+        combinedLimitYen: rule.annualCombinedLimitYen,
+        combinedRemainingYen: rule.annualCombinedLimitYen - combined,
+      };
       if (value.tsumitateYen > rule.annualTsumitateLimitYen)
         issues.push({
           code: "annual-tsumitate",
@@ -401,8 +494,8 @@ export function calculateNisaPlan(
           exceededByYen: combined - rule.annualCombinedLimitYen,
         });
     }
-    const lifetimeTotal = plan.usedLimitYen + futureTotal;
-    const lifetimeGrowth = plan.usedGrowthLimitYen + futureGrowth;
+    const lifetimeTotal = (plan.usedLimitYen as number) + futureTotal;
+    const lifetimeGrowth = (plan.usedGrowthLimitYen as number) + futureGrowth;
     if (
       !Number.isSafeInteger(lifetimeTotal) ||
       !Number.isSafeInteger(lifetimeGrowth)
@@ -427,13 +520,13 @@ export function calculateNisaPlan(
     const monthlyReturn = Math.pow(1 + annualReturn, 1 / 12) - 1;
     const monthlyFee = Math.pow(1 + annualFee, 1 / 12) - 1;
     const monthlyFactor = (1 + monthlyReturn) / (1 + monthlyFee);
-    let balance = plan.currentBalanceYen;
+    let balance = plan.currentBalanceYen as number;
     for (let cursor = start; cursor <= target; cursor += 1) {
       const month = monthText(cursor);
       const extra = purchases.get(month) ?? { tsumitate: 0, growth: 0 };
       const contribution =
-        plan.monthlyTsumitateYen +
-        plan.monthlyGrowthYen +
+        (plan.monthlyTsumitateYen as number) +
+        (plan.monthlyGrowthYen as number) +
         extra.tsumitate +
         extra.growth;
       balance =
@@ -445,7 +538,7 @@ export function calculateNisaPlan(
       balance = Math.max(0, balance);
     }
     const projectedBalanceYen = safeRound(balance);
-    const principal = plan.currentBookValueYen + futureTotal;
+    const principal = (plan.currentBookValueYen as number) + futureTotal;
     if (!Number.isSafeInteger(principal))
       throw new Error("NISA principal exceeds the supported range");
     const months = target - start + 1;
@@ -469,6 +562,8 @@ export function calculateNisaPlan(
       realValueYen: realValue,
       lifetimeRemainingYen: rule.lifetimeTotalLimitYen - lifetimeTotal,
       lifetimeGrowthRemainingYen: rule.lifetimeGrowthLimitYen - lifetimeGrowth,
+      lifetimeLimitReach,
+      lifetimeGrowthLimitReach,
       issues,
       messages:
         issues.length > 0
