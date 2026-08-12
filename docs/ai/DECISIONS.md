@@ -48,3 +48,12 @@
 - User-decision transition artifact: schema `project-user-decision-separate-task-transition-v1`, SHA-256 `E464A16F48C9798411717A73BB0C18936B25C93CC925C50C9A3A1AB9818BF4E6`, 8349 bytes.
 - Final-review source artifact: SHA-256 `D8ABA8BBEB8A62FC7F1E7B963E538EE364C4FB215890A04EFD84A13B156CD153`, 16611 bytes.
 - The TASK-004 task, handoff, and report packet remains traceable through Git history at handoff HEAD `fc2f8d274e9ec76356bb122124fbf12ea8bc73dd`; canonical `git_only` transition removes it from the current tree.
+
+## GOV-008 TASK-010 approval and completion
+
+- TASK-010 spec revision 1 implementation candidate `aa3d7275de00ce3bfe900741750e642c780904ad` (tree `d68adbb2018843229345d1d40740e5d0e35be0d3`) was approved in implementation review attempt 2／standard with 0 findings. No attempt 3 was created.
+- Candidate workflow `31546445080`, review handoff workflow `31546720643`, and approved-relay workflow `31548025166` completed successfully.
+- TASK-010 resolves `FINDING-004-R2-09-REMAINDER` by keeping 65～74歳 kyokai-auto plans unsupported until complete manual social-insurance amounts are provided; it does not infer or zero-fill the first-category care-insurance premium.
+- Completion release gates passed with 247 Vitest tests, 69 focused rule tests, 128 portable browser checks, runtime requests 0, console errors 0, and page errors 0 on PowerShell 5.1／7 governance and product identity validation.
+- Product source, rules, and tests remained byte-identical to the approved candidate during approval and completion governance changes.
+- The active TASK-010 packet remains traceable through approved-relay commit `ba73c421aa8910807bd775be0ebb72e19e1592d1`; canonical `git_only` completion sync removes it from the current tree. Main integration requires separate explicit approval.

@@ -1,10 +1,9 @@
 ---
 updated_at: 2026-08-12
-active_tasks:
-  - TASK-010
-next_action: Codex processes APPROVED relay for TASK-010
+active_tasks: []
+next_action: ChatGPT defines TASK-005 requirements from the permanent handoff and BACKLOG
 ---
 
 # Current state
 
-TASK-010 candidate aa3d7275de00ce3bfe900741750e642c780904ad was APPROVED in implementation review attempt 2／standard with 0 findings. The release handoff is ready for GPT; main remains unchanged and no attempt 3 was created.
+TASK-010 spec revision 1 is completed with approved implementation candidate aa3d7275de00ce3bfe900741750e642c780904ad after implementation review attempt 2／standard. FINDING-004-R2-09-REMAINDER is resolved, no attempt 3 exists, and main integration remains pending separate approval.
