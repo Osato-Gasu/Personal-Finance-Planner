@@ -122,6 +122,20 @@ try {
     unexpectedRequests.push(`${request.resourceType()} ${request.url()}`);
   });
 
+  await page.addInitScript(() => {
+    const NativeDate = Date;
+    const fixedNow = "2026-08-13T03:00:00.000Z";
+    class FixedDate extends NativeDate {
+      constructor(...args) {
+        super(...(args.length === 0 ? [fixedNow] : args));
+      }
+      static now() {
+        return new NativeDate(fixedNow).getTime();
+      }
+    }
+    globalThis.Date = FixedDate;
+  });
+
   await page.goto(standaloneUrl, { waitUntil: "load" });
   await page
     .getByRole("heading", { level: 1, name: "暮らしと資産プランナー" })
@@ -396,6 +410,10 @@ try {
     idecoCard.getByTestId("ideco-result"),
     "iDeCo受取時の税引前",
   );
+  await assertContains(
+    idecoCard.getByTestId("ideco-result"),
+    "税計算基準日: 2026-08-13",
+  );
   await idecoCard.getByTestId("ideco-start-month").fill("2026-11");
   await idecoCard.getByTestId("ideco-start-month").press("Tab");
   await idecoCard.getByTestId("ideco-monthly-contribution").fill("23000");
@@ -560,6 +578,38 @@ try {
   await assertContains(
     page.locator(".take-home-result"),
     "iDeCoによる所得税等差額",
+  );
+  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("button", { name: "iDeCo計画を無効化" }).click();
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
+  const inactiveSelector = page.getByTestId("take-home-linked-ideco-plan");
+  assert.equal(await inactiveSelector.locator("option").count(), 1);
+  assert.equal(await inactiveSelector.inputValue(), "");
+  const inactiveLinkedState = await page.evaluate((key) => {
+    const bytes = globalThis.localStorage.getItem(key);
+    if (!bytes) throw new Error("state is missing");
+    return JSON.parse(bytes);
+  }, storageKey);
+  assert.equal(inactiveLinkedState.idecoPlans[0].active, false);
+  assert.equal(
+    inactiveLinkedState.takeHomePlans[0].deductions.linkedIdecoPlanId,
+    inactiveLinkedState.idecoPlans[0].id,
+  );
+  assert.equal(
+    inactiveLinkedState.takeHomePlans[0].deductions.annualIdecoContributionYen,
+    0,
+  );
+  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("button", { name: "iDeCo計画を有効化" }).click();
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  assert.equal(
+    await page
+      .getByTestId("take-home-linked-ideco-plan")
+      .locator("option")
+      .count(),
+    2,
   );
   await page.getByRole("link", { name: "NISA・iDeCo" }).click();
   await page
@@ -947,7 +997,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=208, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=217, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

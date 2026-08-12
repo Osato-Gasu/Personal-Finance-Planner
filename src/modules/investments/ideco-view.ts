@@ -13,6 +13,7 @@ interface Options {
   store: Store;
   createId: () => string;
   requestRender: () => void;
+  getReferenceDate: () => string;
 }
 
 function node<K extends keyof HTMLElementTagNameMap>(
@@ -27,6 +28,15 @@ function node<K extends keyof HTMLElementTagNameMap>(
 
 function yen(value: number | null): string {
   return value === null ? "未計算" : `${value.toLocaleString("ja-JP")}円`;
+}
+
+function lastCompletedPaymentMonth(referenceDate: string): string {
+  const date = new Date(`${referenceDate}T00:00:00Z`);
+  if (Number(referenceDate.slice(8, 10)) < 26)
+    date.setUTCMonth(date.getUTCMonth() - 1);
+  return `${String(date.getUTCFullYear()).padStart(4, "0")}-${String(
+    date.getUTCMonth() + 1,
+  ).padStart(2, "0")}`;
 }
 
 function nullableNumber(
@@ -78,11 +88,13 @@ function resultView(
   document: Document,
   result: IdecoProjectionResult,
   incomeTaxBenefitYen: number | null,
+  referenceDate: string,
 ): HTMLElement {
   const section = node(document, "section");
   section.className = `ideco-result status-${result.status}`;
   section.dataset.testid = "ideco-result";
   section.append(node(document, "h4", `iDeCo試算状態: ${result.status}`));
+  section.append(node(document, "p", `税計算基準日: ${referenceDate}`));
   const dl = node(document, "dl");
   for (const [label, value] of [
     ["実効月額上限", result.allowedContributionYen],
@@ -586,14 +598,17 @@ export function createIdecoRenderer(
       const addSnapshot = node(
         document,
         "button",
-        "2026年スナップショットを追加",
+        "基準年のスナップショットを追加",
       );
       addSnapshot.type = "button";
       addSnapshot.addEventListener("click", () =>
         updatePlan(plan, (draft) => {
+          const referenceDate = options.getReferenceDate();
+          const paidThroughMonth = lastCompletedPaymentMonth(referenceDate);
+          const taxYear = Number(paidThroughMonth.slice(0, 4));
           draft.taxContributionSnapshots.push({
-            taxYear: 2026,
-            paidThroughMonth: "2026-08",
+            taxYear,
+            paidThroughMonth,
             paidYen: 0,
           });
         }),
@@ -653,7 +668,11 @@ export function createIdecoRenderer(
           ),
         );
       card.append(scenarioSection);
-      const result = calculateIdecoPlan(plan, selectedScenario, member);
+      const referenceDate = options.getReferenceDate();
+      const result = calculateIdecoPlan(plan, selectedScenario, member, {
+        taxYear: Number(referenceDate.slice(0, 4)),
+        referenceDate,
+      });
       const linkedTakeHome = state.takeHomePlans.find(
         (candidate) =>
           candidate.mode === "calculated" &&
@@ -662,10 +681,16 @@ export function createIdecoRenderer(
           candidate.deductions.linkedIdecoPlanId === plan.id,
       );
       const incomeTaxBenefit = linkedTakeHome
-        ? calculateTakeHomeFromState(state, linkedTakeHome, member)
-            .incomeTaxBenefitFromIdecoYen
+        ? calculateTakeHomeFromState(
+            state,
+            linkedTakeHome,
+            member,
+            referenceDate,
+          ).incomeTaxBenefitFromIdecoYen
         : null;
-      card.append(resultView(document, result, incomeTaxBenefit));
+      card.append(
+        resultView(document, result, incomeTaxBenefit, referenceDate),
+      );
       const actions = node(document, "div");
       actions.className = "button-row";
       const toggle = node(

@@ -24,6 +24,9 @@ import { createFixtureState } from "./fixtures/state";
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
+const referenceDate = "2026-08-13";
+const calculationReference = { taxYear: 2026, referenceDate } as const;
+
 class MemoryStorage implements StorageLike {
   readonly values = new Map<string, string>();
   getItem(key: string): string | null {
@@ -248,6 +251,14 @@ describe("AppState v5 iDeCo migration and validation", () => {
     }
   });
 
+  it("rejects a safe-integer input whose projection exceeds the supported range", () => {
+    const state = linkedState();
+    state.idecoPlans[0]!.currentBalanceYen = Number.MAX_SAFE_INTEGER;
+    expect(() => validateAppState(state)).toThrow(
+      "iDeCo plan exceeds the supported range",
+    );
+  });
+
   it("rejects malformed v5 missing explicit link fields", () => {
     const state = linkedState();
     const raw = structuredClone(state) as unknown as Record<string, unknown>;
@@ -267,7 +278,12 @@ describe("linked iDeCo source of truth and transactional Store", () => {
     )!;
     const member = state.members.find((item) => item.id === "self")!;
     const before = JSON.stringify(plan);
-    const result = calculateTakeHomeFromState(state, plan, member);
+    const result = calculateTakeHomeFromState(
+      state,
+      plan,
+      member,
+      referenceDate,
+    );
     expect(result.status).toBe("complete");
     expect(result.incomeTaxBenefitFromIdecoYen).toBeGreaterThan(0);
     expect(JSON.stringify(plan)).toBe(before);
@@ -281,9 +297,19 @@ describe("linked iDeCo source of truth and transactional Store", () => {
       (item) => item.id === "calculated-self",
     )!;
     const member = state.members.find((item) => item.id === "self")!;
-    const before = calculateTakeHomeFromState(state, takeHome, member);
+    const before = calculateTakeHomeFromState(
+      state,
+      takeHome,
+      member,
+      referenceDate,
+    );
     state.idecoPlans[0]!.monthlyContributionYen = 20_000;
-    const after = calculateTakeHomeFromState(state, takeHome, member);
+    const after = calculateTakeHomeFromState(
+      state,
+      takeHome,
+      member,
+      referenceDate,
+    );
     expect(after.incomeTaxAfterIdecoYen).toBeLessThan(
       before.incomeTaxAfterIdecoYen ?? Number.MAX_SAFE_INTEGER,
     );
@@ -327,7 +353,12 @@ describe("linked iDeCo source of truth and transactional Store", () => {
         (item) => item.id === "calculated-self",
       )!;
       const member = state.members.find((item) => item.id === "self")!;
-      const result = calculateTakeHomeFromState(state, takeHome, member);
+      const result = calculateTakeHomeFromState(
+        state,
+        takeHome,
+        member,
+        referenceDate,
+      );
       expect(result.status).toBe(expected);
       expect(result.incomeTaxAfterIdecoYen).toBeNull();
     },
@@ -344,6 +375,108 @@ describe("linked iDeCo source of truth and transactional Store", () => {
     plan.deductions.linkedIdecoPlanId = null;
     validateAppState(state);
     expect(plan.deductions.annualIdecoContributionYen).toBe(manualBefore);
+  });
+
+  it("keeps an inactive linked plan without fallback and recalculates after reactivation", () => {
+    const state = linkedState();
+    const storage = new MemoryStorage();
+    const repository = new StorageRepository(storage);
+    const writer = {
+      save: vi.fn((candidate: AppState) => repository.save(candidate)),
+    };
+    const store = new Store(state, writer);
+    const listener = vi.fn();
+    store.subscribe(listener);
+    const linkedPlan = state.takeHomePlans.find(
+      (item) => item.id === "calculated-self",
+    )!;
+    const member = state.members.find((item) => item.id === "self")!;
+    const linkBefore = structuredClone(state.links);
+    const manualBefore =
+      linkedPlan.mode === "calculated"
+        ? linkedPlan.deductions.annualIdecoContributionYen
+        : null;
+
+    const inactive = structuredClone(state.idecoPlans[0]!);
+    inactive.active = false;
+    store.dispatch({
+      type: "update-ideco-plan",
+      planId: inactive.id,
+      plan: inactive,
+    });
+    const inactiveState = store.getState();
+    const inactiveTakeHome = inactiveState.takeHomePlans.find(
+      (item) => item.id === "calculated-self",
+    )!;
+    const inactiveResult = calculateTakeHomeFromState(
+      inactiveState,
+      inactiveTakeHome,
+      member,
+      referenceDate,
+    );
+    expect(inactiveResult).toMatchObject({
+      status: "incomplete",
+      incomeTaxBeforeIdecoYen: null,
+      incomeTaxAfterIdecoYen: null,
+      incomeTaxBenefitFromIdecoYen: null,
+    });
+    expect(inactiveState.idecoPlans).toHaveLength(1);
+    expect(inactiveState.links).toEqual(linkBefore);
+    if (inactiveTakeHome.mode !== "calculated") throw new Error("plan missing");
+    expect(inactiveTakeHome.deductions.annualIdecoContributionYen).toBe(
+      manualBefore,
+    );
+
+    const reactivated = structuredClone(inactiveState.idecoPlans[0]!);
+    reactivated.active = true;
+    store.dispatch({
+      type: "update-ideco-plan",
+      planId: reactivated.id,
+      plan: reactivated,
+    });
+    const activeState = store.getState();
+    expect(
+      calculateTakeHomeFromState(
+        activeState,
+        activeState.takeHomePlans.find(
+          (item) => item.id === "calculated-self",
+        )!,
+        member,
+        referenceDate,
+      ).status,
+    ).toBe("complete");
+    expect(writer.save).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fallback or mutate state and storage for an out-of-range linked plan", () => {
+    const state = linkedState();
+    const storage = new MemoryStorage();
+    const repository = new StorageRepository(storage);
+    repository.save(state);
+    const storedBefore = storage.getItem(STORAGE_KEY);
+    state.idecoPlans[0]!.currentBalanceYen = Number.MAX_SAFE_INTEGER;
+    const stateBefore = JSON.stringify(state);
+    const takeHome = state.takeHomePlans.find(
+      (item) => item.id === "calculated-self",
+    )!;
+    const member = state.members.find((item) => item.id === "self")!;
+    const result = calculateTakeHomeFromState(
+      state,
+      takeHome,
+      member,
+      referenceDate,
+    );
+    expect(result).toMatchObject({
+      status: "out-of-range",
+      incomeTaxBeforeIdecoYen: null,
+      incomeTaxAfterIdecoYen: null,
+      incomeTaxBenefitFromIdecoYen: null,
+    });
+    expect(JSON.stringify(state)).toBe(stateBefore);
+    expect(storage.getItem(STORAGE_KEY)).toBe(storedBefore);
+    if (takeHome.mode !== "calculated") throw new Error("plan missing");
+    expect(takeHome.deductions.annualIdecoContributionYen).toBe(123_456);
   });
 
   it("preserves State, storage bytes, writer and listeners after a rejected action", () => {
@@ -393,10 +526,15 @@ describe("linked iDeCo source of truth and transactional Store", () => {
   });
 
   it("keeps resident tax and total benefit explicitly uncomputed", () => {
-    const result = calculateIdecoPlan(idecoPlan(), scenario(), {
-      active: true,
-      birthDate: "1990-01-01",
-    });
+    const result = calculateIdecoPlan(
+      idecoPlan(),
+      scenario(),
+      {
+        active: true,
+        birthDate: "1990-01-01",
+      },
+      calculationReference,
+    );
     expect(result).toMatchObject({
       status: "complete",
       residentTaxBenefitFromIdecoYen: null,

@@ -87,12 +87,13 @@ export function effectiveSelfShareBasisPoints(
 function incomeForMember(
   state: Readonly<AppState>,
   member: Readonly<HouseholdMember>,
+  referenceDate: string | null,
 ): { value: number | null; unresolved: boolean } {
   const target = state.incomeTargets.find(
     (candidate) => candidate.memberId === member.id,
   );
   if (!target) return { value: null, unresolved: true };
-  const resolved = resolveIncomeTarget(state, target.id);
+  const resolved = resolveIncomeTarget(state, target.id, referenceDate);
   if (resolved.status === "broken-link") {
     return { value: null, unresolved: true };
   }
@@ -121,6 +122,7 @@ function allocate(
 
 export function calculateBudgetSummary(
   state: Readonly<AppState>,
+  referenceDate: string | null = null,
 ): BudgetSummary {
   const selfMember = state.members.find((member) => member.role === "self");
   const partnerMember = state.members.find(
@@ -206,9 +208,9 @@ export function calculateBudgetSummary(
     "partner expense",
   );
 
-  const selfIncome = incomeForMember(state, selfMember);
+  const selfIncome = incomeForMember(state, selfMember, referenceDate);
   const partnerIncome = partnerActive
-    ? incomeForMember(state, partnerMember)
+    ? incomeForMember(state, partnerMember, referenceDate)
     : { value: 0, unresolved: false };
   const incomeUnresolved = selfIncome.unresolved || partnerIncome.unresolved;
   const householdIncomeYen =
@@ -309,9 +311,13 @@ export type BudgetCalculationResult =
 
 export function tryCalculateBudgetSummary(
   state: Readonly<AppState>,
+  referenceDate: string | null = null,
 ): BudgetCalculationResult {
   try {
-    return { status: "calculated", summary: calculateBudgetSummary(state) };
+    return {
+      status: "calculated",
+      summary: calculateBudgetSummary(state, referenceDate),
+    };
   } catch (error) {
     if (error instanceof CalculationRangeError) {
       return { status: "out-of-range", message: error.message };

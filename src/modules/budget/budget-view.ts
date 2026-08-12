@@ -151,6 +151,7 @@ export function createBudgetRenderer(options: {
   store: Store;
   createId: EntityIdFactory;
   requestRender: () => void;
+  getReferenceDate: () => string;
 }): (main: HTMLElement) => void {
   const ui: BudgetUiState = {
     error: null,
@@ -172,7 +173,10 @@ export function createBudgetRenderer(options: {
 
   return (main: HTMLElement): void => {
     const state = options.store.getState();
-    const summaryResult = tryCalculateBudgetSummary(state);
+    const summaryResult = tryCalculateBudgetSummary(
+      state,
+      options.getReferenceDate(),
+    );
     main.classList.add("budget-page");
     const introduction = node(
       options.document,
@@ -338,8 +342,16 @@ export function createBudgetRenderer(options: {
       state.incomeTargets.find((target) => target.memberId === partner.id),
       "partner income target is missing",
     );
-    const selfResolved = resolveIncomeTarget(state, selfTarget.id);
-    const partnerResolved = resolveIncomeTarget(state, partnerTarget.id);
+    const selfResolved = resolveIncomeTarget(
+      state,
+      selfTarget.id,
+      options.getReferenceDate(),
+    );
+    const partnerResolved = resolveIncomeTarget(
+      state,
+      partnerTarget.id,
+      options.getReferenceDate(),
+    );
     const selfLinked =
       selfResolved.status === "selected" ||
       selfResolved.status === "broken-link";
@@ -438,6 +450,7 @@ export function createBudgetRenderer(options: {
           type: "unlink-income",
           targetId: selfTarget.id,
           manualYen: selfResolved.valueYen,
+          referenceDate: options.getReferenceDate(),
         }),
       );
       form.append(unlinkSelf);
@@ -464,6 +477,7 @@ export function createBudgetRenderer(options: {
           type: "unlink-income",
           targetId: partnerTarget.id,
           manualYen: partnerResolved.valueYen,
+          referenceDate: options.getReferenceDate(),
         }),
       );
       form.append(unlinkPartner);

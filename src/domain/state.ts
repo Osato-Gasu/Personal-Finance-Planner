@@ -211,9 +211,18 @@ export type AppAction =
   | { type: "delete-take-home-bonus"; planId: string; bonusId: string }
   | { type: "delete-bonus"; planId: string; bonusId: string }
   | { type: "update-manual-income"; targetId: string; amountYen: number }
-  | { type: "add-link"; link: LinkDefinition }
-  | { type: "link-budget-income-to-take-home-plan"; link: LinkDefinition }
-  | { type: "unlink-income"; targetId: string; manualYen: number }
+  | { type: "add-link"; link: LinkDefinition; referenceDate?: string }
+  | {
+      type: "link-budget-income-to-take-home-plan";
+      link: LinkDefinition;
+      referenceDate?: string;
+    }
+  | {
+      type: "unlink-income";
+      targetId: string;
+      manualYen: number;
+      referenceDate?: string;
+    }
   | {
       type: "update-household";
       selfName: string;
@@ -628,7 +637,12 @@ export function validateAppState(state: AppState): void {
       throw new Error(
         "iDeCo active scenario is missing or belongs to another member",
       );
-    if (calculateIdecoPlan(plan, scenario, member).status === "out-of-range")
+    if (
+      calculateIdecoPlan(plan, scenario, member, {
+        taxYear: Number(plan.startMonth.slice(0, 4)),
+        referenceDate: `${plan.startMonth}-01`,
+      }).status === "out-of-range"
+    )
       throw new Error("iDeCo plan exceeds the supported range");
     if (plan.active) {
       if (activeIdecoMembers.has(plan.memberId))
@@ -1644,7 +1658,12 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       );
       if (
         !member ||
-        calculateTakeHomeFromState(state, source, member).status !== "complete"
+        calculateTakeHomeFromState(
+          state,
+          source,
+          member,
+          action.referenceDate ?? null,
+        ).status !== "complete"
       )
         throw new Error("only a complete take-home result can be linked");
       if (!action.link.active) throw new Error("added link must be active");
@@ -1670,7 +1689,12 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
           (candidate) => candidate.id === source.memberId,
         );
         if (!member) throw new Error("active link member is missing");
-        const result = calculateTakeHomeFromState(state, source, member);
+        const result = calculateTakeHomeFromState(
+          state,
+          source,
+          member,
+          action.referenceDate ?? null,
+        );
         if (
           result.averageMonthlyTakeHomeYen === null ||
           action.manualYen !== result.averageMonthlyTakeHomeYen

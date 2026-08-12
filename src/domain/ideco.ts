@@ -28,6 +28,11 @@ export interface IdecoTaxContributionSnapshot {
   paidYen: number;
 }
 
+export interface IdecoCalculationReference {
+  referenceDate: string | null;
+  taxYear?: number;
+}
+
 export interface IdecoPlan extends IdecoRuleContext {
   id: string;
   memberId: string;
@@ -97,6 +102,25 @@ function monthNumber(value: string): number {
 function monthText(value: number): string {
   const year = Math.floor(value / 12);
   return `${String(year).padStart(4, "0")}-${String((value % 12) + 1).padStart(2, "0")}`;
+}
+
+function assertIsoDate(value: string, field: string): void {
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(value))
+    throw new Error(`${field} must be YYYY-MM-DD`);
+  const [year, month, day] = value.split("-").map(Number);
+  const normalized = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day ?? 0));
+  if (
+    normalized.getUTCFullYear() !== year ||
+    normalized.getUTCMonth() + 1 !== month ||
+    normalized.getUTCDate() !== day
+  )
+    throw new Error(`${field} must be a real calendar date`);
+}
+
+function lastCompletedPaymentMonth(referenceDate: string): number {
+  assertIsoDate(referenceDate, "referenceDate");
+  const month = monthNumber(referenceDate.slice(0, 7));
+  return Number(referenceDate.slice(8, 10)) >= 26 ? month : month - 1;
 }
 
 function nullableBoolean(value: unknown, field: string): boolean | null {
@@ -416,11 +440,17 @@ function empty(
 export function calculateIdecoAnnualPaidContribution(
   plan: IdecoPlan,
   taxYear: number,
-  asOfMonth = "2026-08",
+  referenceDate: string | null,
   projectionTargetMonth?: string,
 ): { status: IdecoResultStatus; amountYen: number | null; messages: string[] } {
   try {
-    assertYearMonth(asOfMonth, "asOfMonth");
+    if (referenceDate === null)
+      return {
+        status: "incomplete",
+        amountYen: null,
+        messages: ["税計算の基準日を入力してください。"],
+      };
+    const confirmedThrough = lastCompletedPaymentMonth(referenceDate);
     if (plan.monthlyContributionYen === null)
       return {
         status: "incomplete",
@@ -443,15 +473,31 @@ export function calculateIdecoAnnualPaidContribution(
     const snapshot = plan.taxContributionSnapshots.find(
       (item) => item.taxYear === taxYear,
     );
-    const lastPastPayment = Math.min(yearEnd, monthNumber(asOfMonth));
+    const lastPastPayment = Math.min(yearEnd, confirmedThrough);
+    if (snapshot && monthNumber(snapshot.paidThroughMonth) > lastPastPayment)
+      return {
+        status: "invalid",
+        amountYen: null,
+        messages: ["実払込スナップショットが税計算の基準日より未来です。"],
+      };
     if (!snapshot && firstPayment <= lastPastPayment)
       return {
         status: "incomplete",
         amountYen: null,
         messages: ["税年の既払込額スナップショットを入力してください。"],
       };
+    if (
+      snapshot &&
+      firstPayment <= lastPastPayment &&
+      monthNumber(snapshot.paidThroughMonth) < lastPastPayment
+    )
+      return {
+        status: "incomplete",
+        amountYen: null,
+        messages: ["基準日までの払込実績がスナップショットで確認できません。"],
+      };
     let total = snapshot?.paidYen ?? 0;
-    let cursor = Math.max(firstPayment, yearStart);
+    let cursor = Math.max(firstPayment, yearStart, confirmedThrough + 1);
     if (snapshot)
       cursor = Math.max(cursor, monthNumber(snapshot.paidThroughMonth) + 1);
     for (; cursor <= yearEnd; cursor += 1) {
@@ -477,7 +523,7 @@ export function calculateIdecoPlan(
   plan: IdecoPlan,
   scenario: InvestmentScenario | undefined,
   member: { active: boolean; birthDate?: string | undefined },
-  taxYear = 2026,
+  reference: IdecoCalculationReference,
 ): IdecoProjectionResult {
   try {
     validateIdecoPlan(plan);
@@ -590,8 +636,8 @@ export function calculateIdecoPlan(
       );
     const annualPaid = calculateIdecoAnnualPaidContribution(
       plan,
-      taxYear,
-      "2026-08",
+      reference.taxYear ?? 2026,
+      reference.referenceDate,
       target,
     );
     if (annualPaid.status !== "complete")

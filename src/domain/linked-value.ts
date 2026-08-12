@@ -9,6 +9,7 @@ export type LinkedValueResult =
 export function resolveIncomeTarget(
   state: Readonly<AppState>,
   targetId: string,
+  referenceDate: string | null = null,
 ): LinkedValueResult {
   const target = state.incomeTargets.find(
     (candidate) => candidate.id === targetId,
@@ -31,7 +32,12 @@ export function resolveIncomeTarget(
       sourceId: link.sourceId,
     };
   }
-  const result = calculateTakeHomeFromState(state, source, member);
+  const result = calculateTakeHomeFromState(
+    state,
+    source,
+    member,
+    referenceDate,
+  );
   if (result.averageMonthlyTakeHomeYen === null) {
     return {
       status: "broken-link",

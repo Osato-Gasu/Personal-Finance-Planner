@@ -15,6 +15,7 @@ interface Options {
   store: Store;
   createId: () => string;
   requestRender: () => void;
+  getReferenceDate: () => string;
 }
 
 function node<K extends keyof HTMLElementTagNameMap>(

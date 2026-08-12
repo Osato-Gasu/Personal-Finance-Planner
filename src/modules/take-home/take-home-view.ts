@@ -13,6 +13,7 @@ interface Options {
   store: Store;
   createId: () => string;
   requestRender: () => void;
+  getReferenceDate: () => string;
 }
 
 function node<K extends keyof HTMLElementTagNameMap>(
@@ -325,7 +326,12 @@ export function createTakeHomeRenderer(
             legacy,
             resultTable(
               document,
-              calculateTakeHomeFromState(state, plan, member),
+              calculateTakeHomeFromState(
+                state,
+                plan,
+                member,
+                options.getReferenceDate(),
+              ),
             ),
           );
           continue;
@@ -683,7 +689,8 @@ export function createTakeHomeRenderer(
             draft.deductions.linkedIdecoPlanId =
               idecoModeSelect.value === "linked"
                 ? (state.idecoPlans.find(
-                    (candidate) => candidate.memberId === plan.memberId,
+                    (candidate) =>
+                      candidate.memberId === plan.memberId && candidate.active,
                   )?.id ?? null)
                 : null;
           }),
@@ -708,7 +715,7 @@ export function createTakeHomeRenderer(
           linkedPlanSelect.dataset.testid = "take-home-linked-ideco-plan";
           linkedPlanSelect.append(new Option("選択してください", ""));
           for (const candidate of state.idecoPlans.filter(
-            (item) => item.memberId === plan.memberId,
+            (item) => item.memberId === plan.memberId && item.active,
           ))
             linkedPlanSelect.append(new Option(candidate.id, candidate.id));
           linkedPlanSelect.value = plan.deductions.linkedIdecoPlanId ?? "";
@@ -790,7 +797,12 @@ export function createTakeHomeRenderer(
           }),
         );
         bonuses.append(addBonus);
-        const result = calculateTakeHomeFromState(state, plan, member);
+        const result = calculateTakeHomeFromState(
+          state,
+          plan,
+          member,
+          options.getReferenceDate(),
+        );
         card.append(bonuses, resultTable(document, result));
         const target = state.incomeTargets.find(
           (item) => item.memberId === member.id,
@@ -820,6 +832,7 @@ export function createTakeHomeRenderer(
                 field: "averageMonthlyTakeHomeYen",
                 active: true,
               },
+              referenceDate: options.getReferenceDate(),
             }),
           );
           card.append(link);
@@ -835,6 +848,7 @@ export function createTakeHomeRenderer(
               type: "unlink-income",
               targetId: target.id,
               manualYen: result.averageMonthlyTakeHomeYen ?? 0,
+              referenceDate: options.getReferenceDate(),
             }),
           );
           card.append(unlink);

@@ -36,10 +36,20 @@ function defaultIdFactory(browserWindow: Window): EntityIdFactory {
   return () => browserWindow.crypto.randomUUID();
 }
 
+function localIsoDate(): string {
+  const now = new Date();
+  return `${String(now.getFullYear()).padStart(4, "0")}-${String(
+    now.getMonth() + 1,
+  ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function startApp(
   browserWindow: Window,
   document: Document,
-  options: { createId?: EntityIdFactory } = {},
+  options: {
+    createId?: EntityIdFactory;
+    getReferenceDate?: () => string;
+  } = {},
 ): () => void {
   const root = document.querySelector<HTMLElement>("#app");
   if (!root) throw new Error("app root is missing");
@@ -65,6 +75,7 @@ export function startApp(
   }
   const store = new Store(initialState, repository);
   const router = new HashRouter(createBrowserHashEnvironment(browserWindow));
+  const getReferenceDate = options.getReferenceDate ?? localIsoDate;
   let currentRoute = initialState.activeRoute;
   let render: (route: RouteId) => void = () => undefined;
   const budgetRenderer = createBudgetRenderer({
@@ -73,6 +84,7 @@ export function startApp(
     store,
     createId: options.createId ?? defaultIdFactory(browserWindow),
     requestRender: () => render(currentRoute),
+    getReferenceDate,
   });
   const takeHomeRenderer = createTakeHomeRenderer({
     browserWindow,
@@ -80,6 +92,7 @@ export function startApp(
     store,
     createId: options.createId ?? defaultIdFactory(browserWindow),
     requestRender: () => render(currentRoute),
+    getReferenceDate,
   });
   const investmentsRenderer = createInvestmentsRenderer({
     browserWindow,
@@ -87,6 +100,7 @@ export function startApp(
     store,
     createId: options.createId ?? defaultIdFactory(browserWindow),
     requestRender: () => render(currentRoute),
+    getReferenceDate,
   });
 
   render = (route: RouteId): void => {

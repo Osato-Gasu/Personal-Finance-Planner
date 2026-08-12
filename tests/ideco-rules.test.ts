@@ -34,6 +34,11 @@ const scenario: InvestmentScenario = {
   annualInflationBasisPoints: 100,
 };
 
+const reference = {
+  taxYear: 2026,
+  referenceDate: "2026-08-13",
+} as const;
+
 function context(values: Partial<IdecoRuleContext> = {}): IdecoRuleContext {
   return {
     participantCategory: "category2",
@@ -321,7 +326,9 @@ describe("monthly contribution, payment month, and projection", () => {
       monthlyContributionYen: amount,
     });
     const before = structuredClone(candidate);
-    expect(calculateIdecoPlan(candidate, scenario, member).status).toBe(status);
+    expect(
+      calculateIdecoPlan(candidate, scenario, member, reference).status,
+    ).toBe(status);
     expect(candidate).toEqual(before);
   });
 
@@ -335,6 +342,7 @@ describe("monthly contribution, payment month, and projection", () => {
         }),
         scenario,
         member,
+        reference,
       ).status,
     ).toBe("complete");
     const over = calculateIdecoPlan(
@@ -345,6 +353,7 @@ describe("monthly contribution, payment month, and projection", () => {
       }),
       scenario,
       member,
+      reference,
     );
     expect(over).toMatchObject({
       status: "invalid",
@@ -365,6 +374,7 @@ describe("monthly contribution, payment month, and projection", () => {
         }),
         scenario,
         member,
+        reference,
       ),
     ).toMatchObject({ status: "invalid", allowedContributionYen: 2_000 });
   });
@@ -375,6 +385,7 @@ describe("monthly contribution, payment month, and projection", () => {
         plan({ annualUnitContributionActive: true }),
         scenario,
         member,
+        reference,
       ).status,
     ).toBe("unsupported");
   });
@@ -388,7 +399,9 @@ describe("monthly contribution, payment month, and projection", () => {
       ],
       currentContributionTotalYen: 0,
     });
-    expect(calculateIdecoAnnualPaidContribution(candidate, 2026)).toEqual({
+    expect(
+      calculateIdecoAnnualPaidContribution(candidate, 2026, "2026-08-26"),
+    ).toEqual({
       status: "complete",
       amountYen: 110_000,
       messages: [],
@@ -400,6 +413,7 @@ describe("monthly contribution, payment month, and projection", () => {
       calculateIdecoAnnualPaidContribution(
         plan({ startMonth: "2026-01", taxContributionSnapshots: [] }),
         2026,
+        "2026-08-26",
       ).status,
     ).toBe("incomplete");
   });
@@ -412,8 +426,75 @@ describe("monthly contribution, payment month, and projection", () => {
           projectionTarget: { type: "month", month: "2026-09" },
         }),
         2026,
+        "2026-08-13",
       ).amountYen,
     ).toBe(20_000);
+  });
+
+  it("uses the explicit reference date and the payment-day boundary", () => {
+    const candidate = plan({
+      startMonth: "2026-01",
+      currentContributionTotalYen: 0,
+      taxContributionSnapshots: [
+        { taxYear: 2026, paidThroughMonth: "2026-08", paidYen: 70_000 },
+      ],
+    });
+    expect(
+      calculateIdecoAnnualPaidContribution(candidate, 2026, "2026-08-25"),
+    ).toMatchObject({ status: "invalid", amountYen: null });
+    expect(
+      calculateIdecoAnnualPaidContribution(candidate, 2026, "2026-08-26"),
+    ).toEqual({ status: "complete", amountYen: 110_000, messages: [] });
+  });
+
+  it("distinguishes missing past payments from future projections", () => {
+    const missingPast = plan({
+      startMonth: "2026-01",
+      currentContributionTotalYen: 0,
+      taxContributionSnapshots: [
+        { taxYear: 2026, paidThroughMonth: "2026-07", paidYen: 60_000 },
+      ],
+    });
+    expect(
+      calculateIdecoAnnualPaidContribution(missingPast, 2026, "2026-08-26"),
+    ).toMatchObject({ status: "incomplete", amountYen: null });
+
+    const futureOnly = plan({
+      startMonth: "2026-10",
+      projectionTarget: { type: "month", month: "2026-12" },
+      currentContributionTotalYen: 0,
+      taxContributionSnapshots: [],
+    });
+    expect(
+      calculateIdecoAnnualPaidContribution(futureOnly, 2026, "2026-09-25"),
+    ).toEqual({ status: "complete", amountYen: 20_000, messages: [] });
+  });
+
+  it("does not auto-fill missed payments and requires an explicit reference date", () => {
+    const candidate = plan({ startMonth: "2026-01" });
+    expect(
+      calculateIdecoAnnualPaidContribution(candidate, 2026, null),
+    ).toMatchObject({ status: "incomplete", amountYen: null });
+    expect(
+      calculateIdecoAnnualPaidContribution(candidate, 2026, "2030-02-30"),
+    ).toMatchObject({ status: "out-of-range", amountYen: null });
+  });
+
+  it("assigns a December contribution to the next January payment year", () => {
+    const december = plan({
+      startMonth: "2026-12",
+      projectionTarget: { type: "month", month: "2026-12" },
+      currentContributionTotalYen: 0,
+      taxContributionSnapshots: [],
+    });
+    expect(
+      calculateIdecoAnnualPaidContribution(december, 2026, "2026-11-25")
+        .amountYen,
+    ).toBe(0);
+    expect(
+      calculateIdecoAnnualPaidContribution(december, 2027, "2026-11-25")
+        .amountYen,
+    ).toBe(10_000);
   });
 
   it("rejects duplicate snapshot years, wrong paid month, and inconsistent paid value", () => {
@@ -462,6 +543,7 @@ describe("monthly contribution, payment month, and projection", () => {
           annualFeeBasisPoints: annualFee,
         },
         member,
+        reference,
       );
       expect(result.status).toBe("complete");
       expect(result.projectedBalanceYen).not.toBeNull();
@@ -474,11 +556,13 @@ describe("monthly contribution, payment month, and projection", () => {
       plan({ monthlyFeeYen: 0 }),
       scenario,
       member,
+      reference,
     );
     const fee = calculateIdecoPlan(
       plan({ monthlyFeeYen: 1_000 }),
       scenario,
       member,
+      reference,
     );
     expect(
       (noFee.projectedBalanceYen ?? 0) - (fee.projectedBalanceYen ?? 0),
@@ -492,6 +576,7 @@ describe("monthly contribution, payment month, and projection", () => {
       }),
       scenario,
       member,
+      reference,
     );
     expect(depleted.projectedBalanceYen).toBe(0);
   });
@@ -504,6 +589,7 @@ describe("monthly contribution, payment month, and projection", () => {
       }),
       scenario,
       member,
+      reference,
     );
     expect(result.status).toBe("complete");
     expect(result.projectedPrincipalYen).toBe(250_000);
@@ -514,14 +600,15 @@ describe("monthly contribution, payment month, and projection", () => {
   });
 
   it("returns incomplete for blank scenario values and never recommends defaults", () => {
-    expect(calculateIdecoPlan(plan(), undefined, member).status).toBe(
-      "incomplete",
-    );
+    expect(
+      calculateIdecoPlan(plan(), undefined, member, reference).status,
+    ).toBe("incomplete");
     expect(
       calculateIdecoPlan(
         plan(),
         { ...scenario, annualReturnBasisPoints: null },
         member,
+        reference,
       ).status,
     ).toBe("incomplete");
   });
@@ -532,6 +619,7 @@ describe("monthly contribution, payment month, and projection", () => {
         plan(),
         { ...scenario, annualReturnBasisPoints: Number.NaN },
         member,
+        reference,
       ).status,
     ).toBe("out-of-range");
     expect(() =>
@@ -544,6 +632,7 @@ describe("monthly contribution, payment month, and projection", () => {
       plan({ projectionTarget: { type: "receipt-age", age: 65 } }),
       scenario,
       member,
+      reference,
     );
     expect(result.targetMonth).toBe("2055-01");
     expect(result.messages.join(" ")).toContain("受取資格は計算しません");
