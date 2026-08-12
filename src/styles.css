@@ -214,6 +214,38 @@ fieldset input {
   margin-block: 1rem;
 }
 
+.nisa-card {
+  margin-block: 1rem;
+}
+
+.nisa-checkbox {
+  align-items: center;
+  display: flex;
+}
+
+.nisa-checkbox input {
+  min-height: auto;
+  width: auto;
+}
+
+.nisa-result dl {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(8rem, auto);
+  margin: 0;
+}
+
+.nisa-result dt,
+.nisa-result dd {
+  border-bottom: 1px solid #d0d7de;
+  margin: 0;
+  padding: 0.45rem;
+}
+
+.nisa-result dd {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .take-home-result dl {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) minmax(8rem, auto);
@@ -238,6 +270,7 @@ fieldset input {
 }
 
 .status-incomplete,
+.status-invalid,
 .status-unsupported,
 .status-missing-rule,
 .status-out-of-range {
@@ -264,7 +297,15 @@ fieldset input {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .nisa-result dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .take-home-result dd {
+    text-align: left;
+  }
+
+  .nisa-result dd {
     text-align: left;
   }
 

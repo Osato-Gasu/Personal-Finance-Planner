@@ -55,7 +55,7 @@ describe("schema version 1 to 2 migration", () => {
   it("preserves legacy entities and migrates living expenses traceably", () => {
     const legacy = createLegacyFixtureState();
     const migrated = migrateToCurrentState(legacy);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.members).toEqual(legacy.members);
     expect(migrated.takeHomePlans).toEqual(
       legacy.takeHomeInputs.map((input) => ({
@@ -179,13 +179,13 @@ describe("versioned repository migration and active link integrity", () => {
     const legacyBytes = JSON.stringify(createLegacyFixtureState());
     storage.values.set(LEGACY_STORAGE_KEY, legacyBytes);
     const loaded = new StorageRepository(storage).load();
-    expect(loaded?.schemaVersion).toBe(3);
+    expect(loaded?.schemaVersion).toBe(4);
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(legacyBytes);
     expect(
       migrateToCurrentState(
         JSON.parse(required(storage.getItem(STORAGE_KEY), "v2 bytes")),
       ).schemaVersion,
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("does not fall back to valid v1 when v2 is corrupt", () => {
@@ -220,7 +220,7 @@ describe("versioned repository migration and active link integrity", () => {
     const v2Before = storage.getItem(STORAGE_KEY);
     const legacyBytes = JSON.stringify(createLegacyFixtureState());
     const prepared = new StorageRepository(storage).prepareImport(legacyBytes);
-    expect(prepared.preview.schemaVersion).toBe(3);
+    expect(prepared.preview.schemaVersion).toBe(4);
     expect(storage.getItem(STORAGE_KEY)).toBe(v2Before);
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
   });

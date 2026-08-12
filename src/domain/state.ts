@@ -6,9 +6,19 @@ import {
   type TakeHomePlan,
 } from "./take-home-plan";
 import { calculateTakeHome } from "./take-home-calculator";
+import {
+  calculateNisaPlan,
+  parseInvestmentScenario,
+  parseNisaPlan,
+  validateInvestmentScenario,
+  validateNisaPlan,
+  type InvestmentScenario,
+  type NisaPlan,
+} from "./nisa";
 
-export const SCHEMA_VERSION = 3 as const;
-export const PREVIOUS_SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 4 as const;
+export const PREVIOUS_SCHEMA_VERSION = 3 as const;
+export const SCHEMA_VERSION_2 = 2 as const;
 export const LEGACY_SCHEMA_VERSION = 1 as const;
 
 export type MemberRole = "self" | "partner";
@@ -102,6 +112,19 @@ export interface ExpenseItem {
 }
 
 export interface AppState {
+  schemaVersion: 4;
+  activeRoute: RouteId;
+  members: HouseholdMember[];
+  takeHomePlans: TakeHomePlan[];
+  incomeTargets: IncomeTarget[];
+  links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+  nisaPlans: NisaPlan[];
+  investmentScenarios: InvestmentScenario[];
+}
+
+export interface SchemaVersion3AppState {
   schemaVersion: 3;
   activeRoute: RouteId;
   members: HouseholdMember[];
@@ -206,7 +229,17 @@ export type AppAction =
     }
   | { type: "duplicate-expense"; itemId: string; newId: string }
   | { type: "set-expense-active"; itemId: string; active: boolean }
-  | { type: "delete-expense"; itemId: string };
+  | { type: "delete-expense"; itemId: string }
+  | { type: "add-nisa-plan"; plan: NisaPlan }
+  | { type: "update-nisa-plan"; planId: string; plan: NisaPlan }
+  | { type: "delete-nisa-plan"; planId: string }
+  | { type: "add-investment-scenario"; scenario: InvestmentScenario }
+  | {
+      type: "update-investment-scenario";
+      scenarioId: string;
+      scenario: InvestmentScenario;
+    }
+  | { type: "delete-investment-scenario"; scenarioId: string };
 
 export const routeIds: readonly RouteId[] = [
   "overview",
@@ -420,7 +453,9 @@ function validateLegacyMembersAndIncome(
   }
 }
 
-function validateCurrentMembersAndIncome(state: AppState): void {
+function validateCurrentMembersAndIncome(
+  state: AppState | SchemaVersion3AppState,
+): void {
   uniqueIds(state.members, "member");
   uniqueIds(state.takeHomePlans, "take-home plan");
   uniqueIds(state.incomeTargets, "income target");
@@ -523,6 +558,40 @@ export function validateAppState(state: AppState): void {
   if (!routeIds.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
   validateCurrentMembersAndIncome(state);
+  uniqueIds(state.nisaPlans, "NISA plan");
+  uniqueIds(state.investmentScenarios, "investment scenario");
+  const memberIds = new Set(state.members.map((member) => member.id));
+  const scenarios = new Map(
+    state.investmentScenarios.map((scenario) => [scenario.id, scenario]),
+  );
+  const activeNisaMembers = new Set<string>();
+  const scenarioKinds = new Set<string>();
+  for (const scenario of state.investmentScenarios) {
+    validateInvestmentScenario(scenario);
+    if (!memberIds.has(scenario.memberId))
+      throw new Error("investment scenario member is missing");
+    const key = `${scenario.memberId}\u0000${scenario.kind}`;
+    if (scenarioKinds.has(key))
+      throw new Error("scenario kind must be unique per member");
+    scenarioKinds.add(key);
+  }
+  for (const plan of state.nisaPlans) {
+    validateNisaPlan(plan);
+    const member = state.members.find((item) => item.id === plan.memberId);
+    if (!member) throw new Error("NISA plan member is missing");
+    const scenario = scenarios.get(plan.activeScenarioId);
+    if (!scenario || scenario.memberId !== plan.memberId)
+      throw new Error(
+        "NISA active scenario is missing or belongs to another member",
+      );
+    if (calculateNisaPlan(plan, scenario, member).status === "out-of-range")
+      throw new Error("NISA plan exceeds the supported range");
+    if (plan.active) {
+      if (activeNisaMembers.has(plan.memberId))
+        throw new Error("only one active NISA plan is allowed per member");
+      activeNisaMembers.add(plan.memberId);
+    }
+  }
   uniqueIds(state.budget.categories, "budget category");
   uniqueIds(state.budget.items, "expense item");
   assertBasisPoints(
@@ -614,7 +683,7 @@ export function validateLegacyAppState(state: LegacyAppState): void {
 export function validateSchemaVersion2AppState(
   state: SchemaVersion2AppState,
 ): void {
-  if (opaque(state.schemaVersion) !== PREVIOUS_SCHEMA_VERSION)
+  if (opaque(state.schemaVersion) !== SCHEMA_VERSION_2)
     throw new Error("unsupported schema version");
   if (!routeIds.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
@@ -846,6 +915,44 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
+    schemaVersion: 4,
+    activeRoute: (() => {
+      if (
+        typeof value.activeRoute !== "string" ||
+        !routeIds.includes(value.activeRoute as RouteId)
+      )
+        throw new Error("activeRoute is invalid");
+      return value.activeRoute as RouteId;
+    })(),
+    members,
+    takeHomePlans: requireArray(value, "takeHomePlans").map((plan) => {
+      const memberId =
+        isRecord(plan) && typeof plan.memberId === "string"
+          ? plan.memberId
+          : "";
+      return parseTakeHomePlan(plan, memberProfiles.get(memberId));
+    }),
+    incomeTargets: parseIncomeTargets(value),
+    links: parseLinks(value),
+    contributionSources: parseContributions(value),
+    budget: parseBudget(value.budget),
+    nisaPlans: requireArray(value, "nisaPlans").map(parseNisaPlan),
+    investmentScenarios: requireArray(value, "investmentScenarios").map(
+      parseInvestmentScenario,
+    ),
+  };
+  validateAppState(state);
+  return state;
+}
+
+export function parseSchemaVersion3AppState(
+  value: unknown,
+): SchemaVersion3AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  const members = parseMembers(value, true);
+  const memberProfiles = new Map(members.map((member) => [member.id, member]));
+  const state: SchemaVersion3AppState = {
     schemaVersion: 3,
     activeRoute: (() => {
       if (
@@ -868,14 +975,19 @@ export function parseAppState(value: unknown): AppState {
     contributionSources: parseContributions(value),
     budget: parseBudget(value.budget),
   };
-  validateAppState(state);
+  validateAppState({
+    ...structuredClone(state),
+    schemaVersion: 4,
+    nisaPlans: [],
+    investmentScenarios: [],
+  });
   return state;
 }
 
 export function parseSchemaVersion2AppState(
   value: unknown,
 ): SchemaVersion2AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_2)
     throw new Error("unsupported schema version");
   const state: SchemaVersion2AppState = {
     schemaVersion: 2,
@@ -887,7 +999,8 @@ export function parseSchemaVersion2AppState(
 }
 
 export function cloneState<
-  T extends AppState | SchemaVersion2AppState | LegacyAppState,
+  T extends
+    AppState | SchemaVersion3AppState | SchemaVersion2AppState | LegacyAppState,
 >(state: T): T {
   return structuredClone(state);
 }
@@ -1190,6 +1303,34 @@ export function reduceState(state: AppState, action: AppAction): AppState {
     case "delete-expense":
       next.budget.items = next.budget.items.filter(
         (i) => i.id !== action.itemId,
+      );
+      break;
+    case "add-nisa-plan":
+      next.nisaPlans.push(structuredClone(action.plan));
+      break;
+    case "update-nisa-plan":
+      next.nisaPlans[
+        next.nisaPlans.findIndex((plan) => plan.id === action.planId)
+      ] = structuredClone(action.plan);
+      break;
+    case "delete-nisa-plan":
+      next.nisaPlans = next.nisaPlans.filter(
+        (plan) => plan.id !== action.planId,
+      );
+      break;
+    case "add-investment-scenario":
+      next.investmentScenarios.push(structuredClone(action.scenario));
+      break;
+    case "update-investment-scenario":
+      next.investmentScenarios[
+        next.investmentScenarios.findIndex(
+          (scenario) => scenario.id === action.scenarioId,
+        )
+      ] = structuredClone(action.scenario);
+      break;
+    case "delete-investment-scenario":
+      next.investmentScenarios = next.investmentScenarios.filter(
+        (scenario) => scenario.id !== action.scenarioId,
       );
       break;
   }
@@ -1535,6 +1676,90 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       if (!state.budget.items.some((i) => i.id === action.itemId))
         throw new Error("expense item is missing");
       return;
+    case "add-nisa-plan":
+      if (state.nisaPlans.some((plan) => plan.id === action.plan.id))
+        throw new Error("NISA plan ID is already in use");
+      assertNisaStateChange({
+        ...cloneState(state),
+        nisaPlans: [...state.nisaPlans, structuredClone(action.plan)],
+      });
+      return;
+    case "update-nisa-plan":
+      if (!state.nisaPlans.some((plan) => plan.id === action.planId))
+        throw new Error("NISA plan is missing");
+      if (action.plan.id !== action.planId)
+        throw new Error("NISA plan ID cannot change");
+      assertNisaStateChange({
+        ...cloneState(state),
+        nisaPlans: state.nisaPlans.map((plan) =>
+          plan.id === action.planId ? structuredClone(action.plan) : plan,
+        ),
+      });
+      return;
+    case "delete-nisa-plan":
+      if (!state.nisaPlans.some((plan) => plan.id === action.planId))
+        throw new Error("NISA plan is missing");
+      return;
+    case "add-investment-scenario":
+      if (
+        state.investmentScenarios.some(
+          (scenario) => scenario.id === action.scenario.id,
+        )
+      )
+        throw new Error("scenario ID is already in use");
+      assertNisaStateChange({
+        ...cloneState(state),
+        investmentScenarios: [
+          ...state.investmentScenarios,
+          structuredClone(action.scenario),
+        ],
+      });
+      return;
+    case "update-investment-scenario":
+      if (
+        !state.investmentScenarios.some(
+          (scenario) => scenario.id === action.scenarioId,
+        )
+      )
+        throw new Error("scenario is missing");
+      if (action.scenario.id !== action.scenarioId)
+        throw new Error("scenario ID cannot change");
+      assertNisaStateChange({
+        ...cloneState(state),
+        investmentScenarios: state.investmentScenarios.map((scenario) =>
+          scenario.id === action.scenarioId
+            ? structuredClone(action.scenario)
+            : scenario,
+        ),
+      });
+      return;
+    case "delete-investment-scenario":
+      if (
+        !state.investmentScenarios.some(
+          (scenario) => scenario.id === action.scenarioId,
+        )
+      )
+        throw new Error("scenario is missing");
+      if (
+        state.nisaPlans.some(
+          (plan) => plan.activeScenarioId === action.scenarioId,
+        )
+      )
+        throw new Error("active NISA scenario cannot be deleted");
+      return;
+  }
+}
+
+function assertNisaStateChange(candidate: AppState): void {
+  validateAppState(candidate);
+  for (const plan of candidate.nisaPlans) {
+    const member = candidate.members.find((item) => item.id === plan.memberId);
+    const scenario = candidate.investmentScenarios.find(
+      (item) => item.id === plan.activeScenarioId,
+    );
+    if (!member) throw new Error("NISA plan member is missing");
+    if (calculateNisaPlan(plan, scenario, member).status === "out-of-range")
+      throw new Error("NISA plan exceeds the supported range");
   }
 }
 
@@ -1560,7 +1785,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },
@@ -1585,5 +1810,7 @@ export function createInitialState(): AppState {
       items: [],
     },
     contributionSources: [],
+    nisaPlans: [],
+    investmentScenarios: [],
   };
 }

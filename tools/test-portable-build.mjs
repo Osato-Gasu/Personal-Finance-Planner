@@ -7,7 +7,7 @@ import { chromium } from "playwright-core";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v3";
+const storageKey = "personal-finance-planner:state:v4";
 const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
   ["overview", "総合サマリー"],
@@ -151,6 +151,101 @@ try {
   await page.waitForURL(`${standaloneUrl}#/take-home`);
   await page.goBack();
   await page.waitForURL(`${standaloneUrl}#/budget`);
+
+  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.waitForURL(`${standaloneUrl}#/investments`);
+  await page.getByRole("heading", { level: 2, name: "NISA・iDeCo" }).waitFor();
+  if ((await page.getByTestId("nisa-birth-member-self").count()) !== 1) {
+    throw new Error(
+      `NISA UI did not render: body=${JSON.stringify(await page.locator("body").innerText())}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`,
+    );
+  }
+  await page.getByText("iDeCoはTASK-006で実装予定です（未実装）。").waitFor();
+  await page.getByTestId("nisa-member-select").selectOption("member-partner");
+  assert.equal(
+    await page.getByTestId("nisa-create-member-partner").isDisabled(),
+    true,
+  );
+  await page.getByTestId("nisa-member-select").selectOption("member-self");
+  await page.getByTestId("nisa-birth-member-self").fill("1990-01-01");
+  await page.getByTestId("nisa-birth-member-self").press("Tab");
+  await page.getByTestId("nisa-create-member-self").click();
+  await page
+    .getByRole("heading", { name: "運用シナリオ（推奨値なし）" })
+    .waitFor();
+  await page.getByTestId("nisa-resident-confirmed").check();
+  assert.equal(await page.getByTestId("nisa-return-bp").inputValue(), "");
+  assert.equal(await page.getByTestId("nisa-fee-bp").inputValue(), "");
+  assert.equal(await page.getByTestId("nisa-inflation-bp").inputValue(), "");
+  await page.getByTestId("nisa-return-bp").focus();
+  assert.equal(
+    await page
+      .getByTestId("nisa-return-bp")
+      .evaluate((element) => element === globalThis.document.activeElement),
+    true,
+  );
+  await page.getByTestId("nisa-return-bp").pressSequentially("0");
+  await page.getByTestId("nisa-return-bp").press("Tab");
+  await page.getByTestId("nisa-fee-bp").pressSequentially("0");
+  await page.getByTestId("nisa-fee-bp").press("Tab");
+  await page.getByTestId("nisa-inflation-bp").pressSequentially("0");
+  await page.getByTestId("nisa-inflation-bp").press("Tab");
+  await page.getByTestId("nisa-monthly-tsumitate").fill("100000");
+  await page.getByTestId("nisa-monthly-tsumitate").press("Tab");
+  await page.getByRole("heading", { name: "試算状態: complete" }).waitFor();
+  await assertContains(
+    page.getByTestId("nisa-result"),
+    "2026年: つみたて投資枠 1,200,000円",
+  );
+  await page.getByTestId("nisa-add-purchase").click();
+  const purchaseRow = page
+    .locator(".inline-form")
+    .filter({ has: page.getByRole("button", { name: "臨時拠出を削除" }) });
+  await purchaseRow.getByLabel("金額").fill("1");
+  await purchaseRow.getByLabel("金額").press("Tab");
+  await page.getByRole("heading", { name: "試算状態: invalid" }).waitFor();
+  await assertContains(page.getByTestId("nisa-issues"), "1円超過");
+  const nisaBytesBeforeReload = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  assert.ok(nisaBytesBeforeReload, "NISA state was not saved");
+  assert.equal(
+    JSON.parse(nisaBytesBeforeReload).nisaPlans[0].additionalPurchases[0]
+      .amountYen,
+    1,
+  );
+  await page.reload({ waitUntil: "load" });
+  await page.getByRole("heading", { name: "試算状態: invalid" }).waitFor();
+  await assertContains(page.getByTestId("nisa-issues"), "1円超過");
+  const reloadedPurchaseRow = page
+    .locator(".inline-form")
+    .filter({ has: page.getByRole("button", { name: "臨時拠出を削除" }) });
+  assert.equal(await reloadedPurchaseRow.getByLabel("金額").inputValue(), "1");
+  await reloadedPurchaseRow.getByLabel("金額").fill("2");
+  await reloadedPurchaseRow.getByLabel("金額").press("Tab");
+  await assertContains(page.getByTestId("nisa-issues"), "2円超過");
+  await page.getByRole("button", { name: "臨時拠出を削除" }).click();
+  await page.getByRole("heading", { name: "試算状態: complete" }).waitFor();
+  await page
+    .getByTestId("nisa-scenario-select")
+    .selectOption({ label: "強気" });
+  await page.getByRole("heading", { name: "試算状態: incomplete" }).waitFor();
+  assert.equal(await page.getByTestId("nisa-return-bp").inputValue(), "");
+  await page
+    .getByTestId("nisa-scenario-select")
+    .selectOption({ label: "標準" });
+  await page.getByRole("heading", { name: "試算状態: complete" }).waitFor();
+  await page.setViewportSize({ width: 360, height: 800 });
+  assert.equal(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.document.documentElement.clientWidth,
+    ),
+    true,
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("button", { name: "2026年計算プランを作成" }).click();
@@ -515,7 +610,7 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 3);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 4);
   await page.reload({ waitUntil: "load" });
   await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -576,7 +671,7 @@ try {
   await page.getByRole("button", { name: "世帯設定を保存" }).click();
   const legacyNamesAfterSave = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
-    if (!bytes) throw new Error("migrated v3 state is missing");
+    if (!bytes) throw new Error("migrated v4 state is missing");
     return JSON.parse(bytes).members.map((member) => member.displayName);
   }, storageKey);
   assert.deepEqual(legacyNamesAfterSave, [" 本人 ", legacyLongName]);
@@ -589,7 +684,7 @@ try {
 
   const overflowBytes = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
-    if (!bytes) throw new Error("v3 state is missing");
+    if (!bytes) throw new Error("v4 state is missing");
     const state = JSON.parse(bytes);
     const source = state.budget.items[0];
     state.budget.items = [
@@ -635,7 +730,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=128, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, localStorage=preserved, runtimeRequests=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=153, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaAnnualExact=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

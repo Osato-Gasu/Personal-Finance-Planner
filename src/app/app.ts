@@ -12,6 +12,7 @@ import {
   type EntityIdFactory,
 } from "../modules/budget/budget-view";
 import { createTakeHomeRenderer } from "../modules/take-home/take-home-view";
+import { createInvestmentsRenderer } from "../modules/investments/investments-view";
 
 const routeLabels: Record<RouteId, string> = {
   overview: "総合サマリー",
@@ -80,6 +81,13 @@ export function startApp(
     createId: options.createId ?? defaultIdFactory(browserWindow),
     requestRender: () => render(currentRoute),
   });
+  const investmentsRenderer = createInvestmentsRenderer({
+    browserWindow,
+    document,
+    store,
+    createId: options.createId ?? defaultIdFactory(browserWindow),
+    requestRender: () => render(currentRoute),
+  });
 
   render = (route: RouteId): void => {
     currentRoute = route;
@@ -106,6 +114,8 @@ export function startApp(
       budgetRenderer(main);
     } else if (route === "take-home") {
       takeHomeRenderer(main);
+    } else if (route === "investments") {
+      investmentsRenderer(main);
     } else {
       main.append(
         element(

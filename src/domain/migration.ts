@@ -2,6 +2,7 @@ import {
   SCHEMA_VERSION,
   parseAppState,
   parseLegacyAppState,
+  parseSchemaVersion3AppState,
   parseSchemaVersion2AppState,
   validateAppState,
   type AppState,
@@ -10,6 +11,7 @@ import {
   type HouseholdMember,
   type IncomeTarget,
   type SchemaVersion2AppState,
+  type SchemaVersion3AppState,
 } from "./state";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,8 +29,10 @@ function uniqueId(preferred: string, used: Set<string>): string {
 export function migrateToCurrentState(value: unknown): AppState {
   if (!isRecord(value)) throw new Error("state must be an object");
   if (value.schemaVersion === SCHEMA_VERSION) return parseAppState(value);
+  if (value.schemaVersion === 3)
+    return migrateV3(parseSchemaVersion3AppState(value));
   if (value.schemaVersion === 2)
-    return migrateV2(parseSchemaVersion2AppState(value));
+    return migrateV3(migrateV2(parseSchemaVersion2AppState(value)));
   if (value.schemaVersion !== 1) throw new Error("unsupported schema version");
 
   const legacy = parseLegacyAppState(value);
@@ -113,11 +117,11 @@ export function migrateToCurrentState(value: unknown): AppState {
       ...source,
     })),
   };
-  return migrateV2(migrated);
+  return migrateV3(migrateV2(migrated));
 }
 
-function migrateV2(previous: SchemaVersion2AppState): AppState {
-  const migrated: AppState = {
+function migrateV2(previous: SchemaVersion2AppState): SchemaVersion3AppState {
+  const migrated: SchemaVersion3AppState = {
     schemaVersion: 3,
     activeRoute: previous.activeRoute,
     members: previous.members.map((member) => ({ ...member })),
@@ -135,6 +139,16 @@ function migrateV2(previous: SchemaVersion2AppState): AppState {
     contributionSources: previous.contributionSources.map((source) => ({
       ...source,
     })),
+  };
+  return migrated;
+}
+
+function migrateV3(previous: SchemaVersion3AppState): AppState {
+  const migrated: AppState = {
+    ...structuredClone(previous),
+    schemaVersion: 4,
+    nisaPlans: [],
+    investmentScenarios: [],
   };
   validateAppState(migrated);
   return migrated;

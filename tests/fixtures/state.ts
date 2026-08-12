@@ -166,5 +166,7 @@ export function createFixtureState(): AppState {
         active: true,
       },
     ],
+    nisaPlans: [],
+    investmentScenarios: [],
   };
 }
