@@ -1,9 +1,10 @@
 ---
 updated_at: 2026-08-13
-active_tasks: []
-next_action: ChatGPT defines TASK-006 requirements from the permanent handoff and BACKLOG
+active_tasks:
+  - TASK-006
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-006
 ---
 
 # Current state
 
-TASK-011 is completed and integrated to main through release-handoff commit 51548c913cb83bd42b88f76abc294e8f4331d5be. Its active packet is retained in Git history under the canonical git_only policy. The permanent audit registry and validators remain active. TASK-005 remains terminated, unapproved, unmerged as TASK-005, and attempt 4 remains forbidden. The next requirements candidate is TASK-006.
+TASK-006 spec revision 1 is active in implementation from exact main base b8f4c27544534c8ed00a92493307ac37ed7649d3. It starts implementation review attempt 1／standard with changes_requested_cycles 0, final false, terminated false, and attempt 4 not yet applicable. TASK-005 remains terminated, unapproved, and attempt 4 forbidden. TASK-011 remains completed and must not be reactivated. The permanent audit registry and validators remain active.
