@@ -115,6 +115,7 @@ try {
     $staleCurrent = Invoke-Validator $fixture $registryPath
     if ($staleCurrent.ExitCode -eq 0) { throw 'historical identity was accepted as current identity' }
 
+    $global:LASTEXITCODE = 0
     Write-Output "Audit identity normalization test passed: CRLF working identity rejected; committed LF identity accepted; historical identity rejected as current."
 } finally {
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
