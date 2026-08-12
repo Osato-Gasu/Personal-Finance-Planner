@@ -9,10 +9,10 @@
 - activation_commit: 66fb9d7ecc5d1bacab4b9d3fa1aa43b87826260b
 - activation_tree: 8c5c195a4cbdd5f2f628b71b496752ee7965a701
 - activation_workflow_run_id: 31616376283
-- implementation_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
-- candidate_commit: 18c3e67d3370fefc7ea00c9373bd37f7978395de
-- candidate_tree: 79a95a2ffc26d2682c6b6e5e784d2c2551cb246f
-- candidate_workflow_run_id: 31617233531
+- implementation_candidate: b2418d1da55a6cdde00079caf89960f82701077f
+- candidate_commit: b2418d1da55a6cdde00079caf89960f82701077f
+- candidate_tree: 06f96ac682162552ff8b21b24b4b81cecad7e960
+- candidate_workflow_run_id: 31622832014
 - candidate_workflow_conclusion: success
 - carry_forward_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
 - carry_forward_candidate_tree: fa83cf0bc4f7de19adc1dff92b8fd538dba3d443
@@ -27,17 +27,21 @@
 - shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-- changed_files: docs/ai/AUDIT_IDENTITIES.json; docs/ai/handoffs/TASK-011/CODEX_HANDOFF.md; docs/ai/tasks/TASK-011.md; tools/validate-audit-identities.ps1; tools/test-audit-identity-normalization.ps1; tools/validate-project-overlay.ps1
+- changed_files: board/PROGRESS.html; docs/ai/AUDIT_IDENTITIES.json; docs/ai/CURRENT_STATE.md; docs/ai/NEXT_ACTION.yml; docs/ai/handoffs/TASK-011/RELAY_HANDOFF.md; docs/ai/reports/TASK-011/RELAY_BUNDLE.json; docs/ai/reports/TASK-011/RELAY_IMPORT.md; docs/ai/tasks/TASK-011.md; tools/validate-audit-identities.ps1; tools/test-audit-identity-normalization.ps1
 - actual_source_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
 - actual_source_path: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json
 - actual_git_blob: d42192e7534ca5e2dced23955743a5815fec6c38
 - actual_sha256: F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3
 - actual_bytes: 34370
 - historical_finding: FINDING-005-R3-01
+- historical_declared_by_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
+- historical_declared_by_path: docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md
+- historical_declared_by_git_blob: 0f60e90764e81d4e7b02efa62c8a8900305d025b
 - historical_declared_sha256: 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E
 - historical_declared_bytes: 34723
 - historical_disposition: retained as evidence only; not a current valid identity
-- validation_result: PowerShell 7/5.1 binary-safe committed identity, normalization negative/positive, project overlay, shared governance, and product identity smoke passed
+- finding_011_r1_01_disposition: resolved; historical declaration source is exact commit/path/blob bound and its SHA-256/bytes fields are each required exactly once
+- validation_result: PowerShell 7/5.1 binary-safe current identity, 21 historical source-binding checks, project overlay, shared governance, and product identity smoke passed
 - tests_passed: 315 Vitest tests; 69 focused take-home rule tests; 68 focused NISA tests; 168 portable browser checks
 - tests_failed: none
 - browser_evidence: Edge file:// portable suite passed 168 checks
@@ -54,7 +58,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+- reviewed_candidate: b2418d1da55a6cdde00079caf89960f82701077f
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -63,20 +67,20 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_final: false
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
-- execution_started_at: 2026-08-13 01:09:43 JST
-- execution_finished_at: 2026-08-13 01:26:43 JST
+- execution_started_at: 2026-08-13 02:16:00 JST
+- execution_finished_at: 2026-08-13 02:36:00 JST
 
 ## Implementation evidence
 
 - Exact historical commit/path resolves to Git blob d42192e7534ca5e2dced23955743a5815fec6c38, and its binary stream hashes to F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3 over 34370 bytes in both PowerShell 7 and Windows PowerShell 5.1.
 - docs/ai/AUDIT_IDENTITIES.json separates current_verified_identity from historical_mismatch and remains after git_only TASK packet cleanup.
-- tools/validate-audit-identities.ps1 resolves exact commit/path, verifies the blob, and hashes Git object bytes without PowerShell text reconstruction.
-- tools/test-audit-identity-normalization.ps1 creates an isolated text=auto/eol=lf Git fixture, rejects CRLF/pre-commit and historical identities as current, and accepts exact committed LF identity.
+- tools/validate-audit-identities.ps1 resolves both current and historical commit/path/blob identities, strictly decodes the historical Git blob as UTF-8, and requires approval_relay_sha256／approval_relay_bytes exactly once with registry-exact values.
+- tools/test-audit-identity-normalization.ps1 runs 21 isolated Git checks covering invalid/missing/mutated historical provenance, CRLF drift, strict UTF-8, and actual 0143D33D...／34723 rejection from current fields.
 - tools/validate-project-overlay.ps1 runs both permanent audit gates through shared project validation on PowerShell 7 and 5.1.
 - TASK-005 remains terminated and unapproved; TASK-011 is the new review and future release path.

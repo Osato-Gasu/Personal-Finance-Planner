@@ -1,23 +1,23 @@
 ---
 task_id: TASK-011
 title: TASK-005監査identity修復
-status: changes_requested
+status: review_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-011/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-011/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: true
 claude_design_review_recommendation: not_needed
 claude_implementation_review_recommendation: not_needed
@@ -36,7 +36,7 @@ implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
 attempt_4_forbidden: false
-implementation_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+implementation_candidate: b2418d1da55a6cdde00079caf89960f82701077f
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
@@ -45,14 +45,14 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+reviewed_candidate: b2418d1da55a6cdde00079caf89960f82701077f
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: changes_requested
-review_findings_count: 1
-review_finding_ids: FINDING-011-R1-01
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
 actual_executor: ChatGPT
 provider_substitution: none
 audit_identity_source_commit: 89895a6c9188b5011766ef4b848822bfccb0c597

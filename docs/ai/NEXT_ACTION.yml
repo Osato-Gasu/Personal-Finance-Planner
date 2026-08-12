@@ -1,20 +1,20 @@
 schema_version: 1
 task_id: TASK-011
 feature: TASK-005監査identity修復
-phase: implementation
-status: changes_requested
-next_actor: Codex
-next_role: IMPLEMENTER
+phase: implementation_review
+status: review_requested
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 model: 5.6 Sol
 effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-011/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-011/IMPLEMENTATION_REVIEW_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 actual_executor: ChatGPT
 provider_substitution: none
 review_kind: implementation
@@ -25,14 +25,14 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+reviewed_candidate: b2418d1da55a6cdde00079caf89960f82701077f
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: changes_requested
-review_findings_count: 1
-review_finding_ids: FINDING-011-R1-01
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
 write_bridge: required_for_state_transition
 write_probe: required_for_chatgpt
 relay_status: none

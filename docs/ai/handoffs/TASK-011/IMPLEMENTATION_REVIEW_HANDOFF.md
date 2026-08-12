@@ -17,10 +17,10 @@
 - activation_commit: 66fb9d7ecc5d1bacab4b9d3fa1aa43b87826260b
 - activation_tree: 8c5c195a4cbdd5f2f628b71b496752ee7965a701
 - activation_workflow_run_id: 31616376283
-- implementation_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
-- candidate_commit: 18c3e67d3370fefc7ea00c9373bd37f7978395de
-- candidate_tree: 79a95a2ffc26d2682c6b6e5e784d2c2551cb246f
-- candidate_workflow_run_id: 31617233531
+- implementation_candidate: b2418d1da55a6cdde00079caf89960f82701077f
+- candidate_commit: b2418d1da55a6cdde00079caf89960f82701077f
+- candidate_tree: 06f96ac682162552ff8b21b24b4b81cecad7e960
+- candidate_workflow_run_id: 31622832014
 - candidate_workflow_conclusion: success
 - carry_forward_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
 - carry_forward_candidate_tree: fa83cf0bc4f7de19adc1dff92b8fd538dba3d443
@@ -34,13 +34,13 @@
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - spec_revision: 1
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_final: false
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
-- review_attempt: 1
+- review_attempt: 2
 - review_profile: standard
 - final_review: false
 
@@ -52,6 +52,9 @@
 - actual_sha256: F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3
 - actual_bytes: 34370
 - historical_finding: FINDING-005-R3-01
+- historical_declared_by_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
+- historical_declared_by_path: docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md
+- historical_declared_by_git_blob: 0f60e90764e81d4e7b02efa62c8a8900305d025b
 - historical_declared_sha256: 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E
 - historical_declared_bytes: 34723
 - identity_contract: exact committed Git blob bytes after repository LF normalization
@@ -67,17 +70,19 @@
 - browser_evidence: Edge file:// portable suite 168 checks PASS、runtime requests 0、console errors 0、page errors 0
 - normalization_negative: CRLF/pre-normalized SHA-256／bytesをcurrent expected identityにするとbyte countまたはSHA-256 mismatchでFAIL
 - normalization_positive: exact committed LF blobのSHA-256／bytes／blobでPASS
-- historical_current_rejection: historical identityをcurrent fieldへ置くとFAIL
-- commit_policy: candidate 18c3e67d3370fefc7ea00c9373bd37f7978395deを変更せずexact reviewする
+- historical_source_binding: 21 isolated Git checks PASS。commit/path/blob mutation、field欠落／重複／不一致、strict UTF-8、pair部分変更を拒否
+- historical_current_rejection: actual 0143D33D...／34723 historical pairをcurrent fieldへ置くとFAIL
+- finding_011_r1_01_disposition: resolved
+- commit_policy: candidate b2418d1da55a6cdde00079caf89960f82701077fを変更せずexact reviewする
 - stop_conditions: committed blob identity、binary safety、historical/current分離、validator、rollback、required gate、product preservation、candidate identityの失敗
 - return_to: Codex
 - report: docs/ai/reports/TASK-011/IMPLEMENTATION_REPORT.md
-- execution_started_at: 2026-08-13 01:09:43 JST
-- execution_finished_at: 2026-08-13 01:26:43 JST
+- execution_started_at: 2026-08-13 02:16:00 JST
+- execution_finished_at: 2026-08-13 02:36:00 JST
 
 ## Review policy
 
-- attempt 1 uses the standard profile; no requirement is relaxed.
+- attempt 2 uses the standard profile; no requirement is relaxed.
 - TASK-011 is independent and is not TASK-005 attempt 4.
 - TASK-005 remains terminated, unapproved, and unmerged.
 - committed identity, data preservation, validator, required tests, security, portability, and candidate identity are never relaxable.
