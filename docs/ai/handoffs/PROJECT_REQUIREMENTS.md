@@ -11,8 +11,8 @@
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
-- resolved_carry_forward_TASK_004: FINDING-004-R2-09-REMAINDERはTASK-010 approved candidate aa3d7275de00ce3bfe900741750e642c780904adで解消済み。main統合は別途明示承認を必要とする
-- completed_successor: TASK-010はTASK-004 attempt 4ではなく独立TASKとしてattempt 2／standardでAPPROVEDとなり、git_only completion sync済み
+- resolved_carry_forward_TASK_004: FINDING-004-R2-09-REMAINDERはTASK-010 approved candidate aa3d7275de00ce3bfe900741750e642c780904adで解消し、main baseline 74599efd2afedfa8c1fba196aaab51459571913eへ統合済み
+- completed_successor: TASK-010はTASK-004 attempt 4ではなく独立TASKとしてattempt 2／standardでAPPROVEDとなり、main統合・git_only completion sync済み
 - implementation_gate: TASK、handoff、CURRENT_STATE、NEXT_ACTION、Progressを同じstateへ更新するまで製品実装を開始しない
 - write_capability: state transition前にrepository write accessを実測する
 - write_available: project正本一式を更新してvalidatorを実行する

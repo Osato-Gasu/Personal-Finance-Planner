@@ -1,9 +1,10 @@
 ---
 updated_at: 2026-08-12
-active_tasks: []
-next_action: ChatGPT defines TASK-005 requirements from the permanent handoff and BACKLOG
+active_tasks:
+  - TASK-005
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-005
 ---
 
 # Current state
 
-TASK-010 spec revision 1 is completed with approved implementation candidate aa3d7275de00ce3bfe900741750e642c780904ad after implementation review attempt 2／standard. FINDING-004-R2-09-REMAINDER is resolved, no attempt 3 exists, and main integration remains pending separate approval.
+TASK-005 spec revision 1 is active in implementation on base commit 74599efd2afedfa8c1fba196aaab51459571913e. TASK-010 is completed and integrated into this main baseline; TASK-004 remains blocked, unapproved, and without attempt 4.
