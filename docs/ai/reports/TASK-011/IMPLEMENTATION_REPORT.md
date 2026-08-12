@@ -2,8 +2,8 @@
 
 - task_id: TASK-011
 - spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- phase: release
+- status: approved
 - baseline_commit: bc80f31c4283aa0031ae4a4aec1d23ca8780b1e0
 - baseline_tree: 9c736ddada11f10d16f6618e3137bd6b350cb887
 - activation_commit: 66fb9d7ecc5d1bacab4b9d3fa1aa43b87826260b
@@ -41,6 +41,8 @@
 - historical_declared_bytes: 34723
 - historical_disposition: retained as evidence only; not a current valid identity
 - finding_011_r1_01_disposition: resolved; historical declaration source is exact commit/path/blob bound and its SHA-256/bytes fields are each required exactly once
+- approval_relay_sha256: D4864E545ABA0FCEAB632FDEBCE7E8CA23327ED9523679D71DCC0B1FD5EC90D4
+- approval_relay_bytes: 18372
 - validation_result: PowerShell 7/5.1 binary-safe current identity, 21 historical source-binding checks, project overlay, shared governance, and product identity smoke passed
 - tests_passed: 315 Vitest tests; 69 focused take-home rule tests; 68 focused NISA tests; 168 portable browser checks
 - tests_failed: none
@@ -63,7 +65,7 @@
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: none
+- review_result: approved
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation

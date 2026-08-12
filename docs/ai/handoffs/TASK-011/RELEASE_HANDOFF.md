@@ -1,71 +1,54 @@
----
-task_id: TASK-011
-title: TASK-005監査identity修復
-status: approved
-route: TWO_SESSION_FAST
-priority: high
-spec_revision: 1
-spec_status: accepted
-current_phase: release
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-011/RELEASE_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: not_needed
-claude_implementation_review_recommendation: not_needed
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_applicable
-claude_implementation_review_status: not_applicable
-base_commit: bc80f31c4283aa0031ae4a4aec1d23ca8780b1e0
-base_tree: 9c736ddada11f10d16f6618e3137bd6b350cb887
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-review_stage: implementation
-changes_requested_cycles: 1
-implementation_review_attempt: 2
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-attempt_4_forbidden: false
-implementation_candidate: b2418d1da55a6cdde00079caf89960f82701077f
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: b2418d1da55a6cdde00079caf89960f82701077f
-reviewed_spec_revision: 1
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: approved
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: ChatGPT
-provider_substitution: none
-audit_identity_source_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
-audit_identity_source_path: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json
-audit_identity_git_blob: d42192e7534ca5e2dced23955743a5815fec6c38
-audit_identity_sha256: F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3
-audit_identity_bytes: 34370
+# RELAY HANDOFF — TASK-011
 
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
-updated_at: 2026-08-13
----
+- relay_schema: 2
+- task_id: TASK-011
+- decision: APPROVED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-011-nisa-audit-identity-repair
+- reviewed_candidate: b2418d1da55a6cdde00079caf89960f82701077f
+- candidate_commit: b2418d1da55a6cdde00079caf89960f82701077f
+- reviewed_handoff_head: b9609708480d2bbfd3e62a810defefebef7707d2
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: release
+- next_actor: Codex
+- next_role: IMPLEMENTER
+- model: 5.6 Sol
+- effort: high
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-011-nisa-audit-identity-repair
+- resolved_commit: b9609708480d2bbfd3e62a810defefebef7707d2
+- next_action_blob: 40384addc8519df36762b73cee68a82640b7b8f6
+- handoff_blob: bb4287e28a8c5a1eaae957d929de7e63ce637684
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- review_result: approved
+- review_findings_count: 0
+- review_finding_ids: none
+- implementation_candidate: b2418d1da55a6cdde00079caf89960f82701077f
 
-# TASK-011 — TASK-005監査identity修復
+## Approval evidence
+
+- finding_011_r1_01_disposition: resolved
+- current_source_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
+- current_source_path: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json
+- current_git_blob: d42192e7534ca5e2dced23955743a5815fec6c38
+- current_sha256: F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3
+- current_bytes: 34370
+- historical_declared_by_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
+- historical_declared_by_path: docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md
+- historical_declared_by_git_blob: 0f60e90764e81d4e7b02efa62c8a8900305d025b
+- historical_declared_sha256: 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E
+- historical_declared_bytes: 34723
+- unresolved: none
 
 ## Purpose
 
@@ -110,6 +93,18 @@ TASK-005 attempt 3の承認監査artifactについて、commit済みLF bytesを�
 - origin/mainへの直接実装またはmain merge、tag、release
 - docs/ai/generated/shared/**の直接編集
 - TASK外refactor
+
+## Required changes
+
+- none
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
 
 ## Acceptance criteria
 
@@ -172,33 +167,6 @@ TASK-005 attempt 3の承認監査artifactについて、commit済みLF bytesを�
 - implementation candidate exact GitHub Actions SUCCESS
 - implementation review handoff-only commit exact GitHub Actions SUCCESS
 
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- pwsh -NoProfile -File tools/validate-audit-identities.ps1
-- pwsh -NoProfile -File tools/test-audit-identity-normalization.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-audit-identities.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-audit-identity-normalization.ps1
-- TASK-011 activation/import-only commit exact GitHub Actions SUCCESS before audit identity implementation
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run test:rules
-- npm run test:nisa
-- npm run build
-- npm run test:portable
-- implementation candidate exact GitHub Actions SUCCESS
-- implementation review handoff-only commit exact GitHub Actions SUCCESS
-
-## Rollback
-
-relay importまたはvalidator失敗時はshared transactional importerのbyte-exact rollbackで今回transactionの変更だけを元へ戻す。reset/stash/clean/restore、history rewrite、force pushは使用しない。実装を破棄する場合はisolated TASK-011 branch/worktreeだけを安全に廃棄し、origin/main、transition source branch、TASK-005履歴を変更しない。
-
 ## Forbidden changes
 
 - TASK-005 attempt 4の作成
@@ -222,3 +190,8 @@ relay importまたはvalidator失敗時はshared transactional importerのbyte-e
 - 歴史的mismatch証跡を削除・改竄すること
 - TASK外refactor
 - TASK-011完了後にdocs/ai/AUDIT_IDENTITIES.jsonまたはaudit identity validator/testを削除して再発防止gateを失わせること
+- historical_mismatchの宣言元commit/pathを未検証のままにすること
+- 実際の旧0143D33D…／34723 identityをcurrent fieldで拒否するtestをsynthetic値だけで代用すること
+- FINDING-011-R1-01を軽微・任意・deferred・accepted riskとして扱うこと
+
+Validated full bundle: docs/ai/reports/TASK-011/RELAY_BUNDLE.json
