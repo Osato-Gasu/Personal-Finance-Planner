@@ -6,9 +6,11 @@
 - status: review_requested
 - baseline_commit: 74599efd2afedfa8c1fba196aaab51459571913e
 - baseline_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
-- implementation_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-- candidate_commit: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-- candidate_tree: 46151fe8e9944c0e772707615184b19f5b7cc5a8
+- previous_reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- previous_reviewed_tree: 46151fe8e9944c0e772707615184b19f5b7cc5a8
+- implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- candidate_commit: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- candidate_tree: 70beaac8d897cc024bfde457c922775b96b12e1b
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
@@ -17,9 +19,9 @@
 - source_match: requirements product identity matched
 - changed_files: .github/workflows/ci.yml; package.json; src/app/app.ts; src/data/storage-repository.ts; src/domain/migration.ts; src/domain/nisa.ts; src/domain/state.ts; src/modules/investments/investments-view.ts; src/rules/jp/nisa/rules-2024.ts; src/styles.css; tests/fixtures/state.ts; tests/migration-repository.test.ts; tests/nisa-rules.test.ts; tests/nisa-state.test.ts; tests/schema-v3.test.ts; tests/storage-repository.test.ts; tools/test-portable-build.mjs
 - build_result: passed; standalone dist/index.html single-file build
-- tests_passed: 291 Vitest tests; 69 focused take-home rule tests; 44 focused NISA tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; 153 portable browser checks
+- tests_passed: 307 Vitest tests; 69 focused take-home rule tests; 60 focused NISA tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; 164 portable browser checks
 - tests_failed: none
-- browser_evidence: Edge file:// portable suite passed 153 checks including NISA plan、annual exact limit、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
+- browser_evidence: Edge file:// portable suite passed 164 checks including 1月2日adult、blank null、explicit zero、annual limits/remaining、lifetime reach、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
 - network: runtime_requests_0; console_errors_0; page_errors_0
 - unresolved: none
 - worktree: clean_candidate
@@ -33,7 +35,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -54,12 +56,12 @@
 - result_return_to: ChatGPT
 - canonical_relay_bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json
 - routing_mode: legacy_unspecified
-- workflow_run_id: 31583680101
-- workflow_head_sha: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- workflow_run_id: 31587709501
+- workflow_head_sha: bcae11d634ffbac6d76abd26638814eb8f4ddb27
 - workflow_conclusion: success
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_terminated: false
 - final_review: false
@@ -67,12 +69,13 @@
 - official_source_2: https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1535.htm
 - official_source_3: https://www.fsa.go.jp/news/r7/sonota/20251226-2/01.pdf
 - official_source_4: https://www.fsa.go.jp/access/r7/273.html verified but not used as the adult statutory limit basis
+- official_source_5: https://www.jsda.or.jp/nisa/faq/ Q3/Q48 legal-age January 2 boundary
 - rule_id: jp-nisa-adult-2024-01-01
 - rule_effective_period: 2024-01-01 onward
 - official_sources_verified_at: 2026-08-12
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_started_at: 2026-08-12 18:03:28 JST
-- execution_finished_at: 2026-08-12 18:40:12 JST
+- execution_started_at: 2026-08-12 19:19:46 JST
+- execution_finished_at: 2026-08-12 19:32:47 JST
 
 ## Implementation evidence
 
@@ -82,3 +85,10 @@
 - 月初／月末の拠出順序、費用率、インフレ率、負利回り、元本、運用益、実質価値をderived計算し、結果を永続化しない。
 - invalid入力をclampせずsave/reload/importで保持し、壊れた参照・overflow・prototype pollutionはwrite前に副作用なく拒否する。
 - standalone file://で人物別plan、臨時拠出、scenario、残枠、projection、reload、runtime request 0を検証した。
+
+## Finding dispositions
+
+- FINDING-005-R1-01: resolved — 日本の法的年齢境界へ修正し、1月2日adult、1月3日minor、実在日・閏日を検証した。
+- FINDING-005-R1-02: resolved — 全暦年のrule由来上限・使用・残枠と、総枠／成長内数の到達状態・年月をderived計算・表示した。
+- FINDING-005-R1-03: resolved — 金額空欄をnullで保存し、明示0円と区別してincomplete、reload、JSON importを検証した。
+- FINDING-005-R1-04: resolved — rule／source metadata、対象年齢、HTTPS、実在ISO日、期間、ID、重複、resolverをstrict検証した。
