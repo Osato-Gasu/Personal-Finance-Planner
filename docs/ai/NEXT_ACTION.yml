@@ -1,14 +1,14 @@
 schema_version: 1
 task_id: TASK-006
 feature: iDeCoベータ
-phase: implementation
-status: changes_requested
-next_actor: Codex
-next_role: IMPLEMENTER
+phase: implementation_review
+status: review_requested
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 model: 5.6 Sol
 effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-006/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-006/IMPLEMENTATION_REVIEW_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
@@ -25,14 +25,14 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: a5d28e3f9e1518743f6daa940bba684f6fb00b76
+reviewed_candidate: 2d72860abfa342ee800b183ec5dbc8bb4be51c3b
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: changes_requested
-review_findings_count: 3
-review_finding_ids: FINDING-006-R1-01,FINDING-006-R1-02,FINDING-006-R1-03
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
 write_bridge: required_for_state_transition
 write_probe: required_for_chatgpt
 relay_status: none

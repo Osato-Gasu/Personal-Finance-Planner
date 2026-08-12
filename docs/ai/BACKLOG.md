@@ -7,7 +7,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TASK-004 | high | blocked | high | implementation_review | 手取り計算ベータ | TASK-002 | 最終レビュー打ち切り。未解消事項はTASK-010で解消、candidateは未承認・main未反映 |
 | TASK-005 | normal | blocked | high | implementation_review | NISAベータ | TASK-002 | 最終レビュー打ち切り。candidate未承認・attempt 4禁止・FINDING-005-R3-01はTASK-011へ移管し、packetはGit履歴で監査する |
-| TASK-006 | normal | ready | high | implementation | iDeCoベータ | TASK-002 | FINDING-006-R1-01～03を修正しattempt 2／standardのcandidateを作成する |
+| TASK-006 | normal | ready | high | implementation_review | iDeCoベータ | TASK-002 | candidate 2d72860をattempt 2／standardでexact reviewする |
 | TASK-007 | normal | queued | high | requirements | 統合サマリー | TASK-003,TASK-006,TASK-010,TASK-011 | upstream正本の統合条件を定義する |
 | TASK-008 | normal | queued | high | requirements | データ保全・UX完成 | TASK-003,TASK-006,TASK-007,TASK-010,TASK-011 | schema v1改行表示名の保存互換性を含むmigration・import安全条件を定義する |
 | TASK-009 | low | queued | medium | requirements | 配布 | TASK-008 | release条件を定義する |
