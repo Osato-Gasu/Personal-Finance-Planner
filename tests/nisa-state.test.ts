@@ -324,6 +324,23 @@ describe("NISA Store transitions and persistence", () => {
     expect(state.nisaPlans).toHaveLength(2);
   });
 
+  it("rejects a non-finite inflation projection before writer or listener effects", () => {
+    const initial = stateWithNisa();
+    required(initial.nisaPlans[0], "plan").targetMonth = "2125-12";
+    const current = required(initial.investmentScenarios[0], "scenario");
+    rejectedWithoutEffects(
+      {
+        type: "update-investment-scenario",
+        scenarioId: current.id,
+        scenario: {
+          ...current,
+          annualInflationBasisPoints: Number.MAX_SAFE_INTEGER,
+        },
+      },
+      initial,
+    );
+  });
+
   it.each([
     [
       "duplicate active plan",
@@ -441,6 +458,16 @@ describe("NISA import safety", () => {
       (state: AppState): void => {
         required(state.nisaPlans[0], "plan").monthlyGrowthYen =
           Number.MAX_SAFE_INTEGER;
+      },
+    ],
+    [
+      "non-finite inflation projection",
+      (state: AppState): void => {
+        required(state.nisaPlans[0], "plan").targetMonth = "2125-12";
+        required(
+          state.investmentScenarios[0],
+          "scenario",
+        ).annualInflationBasisPoints = Number.MAX_SAFE_INTEGER;
       },
     ],
   ] as const)("rejects %s without changing storage bytes", (_label, mutate) => {

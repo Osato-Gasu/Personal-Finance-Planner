@@ -119,10 +119,43 @@ describe("adult NISA 2024 rule package", () => {
           ],
         },
       }),
-    ).toThrow("source metadata");
+    ).toThrow("absolute HTTPS URL");
     expect(() =>
       validateNisaRulePackage([adultNisaRule2024, adultNisaRule2024]),
     ).toThrow("unique");
+  });
+
+  it.each([
+    ["empty host", "https://"],
+    ["space in host", "https://bad host"],
+    ["HTTP", "http://example.invalid"],
+    ["relative", "/official-source"],
+    ["wrong type", 42],
+  ])("rejects %s in top-level and corroborating source URLs", (_label, url) => {
+    expect(() =>
+      validateNisaRule({
+        ...adultNisaRule2024,
+        metadata: {
+          ...adultNisaRule2024.metadata,
+          sourceUrl: url,
+        },
+      } as unknown as AdultNisaRule),
+    ).toThrow("absolute HTTPS URL");
+    expect(() =>
+      validateNisaRule({
+        ...adultNisaRule2024,
+        metadata: {
+          ...adultNisaRule2024.metadata,
+          sources: [
+            {
+              ...required(nisaRuleSources[0], "primary source"),
+              url,
+            },
+            required(nisaRuleSources[1], "secondary source"),
+          ],
+        },
+      } as unknown as AdultNisaRule),
+    ).toThrow("absolute HTTPS URL");
   });
 
   it.each([
@@ -597,6 +630,35 @@ describe("NISA applicability and projection", () => {
     expect(result.futureContributionsYen).toBe(1_200_000);
     expect(result.projectedBalanceYen).toBeGreaterThan(1_200_000);
     expect(plan()).not.toHaveProperty("projectedBalanceYen");
+  });
+
+  it("rejects non-finite and underflowed inflation factors without breaking -100% return", () => {
+    const longPlan = plan({
+      targetMonth: "2125-12",
+      currentBalanceYen: 1_000,
+      currentBookValueYen: 1_000,
+    });
+    expect(
+      calculateNisaPlan(
+        longPlan,
+        scenario({ annualInflationBasisPoints: Number.MAX_SAFE_INTEGER }),
+        adult,
+      ).status,
+    ).toBe("out-of-range");
+    expect(
+      calculateNisaPlan(
+        longPlan,
+        scenario({ annualInflationBasisPoints: -9_999 }),
+        adult,
+      ).status,
+    ).toBe("out-of-range");
+    expect(
+      calculateNisaPlan(
+        plan({ currentBalanceYen: 1_000, currentBookValueYen: 1_000 }),
+        scenario({ annualReturnBasisPoints: -10_000 }),
+        adult,
+      ).status,
+    ).toBe("complete");
   });
 
   it("rejects structurally invalid periods and contribution entries", () => {

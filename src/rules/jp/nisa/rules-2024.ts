@@ -139,6 +139,19 @@ function opaque(value: unknown): unknown {
   return value;
 }
 
+function requireAbsoluteHttpsUrl(value: unknown, field: string): void {
+  if (typeof value !== "string")
+    throw new Error(`${field} must be an absolute HTTPS URL`);
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${field} must be an absolute HTTPS URL`);
+  }
+  if (parsed.protocol !== "https:" || parsed.hostname.length === 0)
+    throw new Error(`${field} must be an absolute HTTPS URL`);
+}
+
 export function resolveAdultNisaRule(targetDate: string): AdultNisaRule | null {
   if (!isRealIsoDate(targetDate)) return null;
   const matches = adultNisaRules.filter(
@@ -185,8 +198,7 @@ export function validateNisaRule(rule: AdultNisaRule): void {
     requireIsoDate(value, field);
   if (rule.metadata.effectiveTo !== null)
     requireIsoDate(rule.metadata.effectiveTo, "metadata.effectiveTo");
-  if (!/^https:\/\//.test(rule.metadata.sourceUrl))
-    throw new Error("NISA source URL must use https");
+  requireAbsoluteHttpsUrl(rule.metadata.sourceUrl, "metadata.sourceUrl");
   if (
     !Array.isArray(opaque(rule.metadata.sources)) ||
     rule.metadata.sources.length < 2
@@ -198,8 +210,7 @@ export function validateNisaRule(rule: AdultNisaRule): void {
     requireText(source.title, "source.title");
     requireText(source.publisher, "source.publisher");
     requireText(source.purpose, "source.purpose");
-    if (typeof source.url !== "string" || !/^https:\/\//.test(source.url))
-      throw new Error("NISA rule source metadata is invalid");
+    requireAbsoluteHttpsUrl(opaque(source.url), "source.url");
     requireIsoDate(source.retrievedAt, "source.retrievedAt");
     requireIsoDate(source.verifiedAt, "source.verifiedAt");
   }

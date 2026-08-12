@@ -227,6 +227,13 @@ try {
     page.getByTestId("nisa-limit-reach"),
     "計画期間内に到達しない",
   );
+  const limitReachText = await page
+    .getByTestId("nisa-limit-reach")
+    .textContent();
+  assert.ok(limitReachText?.includes("非課税保有限度額への到達"));
+  assert.ok(limitReachText?.includes("成長投資枠内数への到達"));
+  assert.ok(!limitReachText?.includes("1,800万円"));
+  assert.ok(!limitReachText?.includes("1,200万円"));
   await page.getByTestId("nisa-current-balance").fill("");
   await page.getByTestId("nisa-current-balance").press("Tab");
   await page.getByRole("heading", { name: "試算状態: incomplete" }).waitFor();
@@ -775,7 +782,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=164, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=168, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

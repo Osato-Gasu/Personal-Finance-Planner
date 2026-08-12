@@ -356,7 +356,9 @@ export function calculateNisaPlan(
     if (age < rule.minimumAgeOnJanuaryFirst)
       return empty(
         "unsupported",
-        ["対象年1月1日時点18歳未満には成人NISA ruleを適用しません。"],
+        [
+          `対象年1月1日時点${String(rule.minimumAgeOnJanuaryFirst)}歳未満には成人NISA ruleを適用しません。`,
+        ],
         rule,
       );
     if (!scenario)
@@ -520,6 +522,11 @@ export function calculateNisaPlan(
     const monthlyReturn = Math.pow(1 + annualReturn, 1 / 12) - 1;
     const monthlyFee = Math.pow(1 + annualFee, 1 / 12) - 1;
     const monthlyFactor = (1 + monthlyReturn) / (1 + monthlyFee);
+    if (
+      ![monthlyReturn, monthlyFee, monthlyFactor].every(Number.isFinite) ||
+      monthlyFactor < 0
+    )
+      throw new Error("NISA monthly factor exceeds the supported range");
     let balance = plan.currentBalanceYen as number;
     for (let cursor = start; cursor <= target; cursor += 1) {
       const month = monthText(cursor);
@@ -542,9 +549,16 @@ export function calculateNisaPlan(
     if (!Number.isSafeInteger(principal))
       throw new Error("NISA principal exceeds the supported range");
     const months = target - start + 1;
-    const realValue = safeRound(
-      projectedBalanceYen / Math.pow(1 + annualInflation, months / 12),
-    );
+    const inflationFactor = Math.pow(1 + annualInflation, months / 12);
+    if (!Number.isFinite(inflationFactor) || inflationFactor <= 0)
+      throw new Error("NISA inflation factor exceeds the supported range");
+    const unroundedRealValue = projectedBalanceYen / inflationFactor;
+    if (
+      !Number.isFinite(unroundedRealValue) ||
+      (projectedBalanceYen > 0 && unroundedRealValue === 0)
+    )
+      throw new Error("NISA real value exceeds the supported range");
+    const realValue = safeRound(unroundedRealValue);
     return {
       status: issues.length > 0 ? "invalid" : "complete",
       rule,

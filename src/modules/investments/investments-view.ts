@@ -114,9 +114,9 @@ function resultView(
   section.append(dl);
   const reach = node(document, "dl");
   reach.append(
-    node(document, "dt", "非課税保有限度額1,800万円への到達"),
+    node(document, "dt", "非課税保有限度額への到達"),
     node(document, "dd", reachText(result.lifetimeLimitReach)),
-    node(document, "dt", "成長投資枠内数1,200万円への到達"),
+    node(document, "dt", "成長投資枠内数への到達"),
     node(document, "dd", reachText(result.lifetimeGrowthLimitReach)),
   );
   reach.dataset.testid = "nisa-limit-reach";
