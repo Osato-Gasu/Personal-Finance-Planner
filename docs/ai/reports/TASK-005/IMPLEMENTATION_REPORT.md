@@ -2,8 +2,8 @@
 
 - task_id: TASK-005
 - spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- phase: implementation
+- status: changes_requested
 - baseline_commit: 74599efd2afedfa8c1fba196aaab51459571913e
 - baseline_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
 - previous_reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
@@ -23,16 +23,16 @@
 - tests_failed: none
 - browser_evidence: Edge file:// portable suite passed 164 checks including 1月2日adult、blank null、explicit zero、annual limits/remaining、lifetime reach、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: none
-- worktree: clean_candidate
+- unresolved: FINDING-005-R2-01 through FINDING-005-R2-03 accepted for attempt 3 correction
+- worktree: user_approved_attempt_3_transition
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: implementation
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: requested
-- request_review_status: requested
+- review_status: changes_requested
+- request_review_status: completed
 - review_model: 5.6 Sol
 - review_effort: high
 - reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
@@ -40,9 +40,9 @@
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: none
-- review_findings_count: 0
-- review_finding_ids: none
+- review_result: changes_requested
+- review_findings_count: 3
+- review_finding_ids: FINDING-005-R2-01, FINDING-005-R2-02, FINDING-005-R2-03
 - repository_write_access: available
 - user_relay_required: false
 - relay_bundle_name: task-005-requirements-relay.json
@@ -60,11 +60,11 @@
 - workflow_head_sha: bcae11d634ffbac6d76abd26638814eb8f4ddb27
 - workflow_conclusion: success
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: standard
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
 - implementation_review_terminated: false
-- final_review: false
+- final_review: true
 - official_source_1: https://www.fsa.go.jp/policy/nisa2/know/index.html
 - official_source_2: https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1535.htm
 - official_source_3: https://www.fsa.go.jp/news/r7/sonota/20251226-2/01.pdf
@@ -92,3 +92,20 @@
 - FINDING-005-R1-02: resolved — 全暦年のrule由来上限・使用・残枠と、総枠／成長内数の到達状態・年月をderived計算・表示した。
 - FINDING-005-R1-03: resolved — 金額空欄をnullで保存し、明示0円と区別してincomplete、reload、JSON importを検証した。
 - FINDING-005-R1-04: resolved — rule／source metadata、対象年齢、HTTPS、実在ISO日、期間、ID、重複、resolverをstrict検証した。
+- FINDING-005-R2-01: pending attempt 3 correction — non-finite／dangerous-underflowのprojectionをout-of-rangeとしてpre-write拒否する。
+- FINDING-005-R2-02: pending attempt 3 correction — sourceUrlとsources[].urlをabsolute HTTPS URLとしてstrict検証する。
+- FINDING-005-R2-03: pending attempt 3 correction — 法定上限・最低年齢のUI／domain重複直書きを除去しrule由来にする。
+
+## User-approved attempt 3 transition
+
+- authorization_artifact: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_AUTHORIZATION_ATTEMPT_3.json
+- authorization_sha256: 4A7608D59CA33074B8947DA91BC284BFCEFB12C5AFF987B4529BF56B9314B8FD
+- authorization_bytes: 35269
+- approval_relay: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json
+- needs_user_decision_state_commit: f69ffac6b72ee123e5f922896559d82bf025fe59
+- needs_user_decision_state_tree: 88f7a734ab17059a090b34d9d8529104af1beae7
+- needs_user_decision_workflow_run_id: 31598808831
+- needs_user_decision_workflow_conclusion: success
+- attempt_3_profile: relaxed
+- attempt_3_final: true
+- attempt_4_forbidden: true

@@ -2,9 +2,9 @@
 updated_at: 2026-08-12
 active_tasks:
   - TASK-005
-next_action: USER decides NEEDS_USER_DECISION relay for TASK-005
+next_action: Codex fixes FINDING-005-R2-01 through FINDING-005-R2-03 for implementation review attempt 3 relaxed final
 ---
 
 # Current state
 
-TASK-005 candidate bcae11d634ffbac6d76abd26638814eb8f4ddb27 resolves all four attempt 1 findings. Candidate exact workflow 31587709501 succeeded; implementation review attempt 2 uses the standard profile.
+TASK-005 spec revision 1 is in implementation for attempt 3 relaxed final after explicit user approval. FINDING-005-R2-01 through FINDING-005-R2-03 remain non-relaxable, and attempt 4 is forbidden.

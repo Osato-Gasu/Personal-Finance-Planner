@@ -3,14 +3,15 @@
 - relay_schema: 2
 - task_id: TASK-005
 - decision: CHANGES_REQUESTED
+- source_decision: USER_DECISION_APPROVED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch: codex/task-005-nisa-beta
-- reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-- candidate_commit: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-- reviewed_handoff_head: e95183fbe57049a484f2208d95a4a116fdcf969b
+- reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- candidate_commit: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- reviewed_handoff_head: 6def8de82e3d23a190bd49a7eb934a5fe67b60fc
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - next_phase: implementation
 - next_actor: Codex
@@ -20,12 +21,28 @@
 - routing_mode: connector_read_only
 - route_repository: Osato-Gasu/Personal-Finance-Planner
 - requested_ref: refs/heads/codex/task-005-nisa-beta
-- resolved_commit: e95183fbe57049a484f2208d95a4a116fdcf969b
-- next_action_blob: 562080d95e715eb9fa0b594410223f695b34fb12
-- handoff_blob: 60b1de9828541e8bf90a3ad2d934c3facfb5eb75
+- resolved_commit: f69ffac6b72ee123e5f922896559d82bf025fe59
+- next_action_blob: dc93500d9cb575fd0a24c9689d59dffca806b49d
+- handoff_blob: e71fc3ecf56a544bc6c70d21a250a1340cfb8b47
 - adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
-- implementation_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
+- implementation_review_final: true
+- implementation_review_terminated: false
+- approval_authorization: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_AUTHORIZATION_ATTEMPT_3.json
+- approval_authorization_sha256: 4A7608D59CA33074B8947DA91BC284BFCEFB12C5AFF987B4529BF56B9314B8FD
+- approval_authorization_bytes: 35269
+- approval_relay: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json
+- approval_relay_sha256: 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E
+- approval_relay_bytes: 34723
+- needs_user_decision_state_commit: f69ffac6b72ee123e5f922896559d82bf025fe59
+- needs_user_decision_state_tree: 88f7a734ab17059a090b34d9d8529104af1beae7
+- needs_user_decision_workflow_run_id: 31598808831
+- needs_user_decision_workflow_conclusion: success
+- attempt_4_forbidden: true
 
 ## Purpose
 
@@ -71,10 +88,9 @@
 
 ## Required changes
 
-- FINDING-005-R1-01 [MAJOR] src/domain/nisa.ts::ageOnJanuaryFirst / calculateNisaPlan; tests/nisa-rules.test.ts: 利用年1月1日時点の18歳判定が日本の年齢計算ルールを反映しておらず、1月2日生まれを1歳若く扱う。2026年計画では2008-01-02生まれをunsupportedとするtestまで固定化している。 Evidence: ageOnJanuaryFirstは誕生日の月日が01-01より後なら一律1を減算するため、1月2日生まれを対象年1月1日時点で18歳に含めない。日本証券業協会NISA FAQ Q48は、年齢計算に関する法律により1月2日生まれも同年のNISA利用対象に含まれると明示している。 Impact: 制度上利用可能な成人をunsupportedとして拒否する。NISAの対象者判定は計算・制度rule・対象年月と同じく緩和禁止領域である。 Required: 利用年1月1日の法的年齢を正しく求める共通関数へ修正し、少なくとも2026年について2008-01-01と2008-01-02をadult、2008-01-03をunsupportedとする境界testを追加する。実在しない日付と閏日も既存の不正入力区分を維持して検証し、同じ誤判定をUI／portable経路へ残さない。
-- FINDING-005-R1-02 [MAJOR] src/domain/nisa.ts::NisaProjectionResult / calculateNisaPlan; src/modules/investments/investments-view.ts::resultView: 必須出力である年別の制度上限・残枠と、NISA枠を使い切る時期を算出・表示していない。現在は年別取得額と生涯総枠／成長内数の残額だけを返している。 Evidence: NisaProjectionResultにはannualContributionsとlifetimeRemainingYen系しかなく、resultViewも年別拠出額と生涯残枠のみを表示する。TASK-005 Acceptance criteriaは年間枠を文字で確認できることを要求し、製品CALCULATIONSはannualRemainingを定義し、製品REQUIREMENTSは枠を使い切る時期の表示を要求している。 Impact: 上限未満の通常ケースで利用者が年別の上限と残枠を確認できず、製品要件の主要出力が欠落する。required acceptance criteriaの未達であり緩和できない。 Required: rule由来のつみたて・成長・合計について、各暦年の上限と残枠をderived値として返して文字表示する。生涯総枠と成長投資枠内数について、計画内の取得順に基づく最初の到達年月、開始時点ですでに到達／超過、期間内未到達、未計算を区別して表示する。結果は永続化せず、上限未満・一致・1円超過、年跨ぎ、到達／未到達のdomain・UI・portable testを追加する。
-- FINDING-005-R1-03 [MAJOR] src/modules/investments/investments-view.ts::numberField / createPlan; NISA input persistence: NISA金額入力の空欄を明示的な0円と区別せず、空欄化するとNumber("")により0円を保存する。新規planも現在残高・簿価・使用額・月額をすべて0円で自動補完するため、未入力をcompleteな0円入力として扱い得る。 Evidence: numberFieldのchange handlerは常にNumber(input.value)を渡し、空文字は0になる。createPlanは全金額項目を0で生成し、domain側には未入力を表す状態がない一方、scenarioだけは空欄をnullとしてincompleteに区別している。 Impact: 不明な現在簿価やNISA使用額が0円として確定し、元本・総枠残量・projectionを過大または過少表示できる。必須入力欠落を0円で補完しないというAcceptance criteriaとデータ保全に反する。 Required: 金額の空欄と利用者が明示した0円を区別する。nullableな正本入力または永続Stateを書き換えないform draft等により、空欄はincomplete／入力errorとして表示し、0円へ変換して保存しない。明示0はvalidとして維持する。作成直後、clear、再入力、reload、export/import、invalid/overflow時のstorage bytes不変をdomain／Store／portable testで確認する。
-- FINDING-005-R1-04 [MAJOR] src/rules/jp/nisa/rules-2024.ts::resolveAdultNisaRule / validateNisaRule / validateNisaRulePackage: NISA rule validatorが必須metadataと最低年齢を十分に検証せず、resolverとmetadata日付も正規表現だけで実在日を検証していない。このため不正なruleや2024-13-40のような日付が受理・解決され得る。 Evidence: validateNisaRuleは一部source項目、effectiveFrom形式、上限整合だけを確認し、status、publishedAt、verifiedAt、verifiedBy、sourceTitle、sourcePublisher、sourceRetrievedAt、notes、minimumAgeOnJanuaryFirstを検証しない。effectiveToと各日付の実在性も確認せず、resolveAdultNisaRuleはYYYY-MM-DD形式だけで比較する。 Impact: metadata欠落、誤った対象年齢、存在しない有効日を持つruleがCIを通り、対象者・期間・公式根拠を誤適用できる。rule metadata／effective period validatorは必須受入条件であり緩和できない。 Required: RuleMetadataの全必須項目、status、minimumAgeOnJanuaryFirst、HTTPS source、実在するISO日付、effectiveFrom/effectiveTo順序をstrict検証する。resolverも不正な暦日をnullまたは明示errorで拒否する。空metadata、誤型・誤年齢、不正日、重複ID、期間重複・境界のnegative testをtest:nisaとCIへ追加する。
+- FINDING-005-R2-01 [MAJOR] src/domain/nisa.ts::calculateNisaPlan realValue calculation; validateInvestmentScenario; tests/nisa-rules.test.ts / tests/nisa-state.test.ts: 実質価値計算のインフレ係数がInfinityへoverflowした場合、非有限値として拒否せず、有限の0円へ変換してstatus=completeを返す。 Evidence: annualInflationBasisPointsは-10000より大きい任意のsafe integerを受理する。Number.MAX_SAFE_INTEGER bp、2026-01～2125-12の100年計画ではMath.pow(1 + 900719925474.0991, 100)がInfinityになるが、projectedBalanceYen / Infinityは0となり、safeRound(0)が成功するためout-of-rangeにならない。 Impact: 非有限の計算途中値をもっともらしい実質価値0円として保存可能なcomplete結果へ変換する。TASK-005が要求するnon-finite／overflowのout-of-range区分、金額計算の正確性、pre-write拒否に反し、attempt 3でも緩和できない。 Required: 実質価値のinflation factorと除算結果を明示的にNumber.isFiniteで検証し、factorが0、Infinity、NaNの場合はout-of-rangeを返す。必要に応じてmonthlyReturn、monthlyFee、netMonthlyFactor等の全derived factorも有限性を一貫して検査する。極端な正のインフレ率×長期計画、-100%近傍、有限境界についてdomain testを追加し、Store更新・JSON importではwriter/listener/storage変更前に拒否してbytes不変を確認する。
+- FINDING-005-R2-02 [MAJOR] src/rules/jp/nisa/rules-2024.ts::validateNisaRule sourceUrl / sources[].url validation; tests/nisa-rules.test.ts: source URLの検証が/^https:\/\//というprefix確認だけであり、絶対URLとして不正な文字列をstrictに拒否しない。 Evidence: 現validatorでは"https://"および"https://bad host"がHTTPS判定を通過する。これらはURL constructorでは解析不能であり、公式source identityとして有効な絶対URLではない。R1-04とTASK Acceptance criteriaはsource URLのstrict validatorを要求している。 Impact: 壊れたsource identityを持つrule packageがvalidatorとCIを通過でき、制度根拠の追跡性とrule governanceを失う。source identityとrequired validatorは緩和禁止領域である。 Required: top-level sourceUrlとsources[].urlをURLとしてparseし、absolute URL、protocol=https:、非空hostnameを必須にする。少なくとも"https://"、空白を含むhost、http、relative URL、誤型を拒否し、現在の金融庁・国税庁・日本証券業協会URLを受理するnegative／positive testをtest:nisaとCIへ追加する。
+- FINDING-005-R2-03 [MAJOR] src/modules/investments/investments-view.ts::resultView; src/domain/nisa.ts::calculateNisaPlan unsupported message: ruleを正本にする要件に反し、法定数値をrule外のUI／domain文言へ重複直書きしている。 Evidence: resultViewは「非課税保有限度額1,800万円への到達」「成長投資枠内数1,200万円への到達」を固定文字列で表示し、calculateNisaPlanも「18歳未満」を固定表示する。計算自体はruleを参照しているが、表示値は将来rule変更時に独立して陳腐化できる。TASK-005は成人NISA ruleの数値をUI/domainへ重複直書きしないことを明示している。 Impact: rule package更新後に判定値と説明文が不一致となり得る。現時点の数値が正しくてもsource-of-truth違反であり、NISA制度ruleはattempt 3でも緩和できない。 Required: 到達ラベルは数値を含まない汎用文言にするかresult.ruleのlifetimeTotalLimitYen／lifetimeGrowthLimitYenから生成し、年齢説明もrule.minimumAgeOnJanuaryFirstから生成する。rule module以外の製品sourceへ法定上限／最低年齢の重複定数を残さず、rule値から表示が生成されることをdomain／portable testで確認する。
 
 ## User decisions required
 
