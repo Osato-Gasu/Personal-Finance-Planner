@@ -2,8 +2,8 @@
 
 - task_id: TASK-005
 - spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- phase: user_decision
+- status: needs_user_decision
 - baseline_commit: 74599efd2afedfa8c1fba196aaab51459571913e
 - baseline_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
 - previous_reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
@@ -23,8 +23,8 @@
 - tests_failed: none
 - browser_evidence: Edge file:// portable suite passed 168 checks including 1月2日adult、blank null、explicit zero、annual limits/remaining、lifetime reach、rule-owned labels、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: none
-- worktree: clean_candidate
+- unresolved: FINDING-005-R3-01 — approval relay declared 34723 bytes / 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E but committed blob d42192e7534ca5e2dced23955743a5815fec6c38 is 34370 bytes / F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3
+- worktree: final_review_termination
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: implementation
@@ -40,9 +40,9 @@
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: none
-- review_findings_count: 0
-- review_finding_ids: none
+- review_result: needs_user_decision
+- review_findings_count: 1
+- review_finding_ids: FINDING-005-R3-01
 - repository_write_access: available
 - user_relay_required: false
 - relay_bundle_name: task-005-requirements-relay.json
@@ -63,7 +63,8 @@
 - changes_requested_cycles: 2
 - implementation_review_attempt: 3
 - implementation_review_profile: relaxed
-- implementation_review_terminated: false
+- implementation_review_terminated: true
+- attempt_4_forbidden: true
 - final_review: true
 - official_source_1: https://www.fsa.go.jp/policy/nisa2/know/index.html
 - official_source_2: https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1535.htm
@@ -95,6 +96,7 @@
 - FINDING-005-R2-01: resolved — non-finite／dangerous-underflowのprojectionをout-of-rangeとしてStore／importのpre-writeで副作用なく拒否する。
 - FINDING-005-R2-02: resolved — sourceUrlとsources[].urlをabsolute HTTPS URLとしてstrict検証する。
 - FINDING-005-R2-03: resolved — 法定上限到達ラベルの数値直書きを除去し、最低年齢をrule由来で表示する。
+- FINDING-005-R3-01: unresolved — attempt 3開始承認artifactの宣言SHA-256／bytesがhandoff HEADのcommit済みraw bytesと一致しないため、final reviewを打ち切りNEEDS_USER_DECISIONへ遷移した。
 
 ## User-approved attempt 3 transition
 

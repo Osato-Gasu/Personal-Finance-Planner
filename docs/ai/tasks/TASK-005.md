@@ -1,19 +1,19 @@
 ---
 task_id: TASK-005
 title: NISAベータ
-status: review_requested
+status: needs_user_decision
 route: TWO_SESSION_FAST
 priority: normal
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
-assigned_model: 5.6 Sol
-assigned_effort: high
+current_phase: user_decision
+current_role_id: USER
+next_actor: USER
+next_role: USER
+assigned_model: none
+assigned_effort: none
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-005/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-005/USER_DECISION_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -35,7 +35,8 @@ changes_requested_cycles: 2
 implementation_review_attempt: 3
 implementation_review_profile: relaxed
 implementation_review_final: true
-implementation_review_terminated: false
+implementation_review_terminated: true
+attempt_4_forbidden: true
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
@@ -49,9 +50,9 @@ reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
+review_result: needs_user_decision
+review_findings_count: 1
+review_finding_ids: FINDING-005-R3-01
 actual_executor: ChatGPT
 provider_substitution: none
 shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e

@@ -3,16 +3,14 @@
 - relay_schema: 2
 - task_id: TASK-005
 - decision: NEEDS_USER_DECISION
-- source_decision: CHANGES_REQUESTED
-- changes_requested_cycles: 2
-- relay_recipient: USER
-- relay_recipient_role: USER
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch: codex/task-005-nisa-beta
-- reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-- candidate_commit: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-- reviewed_handoff_head: 6def8de82e3d23a190bd49a7eb934a5fe67b60fc
+- reviewed_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
+- candidate_commit: d127f26a78342ab3d7674ee99e6f50d87532e891
+- reviewed_handoff_head: 89895a6c9188b5011766ef4b848822bfccb0c597
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - next_phase: user_decision
 - next_actor: USER
@@ -22,12 +20,21 @@
 - routing_mode: connector_read_only
 - route_repository: Osato-Gasu/Personal-Finance-Planner
 - requested_ref: refs/heads/codex/task-005-nisa-beta
-- resolved_commit: 6def8de82e3d23a190bd49a7eb934a5fe67b60fc
-- next_action_blob: c069ae89f913e189acf998c7ebce9106c1484ebe
-- handoff_blob: 54ab4b1ca08ce27ddc23301623833ea217224705
+- resolved_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
+- next_action_blob: 40d31324a2fb7a4c573553c555d12aa91eca271f
+- handoff_blob: 6db8c173c3b3f2c52fb0a1563886796e6313197d
 - adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
-- implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- implementation_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
+- implementation_review_final: true
+- implementation_review_terminated: true
+- review_result: needs_user_decision
+- review_findings_count: 1
+- review_finding_ids: FINDING-005-R3-01
+- attempt_4_forbidden: true
 
 ## Purpose
 
@@ -73,9 +80,7 @@
 
 ## Required changes
 
-- FINDING-005-R2-01 [MAJOR] src/domain/nisa.ts::calculateNisaPlan realValue calculation; validateInvestmentScenario; tests/nisa-rules.test.ts / tests/nisa-state.test.ts: 実質価値計算のインフレ係数がInfinityへoverflowした場合、非有限値として拒否せず、有限の0円へ変換してstatus=completeを返す。 Evidence: annualInflationBasisPointsは-10000より大きい任意のsafe integerを受理する。Number.MAX_SAFE_INTEGER bp、2026-01～2125-12の100年計画ではMath.pow(1 + 900719925474.0991, 100)がInfinityになるが、projectedBalanceYen / Infinityは0となり、safeRound(0)が成功するためout-of-rangeにならない。 Impact: 非有限の計算途中値をもっともらしい実質価値0円として保存可能なcomplete結果へ変換する。TASK-005が要求するnon-finite／overflowのout-of-range区分、金額計算の正確性、pre-write拒否に反し、attempt 3でも緩和できない。 Required: 実質価値のinflation factorと除算結果を明示的にNumber.isFiniteで検証し、factorが0、Infinity、NaNの場合はout-of-rangeを返す。必要に応じてmonthlyReturn、monthlyFee、netMonthlyFactor等の全derived factorも有限性を一貫して検査する。極端な正のインフレ率×長期計画、-100%近傍、有限境界についてdomain testを追加し、Store更新・JSON importではwriter/listener/storage変更前に拒否してbytes不変を確認する。
-- FINDING-005-R2-02 [MAJOR] src/rules/jp/nisa/rules-2024.ts::validateNisaRule sourceUrl / sources[].url validation; tests/nisa-rules.test.ts: source URLの検証が/^https:\/\//というprefix確認だけであり、絶対URLとして不正な文字列をstrictに拒否しない。 Evidence: 現validatorでは"https://"および"https://bad host"がHTTPS判定を通過する。これらはURL constructorでは解析不能であり、公式source identityとして有効な絶対URLではない。R1-04とTASK Acceptance criteriaはsource URLのstrict validatorを要求している。 Impact: 壊れたsource identityを持つrule packageがvalidatorとCIを通過でき、制度根拠の追跡性とrule governanceを失う。source identityとrequired validatorは緩和禁止領域である。 Required: top-level sourceUrlとsources[].urlをURLとしてparseし、absolute URL、protocol=https:、非空hostnameを必須にする。少なくとも"https://"、空白を含むhost、http、relative URL、誤型を拒否し、現在の金融庁・国税庁・日本証券業協会URLを受理するnegative／positive testをtest:nisaとCIへ追加する。
-- FINDING-005-R2-03 [MAJOR] src/modules/investments/investments-view.ts::resultView; src/domain/nisa.ts::calculateNisaPlan unsupported message: ruleを正本にする要件に反し、法定数値をrule外のUI／domain文言へ重複直書きしている。 Evidence: resultViewは「非課税保有限度額1,800万円への到達」「成長投資枠内数1,200万円への到達」を固定文字列で表示し、calculateNisaPlanも「18歳未満」を固定表示する。計算自体はruleを参照しているが、表示値は将来rule変更時に独立して陳腐化できる。TASK-005は成人NISA ruleの数値をUI/domainへ重複直書きしないことを明示している。 Impact: rule package更新後に判定値と説明文が不一致となり得る。現時点の数値が正しくてもsource-of-truth違反であり、NISA制度ruleはattempt 3でも緩和できない。 Required: 到達ラベルは数値を含まない汎用文言にするかresult.ruleのlifetimeTotalLimitYen／lifetimeGrowthLimitYenから生成し、年齢説明もrule.minimumAgeOnJanuaryFirstから生成する。rule module以外の製品sourceへ法定上限／最低年齢の重複定数を残さず、rule値から表示が生成されることをdomain／portable testで確認する。
+- FINDING-005-R3-01 [MAJOR] docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md; docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json: attempt 3開始承認relayの宣言済みraw-byte identityが、handoff HEADにcommitされたGit blobと一致しない。RELAY_HANDOFFはapproval relayを34723 bytesとして記録しているが、handoff HEADの同一pathのGit blob sizeは34370 bytesである。 Evidence: handoff HEAD 89895a6c9188b5011766ef4b848822bfccb0c597のdocs/ai/handoffs/TASK-005/RELAY_HANDOFF.mdはapproval_relay_sha256=0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E、approval_relay_bytes=34723と宣言する。一方、同HEAD tree 994d382f534b27f0277bd16fcaa0ce9792bf7a3eのdocs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.jsonはblob d42192e7534ca5e2dced23955743a5815fec6c38、size=34370である。したがって宣言されたSHA-256／bytes identity pairはcommit済みartifactのexact identityとして成立しない。353 bytes差は改行正規化に由来する可能性が高いが、原因にかかわらずcommitted bytesとの不一致は確定している。 Impact: attempt 3開始のユーザー承認監査artifactを宣言されたname／SHA-256／bytesで再検証できず、raw-byte provenance、candidate identity、release gateの監査性を失う。exact identityとrelease gateはattempt 3でも緩和できない。 Required: implementation review attempt 3を不合格として打ち切り、implementation_review_terminated=true、attempt_4_forbidden=trueを記録する。attempt 4は作成しない。NEEDS_USER_DECISIONへ遷移し、この未解決identity不一致と打ち切り理由を保持する。将来ユーザーが別経路で継続を承認する場合でも、release前にcommit済みLF bytesからapproval relayのactual SHA-256／bytesを再生成・exact検証し、参照側identityを一致させる必要がある。
 
 ## User decisions required
 
@@ -172,5 +177,10 @@
 - source URLを文字列prefixだけで有効とみなし、absolute HTTPS URLとしての解析を省略すること
 - NISA法定上限額・最低年齢をrule外のUI／domainへ重複ハードコードすること
 - attempt 3のrelaxed profileを理由にFINDING-005-R2-01～03をdeferredまたは承認扱いすること
+- implementation review attempt 4を作成すること
+- attempt 3不合格後にCHANGES_REQUESTEDを再発行すること
+- implementation_review_terminatedをfalseのまま維持すること
+- 承認relayのraw-byte identity不一致を解消済みまたは緩和可能として扱うこと
+- main merge、tag、releaseを行うこと
 
 Validated full bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json

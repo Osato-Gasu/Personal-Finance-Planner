@@ -1,14 +1,14 @@
 schema_version: 1
 task_id: TASK-005
 feature: NISAベータ
-phase: implementation_review
-status: review_requested
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
-model: 5.6 Sol
-effort: high
+phase: user_decision
+status: needs_user_decision
+next_actor: USER
+next_role: USER
+model: none
+effort: none
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-005/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-005/USER_DECISION_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
@@ -30,9 +30,9 @@ reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
+review_result: needs_user_decision
+review_findings_count: 1
+review_finding_ids: FINDING-005-R3-01
 write_bridge: required_for_state_transition
 write_probe: required_for_chatgpt
 relay_status: none
