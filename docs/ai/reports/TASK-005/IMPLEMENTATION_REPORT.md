@@ -1,0 +1,84 @@
+# IMPLEMENTATION REPORT — TASK-005
+
+- task_id: TASK-005
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- baseline_commit: 74599efd2afedfa8c1fba196aaab51459571913e
+- baseline_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
+- implementation_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- candidate_commit: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- candidate_tree: 46151fe8e9944c0e772707615184b19f5b7cc5a8
+- shared_version: 0.12.20
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
+- product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
+- product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
+- source_match: requirements product identity matched
+- changed_files: .github/workflows/ci.yml; package.json; src/app/app.ts; src/data/storage-repository.ts; src/domain/migration.ts; src/domain/nisa.ts; src/domain/state.ts; src/modules/investments/investments-view.ts; src/rules/jp/nisa/rules-2024.ts; src/styles.css; tests/fixtures/state.ts; tests/migration-repository.test.ts; tests/nisa-rules.test.ts; tests/nisa-state.test.ts; tests/schema-v3.test.ts; tests/storage-repository.test.ts; tools/test-portable-build.mjs
+- build_result: passed; standalone dist/index.html single-file build
+- tests_passed: 291 Vitest tests; 69 focused take-home rule tests; 44 focused NISA tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; 153 portable browser checks
+- tests_failed: none
+- browser_evidence: Edge file:// portable suite passed 153 checks including NISA plan、annual exact limit、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
+- network: runtime_requests_0; console_errors_0; page_errors_0
+- unresolved: none
+- worktree: clean_candidate
+- actual_executor: Codex
+- provider_substitution: none
+- independent_review_kind: implementation
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- repository_write_access: available
+- user_relay_required: false
+- relay_bundle_name: task-005-requirements-relay.json
+- relay_bundle_sha256: 46554D2C9D6D898907BFD518BCBD39778B0B690D73CBC9FD4D607F28B401CBE6
+- relay_bundle_bytes: 19585
+- relay_bundle_format: JSON
+- relay_identity_verified: true
+- relay_import_result: passed
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- canonical_relay_bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json
+- routing_mode: legacy_unspecified
+- workflow_run_id: 31583680101
+- workflow_head_sha: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- workflow_conclusion: success
+- review_stage: implementation
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_terminated: false
+- final_review: false
+- official_source_1: https://www.fsa.go.jp/policy/nisa2/know/index.html
+- official_source_2: https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1535.htm
+- official_source_3: https://www.fsa.go.jp/news/r7/sonota/20251226-2/01.pdf
+- official_source_4: https://www.fsa.go.jp/access/r7/273.html verified but not used as the adult statutory limit basis
+- rule_id: jp-nisa-adult-2024-01-01
+- rule_effective_period: 2024-01-01 onward
+- official_sources_verified_at: 2026-08-12
+- protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
+- execution_started_at: 2026-08-12 18:03:28 JST
+- execution_finished_at: 2026-08-12 18:40:12 JST
+
+## Implementation evidence
+
+- AppState schema v4へnisaPlansとinvestmentScenariosを追加し、v3→v4は既存値を変更せず空collectionを決定的に追加する。
+- 成人NISA上限を有効期間付きruleへ集約し、年間枠・総枠の-1／一致／+1、暦年reset、簿価と時価の分離を検証した。
+- 旧NISA、売却枠再利用、未成年向け2027年rule、商品適格性、推奨利回りを自動適用しない。
+- 月初／月末の拠出順序、費用率、インフレ率、負利回り、元本、運用益、実質価値をderived計算し、結果を永続化しない。
+- invalid入力をclampせずsave/reload/importで保持し、壊れた参照・overflow・prototype pollutionはwrite前に副作用なく拒否する。
+- standalone file://で人物別plan、臨時拠出、scenario、残枠、projection、reload、runtime request 0を検証した。

@@ -2,9 +2,9 @@
 updated_at: 2026-08-12
 active_tasks:
   - TASK-005
-next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-005
+next_action: ChatGPT performs TASK-005 implementation review attempt 1 with the standard profile
 ---
 
 # Current state
 
-TASK-005 spec revision 1 is active in implementation on base commit 74599efd2afedfa8c1fba196aaab51459571913e. TASK-010 is completed and integrated into this main baseline; TASK-004 remains blocked, unapproved, and without attempt 4.
+TASK-005 candidate a34bcd6b72df7b08d5d0b69ae322c588c4084864 implements the adult NISA beta with schema v4 migration, rule-based limits, projections, and standalone UI. Candidate exact workflow 31583680101 succeeded; implementation review attempt 1 uses the standard profile.
