@@ -1,71 +1,39 @@
----
-task_id: TASK-011
-title: TASK-005監査identity修復
-status: changes_requested
-route: TWO_SESSION_FAST
-priority: high
-spec_revision: 1
-spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-011/RELAY_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: not_needed
-claude_implementation_review_recommendation: not_needed
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_applicable
-claude_implementation_review_status: not_applicable
-base_commit: bc80f31c4283aa0031ae4a4aec1d23ca8780b1e0
-base_tree: 9c736ddada11f10d16f6618e3137bd6b350cb887
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-review_stage: implementation
-changes_requested_cycles: 1
-implementation_review_attempt: 2
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-attempt_4_forbidden: false
-implementation_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
-reviewed_spec_revision: 1
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: changes_requested
-review_findings_count: 1
-review_finding_ids: FINDING-011-R1-01
-actual_executor: ChatGPT
-provider_substitution: none
-audit_identity_source_commit: 89895a6c9188b5011766ef4b848822bfccb0c597
-audit_identity_source_path: docs/ai/reports/TASK-005/USER_DECISION_APPROVAL_ATTEMPT_3.json
-audit_identity_git_blob: d42192e7534ca5e2dced23955743a5815fec6c38
-audit_identity_sha256: F56B8FE68C7CBEF3768CF492476DE1E9C17FFF04A719A305D5C760FF487AF5A3
-audit_identity_bytes: 34370
+# RELAY HANDOFF — TASK-011
 
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
-updated_at: 2026-08-13
----
-
-# TASK-011 — TASK-005監査identity修復
+- relay_schema: 2
+- task_id: TASK-011
+- decision: CHANGES_REQUESTED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-011-nisa-audit-identity-repair
+- reviewed_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+- candidate_commit: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+- reviewed_handoff_head: 853d6a084e68d0461b58e36059974533aef08bfa
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: implementation
+- next_actor: Codex
+- next_role: IMPLEMENTER
+- model: 5.6 Sol
+- effort: high
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-011-nisa-audit-identity-repair
+- resolved_commit: 853d6a084e68d0461b58e36059974533aef08bfa
+- next_action_blob: 24a065c45431aee6c348b1700a2aeaf86662f60b
+- handoff_blob: 24cdd5b0f58d96df53a3ff84412993639a9ac1e9
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- review_result: changes_requested
+- review_findings_count: 1
+- review_finding_ids: FINDING-011-R1-01
+- implementation_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
 
 ## Purpose
 
@@ -110,6 +78,18 @@ TASK-005 attempt 3の承認監査artifactについて、commit済みLF bytesを�
 - origin/mainへの直接実装またはmain merge、tag、release
 - docs/ai/generated/shared/**の直接編集
 - TASK外refactor
+
+## Required changes
+
+- FINDING-011-R1-01 [MAJOR] docs/ai/AUDIT_IDENTITIES.json::historical_mismatch; tools/validate-audit-identities.ps1; tools/test-audit-identity-normalization.ps1: current committed identityのbinary-safe検証は実装されているが、historical_mismatchの宣言元commit/pathと旧claim値が実際の歴史的RELAY_HANDOFFへ結び付けられていない。validatorはhistoricalのdeclared_by_commit、declared_by_path、explanationを検証・解決せず、normalization testも実際の旧identity 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E／34723 bytesをcurrent fieldへ置いて拒否するtestを実行していない。 Evidence: AUDIT_IDENTITIES.jsonはhistorical_mismatchにdeclared_by_commit 89895a6c9188b5011766ef4b848822bfccb0c597、declared_by_path docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md、旧SHA-256／34723 bytesを記録する。しかしvalidate-audit-identities.ps1がhistorical側で読むのはfinding_id、declared_sha256、declared_bytesだけで、宣言元commit/pathをrev-parseせず、歴史的RELAY_HANDOFF内にapproval_relay_sha256／approval_relay_bytesがexactに存在することを確認しない。test-audit-identity-normalization.ps1のhistorical current rejectionはA×64／999というsynthetic pairを使い、TASK-011 Testsで明示された実際の0143D33D…／34723 pairを検証していない。 Impact: current F56B8F…／34370／d42192… identityは保護される一方、FINDING-005-R3-01の原因となった歴史的宣言のcommit/path/valueは、実在するGit証跡と無関係な値へ変更しても全gateを通過できる。historical evidenceの保持、historical/current分離、historical source identityのexact testというTASK-011の必須Acceptance Criteriaを満たさず、監査provenanceを再び再現不能にする。 Required: historical_mismatchのdeclared_by_commitを40-hex、declared_by_pathを安全なrepository path、explanationを非空として必須検証する。宣言元commit:pathをGitで解決し、必要ならdeclared_by_git_blobをregistryへ追加したうえで、歴史的RELAY_HANDOFFのexact committed bytesからapproval_relay_sha256とapproval_relay_bytesをそれぞれexactly once抽出し、registryのhistorical pairと一致させる。宣言元commit/path/blob、旧SHA、旧bytesの改変・欠落・重複をFAILさせるisolated testを追加する。さらに実際の旧pair 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E／34723をcurrent_verified_identityへ置いた場合にFAILし、同pairが正しい宣言元へbindされたhistorical_mismatchでのみPASSするtestをPowerShell 7／5.1双方で実行する。current F56B8F…／34370／d42192…とsrc/**、tests/**、tools/test-portable-build.mjsは変更しない。
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
 
 ## Acceptance criteria
 
@@ -172,33 +152,6 @@ TASK-005 attempt 3の承認監査artifactについて、commit済みLF bytesを�
 - implementation candidate exact GitHub Actions SUCCESS
 - implementation review handoff-only commit exact GitHub Actions SUCCESS
 
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- pwsh -NoProfile -File tools/validate-audit-identities.ps1
-- pwsh -NoProfile -File tools/test-audit-identity-normalization.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-audit-identities.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-audit-identity-normalization.ps1
-- TASK-011 activation/import-only commit exact GitHub Actions SUCCESS before audit identity implementation
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run test:rules
-- npm run test:nisa
-- npm run build
-- npm run test:portable
-- implementation candidate exact GitHub Actions SUCCESS
-- implementation review handoff-only commit exact GitHub Actions SUCCESS
-
-## Rollback
-
-relay importまたはvalidator失敗時はshared transactional importerのbyte-exact rollbackで今回transactionの変更だけを元へ戻す。reset/stash/clean/restore、history rewrite、force pushは使用しない。実装を破棄する場合はisolated TASK-011 branch/worktreeだけを安全に廃棄し、origin/main、transition source branch、TASK-005履歴を変更しない。
-
 ## Forbidden changes
 
 - TASK-005 attempt 4の作成
@@ -222,3 +175,8 @@ relay importまたはvalidator失敗時はshared transactional importerのbyte-e
 - 歴史的mismatch証跡を削除・改竄すること
 - TASK外refactor
 - TASK-011完了後にdocs/ai/AUDIT_IDENTITIES.jsonまたはaudit identity validator/testを削除して再発防止gateを失わせること
+- historical_mismatchの宣言元commit/pathを未検証のままにすること
+- 実際の旧0143D33D…／34723 identityをcurrent fieldで拒否するtestをsynthetic値だけで代用すること
+- FINDING-011-R1-01を軽微・任意・deferred・accepted riskとして扱うこと
+
+Validated full bundle: docs/ai/reports/TASK-011/RELAY_BUNDLE.json

@@ -1,27 +1,36 @@
 # RELAY IMPORT — TASK-011
 
-- source bundle: task-011-requirements-relay.json
-- source SHA-256: 361F86558C9136100C3FA137F3BEC606307E9E909B641BEC5D533A29A571A211
-- source bytes: 22490
+- source bundle: task-011-implementation-review-attempt-1-changes-requested-relay.json
+- source SHA-256: 4164428B08DE9B712B23A332475EFC1AEA2431A04D0FED9D0E88C8F8BDAE1F4D
+- source bytes: 21316
 - identity verified: true
 - canonical bundle: docs/ai/reports/TASK-011/RELAY_BUNDLE.json
-- canonical SHA-256: 361F86558C9136100C3FA137F3BEC606307E9E909B641BEC5D533A29A571A211
-- canonical bytes: 22490
+- canonical SHA-256: 4164428B08DE9B712B23A332475EFC1AEA2431A04D0FED9D0E88C8F8BDAE1F4D
+- canonical bytes: 21316
 - semantic round-trip: verified
-- decision: REQUIREMENTS_DEFINED
+- decision: CHANGES_REQUESTED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
-- candidate: none
-- handoff HEAD: none
+- candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
+- handoff HEAD: 853d6a084e68d0461b58e36059974533aef08bfa
 - routing_mode: connector_read_only
 - route_repository: Osato-Gasu/Personal-Finance-Planner
 - requested_ref: refs/heads/codex/task-011-nisa-audit-identity-repair
-- resolved_commit: bc80f31c4283aa0031ae4a4aec1d23ca8780b1e0
-- next_action_blob: ab0fe04ca0851fcfebf13b820d27121b01eb8cc1
-- handoff_blob: e2dece4633ea63ce588c5e04f76f507d8aa610c4
+- resolved_commit: 853d6a084e68d0461b58e36059974533aef08bfa
+- next_action_blob: 24a065c45431aee6c348b1700a2aeaf86662f60b
+- handoff_blob: 24cdd5b0f58d96df53a3ff84412993639a9ac1e9
 - adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- review_result: changes_requested
+- review_findings_count: 1
+- review_finding_ids: FINDING-011-R1-01
+- implementation_candidate: 18c3e67d3370fefc7ea00c9373bd37f7978395de
 - imported findings: 1
 - accepted findings: 1
 - finding dispositions: 0

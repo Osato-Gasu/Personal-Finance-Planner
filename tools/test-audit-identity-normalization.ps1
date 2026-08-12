@@ -7,6 +7,9 @@ $validator = Join-Path $PSScriptRoot 'validate-audit-identities.ps1'
 $powershellExe = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
 $fixture = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ('pfp-audit-identity-' + [guid]::NewGuid().ToString('N'))))
 $utf8NoBom = New-Object Text.UTF8Encoding($false)
+$oldSha = '0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E'
+$oldBytes = 34723
+$checks = 0
 
 function Invoke-Git([string]$WorkingDirectory,[string[]]$Arguments) {
     $previousPreference = $ErrorActionPreference
@@ -48,8 +51,8 @@ function Get-Sha256([byte[]]$Bytes) {
     finally { $sha.Dispose() }
 }
 
-function Write-Registry([string]$Path,[string]$Commit,[string]$Blob,[string]$Sha,[long]$Bytes) {
-    $registry = [ordered]@{
+function New-Registry([string]$Commit,[string]$Blob,[string]$Sha,[long]$Bytes,[string]$HistoryPath,[string]$HistoryBlob) {
+    [ordered]@{
         schema_version = 1
         identities = @([ordered]@{
             id = 'normalization-fixture'
@@ -65,14 +68,18 @@ function Write-Registry([string]$Path,[string]$Commit,[string]$Blob,[string]$Sha
             historical_mismatch = [ordered]@{
                 finding_id = 'FINDING-NORMALIZATION-FIXTURE'
                 declared_by_commit = $Commit
-                declared_by_path = 'artifact.txt'
-                declared_sha256 = ('A' * 64)
-                declared_bytes = 999
-                explanation = 'fixture historical identity'
+                declared_by_path = $HistoryPath
+                declared_by_git_blob = $HistoryBlob
+                declared_sha256 = $oldSha
+                declared_bytes = $oldBytes
+                explanation = 'fixture historical identity bound to committed declaration'
             }
         })
     }
-    [IO.File]::WriteAllText($Path,($registry | ConvertTo-Json -Depth 12),$utf8NoBom)
+}
+
+function Write-Registry([string]$Path,$Registry) {
+    [IO.File]::WriteAllText($Path,($Registry | ConvertTo-Json -Depth 12),$utf8NoBom)
 }
 
 function Invoke-Validator([string]$WorkingDirectory,[string]$Registry) {
@@ -85,6 +92,24 @@ function Invoke-Validator([string]$WorkingDirectory,[string]$Registry) {
     [pscustomobject]@{ ExitCode=$exitCode; Output=($output -join "`n") }
 }
 
+function Assert-Pass([string]$Name,$Registry) {
+    Write-Registry $script:registryPath $Registry
+    $result = Invoke-Validator $fixture $script:registryPath
+    if ($result.ExitCode -ne 0) { throw "$Name unexpectedly failed: $($result.Output)" }
+    $script:checks++
+}
+
+function Assert-Fail([string]$Name,$Registry,[string]$ExpectedPattern) {
+    Write-Registry $script:registryPath $Registry
+    $result = Invoke-Validator $fixture $script:registryPath
+    if ($result.ExitCode -eq 0 -or $result.Output -notmatch $ExpectedPattern) { throw "$Name was not rejected as expected ($ExpectedPattern): $($result.Output)" }
+    $script:checks++
+}
+
+function Write-Declaration([string]$Path,[string[]]$Lines) {
+    [IO.File]::WriteAllBytes((Join-Path $fixture $Path),$utf8NoBom.GetBytes(($Lines -join "`n") + "`n"))
+}
+
 [IO.Directory]::CreateDirectory($fixture) | Out-Null
 try {
     Invoke-Git $fixture @('init','-q') | Out-Null
@@ -93,30 +118,83 @@ try {
     [IO.File]::WriteAllBytes((Join-Path $fixture '.gitattributes'),$utf8NoBom.GetBytes("* text=auto eol=lf`n"))
     $workingBytes = $utf8NoBom.GetBytes("alpha`r`nbeta`r`n")
     [IO.File]::WriteAllBytes((Join-Path $fixture 'artifact.txt'),$workingBytes)
+    Write-Declaration 'relay-handoff.md' @("- approval_relay_sha256: $oldSha","- approval_relay_bytes: $oldBytes")
+    Write-Declaration 'sha-missing.md' @("- approval_relay_bytes: $oldBytes")
+    Write-Declaration 'sha-duplicate.md' @("- approval_relay_sha256: $oldSha","- approval_relay_sha256: $oldSha","- approval_relay_bytes: $oldBytes")
+    Write-Declaration 'sha-mismatch.md' @("- approval_relay_sha256: $('B' * 64)","- approval_relay_bytes: $oldBytes")
+    Write-Declaration 'bytes-missing.md' @("- approval_relay_sha256: $oldSha")
+    Write-Declaration 'bytes-duplicate.md' @("- approval_relay_sha256: $oldSha","- approval_relay_bytes: $oldBytes","- approval_relay_bytes: $oldBytes")
+    Write-Declaration 'bytes-mismatch.md' @("- approval_relay_sha256: $oldSha","- approval_relay_bytes: 34724")
+    Write-Declaration 'other-declaration.md' @("- approval_relay_sha256: $('C' * 64)",'- approval_relay_bytes: 123')
+    [IO.File]::WriteAllBytes((Join-Path $fixture 'invalid-utf8.md'),[byte[]](0xFF,0xFE,0xFD))
     $workingSha = Get-Sha256 $workingBytes
-    Invoke-Git $fixture @('add','.gitattributes','artifact.txt') | Out-Null
-    Invoke-Git $fixture @('commit','-q','-m','commit normalized fixture') | Out-Null
+    Invoke-Git $fixture @('add','.') | Out-Null
+    Invoke-Git $fixture @('commit','-q','-m','commit normalized fixture and declarations') | Out-Null
     $commit = Invoke-Git $fixture @('rev-parse','HEAD')
     $blob = Invoke-Git $fixture @('rev-parse','HEAD:artifact.txt')
+    $historyBlob = Invoke-Git $fixture @('rev-parse','HEAD:relay-handoff.md')
     $committedBytes = Get-BlobBytes $fixture $blob
     $committedSha = Get-Sha256 $committedBytes
     if ($workingSha -ceq $committedSha -or $workingBytes.LongLength -eq $committedBytes.LongLength) { throw 'fixture did not reproduce CRLF to LF identity drift' }
 
     $registryPath = Join-Path $fixture 'audit-identities.json'
-    Write-Registry $registryPath $commit $blob $workingSha $workingBytes.LongLength
-    $negative = Invoke-Validator $fixture $registryPath
-    if ($negative.ExitCode -eq 0 -or $negative.Output -notmatch '(byte count mismatch|SHA-256 mismatch)') { throw "pre-normalized identity was not rejected: $($negative.Output)" }
+    $base = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    Assert-Pass 'committed LF current identity and actual historical pair binding' $base
 
-    Write-Registry $registryPath $commit $blob $committedSha $committedBytes.LongLength
-    $positive = Invoke-Validator $fixture $registryPath
-    if ($positive.ExitCode -ne 0) { throw "committed LF identity was rejected: $($positive.Output)" }
+    $case = New-Registry $commit $blob $workingSha $workingBytes.LongLength 'relay-handoff.md' $historyBlob
+    Assert-Fail 'pre-normalized CRLF current identity' $case '(byte count mismatch|SHA-256 mismatch)'
+    $case = New-Registry $commit $blob $oldSha $oldBytes 'relay-handoff.md' $historyBlob
+    Assert-Fail 'actual historical pair in current identity fields' $case '(byte count mismatch|SHA-256 mismatch)'
 
-    Write-Registry $registryPath $commit $blob ('A' * 64) 999
-    $staleCurrent = Invoke-Validator $fixture $registryPath
-    if ($staleCurrent.ExitCode -eq 0) { throw 'historical identity was accepted as current identity' }
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_by_commit = 'ABC'
+    Assert-Fail 'invalid declared_by_commit' $case 'declared_by_commit is invalid'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_by_commit = ('f' * 40)
+    Assert-Fail 'nonexistent declared_by_commit' $case 'git rev-parse.*failed'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_by_path = 'C:/absolute.md'
+    Assert-Fail 'invalid absolute declared_by_path' $case 'declared_by_path is invalid'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_by_path = '../relay-handoff.md'
+    Assert-Fail 'declared_by_path traversal' $case 'declared_by_path is invalid'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_by_path = 'missing.md'
+    Assert-Fail 'nonexistent declared_by_path' $case 'git rev-parse.*failed'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_by_git_blob = $blob
+    Assert-Fail 'declared_by_git_blob mismatch' $case 'historical Git blob mismatch'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.Remove('explanation')
+    Assert-Fail 'missing explanation' $case 'historical explanation is required'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.explanation = '   '
+    Assert-Fail 'empty explanation' $case 'historical explanation is required'
+
+    foreach ($sourceCase in @(
+        @{Name='approval SHA missing';Path='sha-missing.md';Pattern='approval_relay_sha256 exactly once'},
+        @{Name='approval SHA duplicate';Path='sha-duplicate.md';Pattern='approval_relay_sha256 exactly once'},
+        @{Name='approval SHA mismatch';Path='sha-mismatch.md';Pattern='approval_relay_sha256 mismatch'},
+        @{Name='approval bytes missing';Path='bytes-missing.md';Pattern='approval_relay_bytes exactly once'},
+        @{Name='approval bytes duplicate';Path='bytes-duplicate.md';Pattern='approval_relay_bytes exactly once'},
+        @{Name='approval bytes mismatch';Path='bytes-mismatch.md';Pattern='approval_relay_bytes mismatch'},
+        @{Name='alternate declaration object';Path='other-declaration.md';Pattern='historical approval_relay_(sha256|bytes) mismatch'},
+        @{Name='invalid UTF-8 declaration';Path='invalid-utf8.md';Pattern='not strict UTF-8'}
+    )) {
+        $sourceBlob = Invoke-Git $fixture @('rev-parse',"HEAD:$($sourceCase.Path)")
+        $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength $sourceCase.Path $sourceBlob
+        Assert-Fail $sourceCase.Name $case $sourceCase.Pattern
+    }
+
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_sha256 = ('D' * 64)
+    Assert-Fail 'historical SHA-only mutation' $case 'approval_relay_sha256 mismatch'
+    $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
+    $case.identities[0].historical_mismatch.declared_bytes = 34724
+    Assert-Fail 'historical bytes-only mutation' $case 'approval_relay_bytes mismatch'
 
     $global:LASTEXITCODE = 0
-    Write-Output "Audit identity normalization test passed: CRLF working identity rejected; committed LF identity accepted; historical identity rejected as current."
+    Write-Output "Audit identity normalization test passed: $checks checks; CRLF current rejected; committed LF current accepted; actual old pair rejected as current and accepted only as Git-bound historical evidence."
 } finally {
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
     if ($fixture.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase) -and (Split-Path -Leaf $fixture) -like 'pfp-audit-identity-*' -and (Test-Path -LiteralPath $fixture -PathType Container)) {

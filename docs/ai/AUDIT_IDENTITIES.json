@@ -16,6 +16,7 @@
         "finding_id": "FINDING-005-R3-01",
         "declared_by_commit": "89895a6c9188b5011766ef4b848822bfccb0c597",
         "declared_by_path": "docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md",
+        "declared_by_git_blob": "0f60e90764e81d4e7b02efa62c8a8900305d025b",
         "declared_sha256": "0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E",
         "declared_bytes": 34723,
         "explanation": "The historical declaration described pre-commit or CRLF bytes, while the repository policy normalized the committed artifact to LF. The historical declaration is evidence only and is not a current valid identity."
