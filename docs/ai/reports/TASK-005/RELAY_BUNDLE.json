@@ -5,13 +5,22 @@
   "spec_revision": 1,
   "repository": "Osato-Gasu/Personal-Finance-Planner",
   "branch": "codex/task-005-nisa-beta",
+  "routing_mode": "connector_read_only",
+  "route_result": {
+    "repository": "Osato-Gasu/Personal-Finance-Planner",
+    "requested_ref": "refs/heads/codex/task-005-nisa-beta",
+    "resolved_commit": "e95183fbe57049a484f2208d95a4a116fdcf969b",
+    "next_action_blob": "562080d95e715eb9fa0b594410223f695b34fb12",
+    "handoff_blob": "60b1de9828541e8bf90a3ad2d934c3facfb5eb75",
+    "adapter_blob": "3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054"
+  },
   "relay_recipient": "Codex",
   "relay_recipient_role": "IMPLEMENTER",
   "result_return_to": "ChatGPT",
-  "reviewed_candidate": "none",
-  "reviewed_handoff_head": "none",
+  "reviewed_candidate": "a34bcd6b72df7b08d5d0b69ae322c588c4084864",
+  "reviewed_handoff_head": "e95183fbe57049a484f2208d95a4a116fdcf969b",
   "shared_candidate": "10cd1466b10f814f1bd2aab2c5f6ba6465c5899e",
-  "decision": "REQUIREMENTS_DEFINED",
+  "decision": "CHANGES_REQUESTED",
   "review_stage": "implementation",
   "next_phase": "implementation",
   "next_actor": "Codex",
@@ -55,7 +64,44 @@
     "TASK-008へ引き継いだschema v1改行表示名問題の修正・trim・置換・削除",
     "docs/product/**変更、backend、cloud同期、runtime CDN、runtime外部API、main merge、tag、release"
   ],
-  "findings": [],
+  "findings": [
+    {
+      "id": "FINDING-005-R1-01",
+      "severity": "MAJOR",
+      "target": "src/domain/nisa.ts::ageOnJanuaryFirst / calculateNisaPlan; tests/nisa-rules.test.ts",
+      "problem": "利用年1月1日時点の18歳判定が日本の年齢計算ルールを反映しておらず、1月2日生まれを1歳若く扱う。2026年計画では2008-01-02生まれをunsupportedとするtestまで固定化している。",
+      "evidence": "ageOnJanuaryFirstは誕生日の月日が01-01より後なら一律1を減算するため、1月2日生まれを対象年1月1日時点で18歳に含めない。日本証券業協会NISA FAQ Q48は、年齢計算に関する法律により1月2日生まれも同年のNISA利用対象に含まれると明示している。",
+      "impact": "制度上利用可能な成人をunsupportedとして拒否する。NISAの対象者判定は計算・制度rule・対象年月と同じく緩和禁止領域である。",
+      "required_change": "利用年1月1日の法的年齢を正しく求める共通関数へ修正し、少なくとも2026年について2008-01-01と2008-01-02をadult、2008-01-03をunsupportedとする境界testを追加する。実在しない日付と閏日も既存の不正入力区分を維持して検証し、同じ誤判定をUI／portable経路へ残さない。"
+    },
+    {
+      "id": "FINDING-005-R1-02",
+      "severity": "MAJOR",
+      "target": "src/domain/nisa.ts::NisaProjectionResult / calculateNisaPlan; src/modules/investments/investments-view.ts::resultView",
+      "problem": "必須出力である年別の制度上限・残枠と、NISA枠を使い切る時期を算出・表示していない。現在は年別取得額と生涯総枠／成長内数の残額だけを返している。",
+      "evidence": "NisaProjectionResultにはannualContributionsとlifetimeRemainingYen系しかなく、resultViewも年別拠出額と生涯残枠のみを表示する。TASK-005 Acceptance criteriaは年間枠を文字で確認できることを要求し、製品CALCULATIONSはannualRemainingを定義し、製品REQUIREMENTSは枠を使い切る時期の表示を要求している。",
+      "impact": "上限未満の通常ケースで利用者が年別の上限と残枠を確認できず、製品要件の主要出力が欠落する。required acceptance criteriaの未達であり緩和できない。",
+      "required_change": "rule由来のつみたて・成長・合計について、各暦年の上限と残枠をderived値として返して文字表示する。生涯総枠と成長投資枠内数について、計画内の取得順に基づく最初の到達年月、開始時点ですでに到達／超過、期間内未到達、未計算を区別して表示する。結果は永続化せず、上限未満・一致・1円超過、年跨ぎ、到達／未到達のdomain・UI・portable testを追加する。"
+    },
+    {
+      "id": "FINDING-005-R1-03",
+      "severity": "MAJOR",
+      "target": "src/modules/investments/investments-view.ts::numberField / createPlan; NISA input persistence",
+      "problem": "NISA金額入力の空欄を明示的な0円と区別せず、空欄化するとNumber(\"\")により0円を保存する。新規planも現在残高・簿価・使用額・月額をすべて0円で自動補完するため、未入力をcompleteな0円入力として扱い得る。",
+      "evidence": "numberFieldのchange handlerは常にNumber(input.value)を渡し、空文字は0になる。createPlanは全金額項目を0で生成し、domain側には未入力を表す状態がない一方、scenarioだけは空欄をnullとしてincompleteに区別している。",
+      "impact": "不明な現在簿価やNISA使用額が0円として確定し、元本・総枠残量・projectionを過大または過少表示できる。必須入力欠落を0円で補完しないというAcceptance criteriaとデータ保全に反する。",
+      "required_change": "金額の空欄と利用者が明示した0円を区別する。nullableな正本入力または永続Stateを書き換えないform draft等により、空欄はincomplete／入力errorとして表示し、0円へ変換して保存しない。明示0はvalidとして維持する。作成直後、clear、再入力、reload、export/import、invalid/overflow時のstorage bytes不変をdomain／Store／portable testで確認する。"
+    },
+    {
+      "id": "FINDING-005-R1-04",
+      "severity": "MAJOR",
+      "target": "src/rules/jp/nisa/rules-2024.ts::resolveAdultNisaRule / validateNisaRule / validateNisaRulePackage",
+      "problem": "NISA rule validatorが必須metadataと最低年齢を十分に検証せず、resolverとmetadata日付も正規表現だけで実在日を検証していない。このため不正なruleや2024-13-40のような日付が受理・解決され得る。",
+      "evidence": "validateNisaRuleは一部source項目、effectiveFrom形式、上限整合だけを確認し、status、publishedAt、verifiedAt、verifiedBy、sourceTitle、sourcePublisher、sourceRetrievedAt、notes、minimumAgeOnJanuaryFirstを検証しない。effectiveToと各日付の実在性も確認せず、resolveAdultNisaRuleはYYYY-MM-DD形式だけで比較する。",
+      "impact": "metadata欠落、誤った対象年齢、存在しない有効日を持つruleがCIを通り、対象者・期間・公式根拠を誤適用できる。rule metadata／effective period validatorは必須受入条件であり緩和できない。",
+      "required_change": "RuleMetadataの全必須項目、status、minimumAgeOnJanuaryFirst、HTTPS source、実在するISO日付、effectiveFrom/effectiveTo順序をstrict検証する。resolverも不正な暦日をnullまたは明示errorで拒否する。空metadata、誤型・誤年齢、不正日、重複ID、期間重複・境界のnegative testをtest:nisaとCIへ追加する。"
+    }
+  ],
   "acceptance_criteria": [
     "Codexがmain exact commit 74599efd2afedfa8c1fba196aaab51459571913e／tree 25a0d8acd4910e562a816814affa61de92d4fdbfを再確認し、専用branch codex/task-005-nisa-betaをexact baseから作成した後にREQUIREMENTS_DEFINED relayをimportする。origin/mainを変更しない",
     "REQUIREMENTS_DEFINED bundleのname、SHA-256、bytes、format、schema、repository、branch、recipient actor/role、base commit/tree、shared candidateをwrite前にexact検証し、TASK-005、CODEX_HANDOFF、CURRENT_STATE、NEXT_ACTION、BACKLOG/Progress、canonical relayを同一transactionでimplementation/Codex/5.6 Sol/highへ同期する",
@@ -104,7 +150,11 @@
     "self／partner枠分離、inactive partner保持、duplicate active NISA plan拒否",
     "v3→v4 migration、v1/v2/v3 import、preview bytes不変、invalid import rollback、prototype pollution拒否、overflow pre-write拒否",
     "NISA計画がliving expenseへ混入しないことと既存budget/take-home/contribution回帰",
-    "file:// investments UI、臨時拠出CRUD、上限・残枠・projection、reload、360px、keyboard、focus、runtime request 0、console/page error 0"
+    "file:// investments UI、臨時拠出CRUD、上限・残枠・projection、reload、360px、keyboard、focus、runtime request 0、console/page error 0",
+    "年齢計算に関する法律を反映した2026年1月1日判定: 2008-01-01／2008-01-02はadult、2008-01-03はunsupported、閏日・不正日",
+    "年別つみたて・成長・合計のrule上限と残枠表示、生涯総枠／成長内数の到達年月・開始時到達・期間内未到達",
+    "NISA金額入力のblankと明示0の区別、blank時incomplete／入力error、clear・reload・export/importで0円化しないこと",
+    "NISA rule全必須metadata・minimumAge・実在ISO日付・resolver不正日・duplicate／overlapのnegative validator tests"
   ],
   "forbidden_changes": [
     "origin/mainへの直接実装、main merge、tag、release、force push",
@@ -127,42 +177,6 @@
   "independent_review": null,
   "independent_review_result": null,
   "finding_dispositions": null,
-  "requirements": {
-    "title": "NISAベータ",
-    "priority": "normal",
-    "base_commit": "74599efd2afedfa8c1fba196aaab51459571913e",
-    "base_tree": "25a0d8acd4910e562a816814affa61de92d4fdbf",
-    "accepted_product_identity_reference": "docs/ai/PRODUCT_IDENTITIES.yml#requirements_*",
-    "browser_evidence_required": true,
-    "claude_design_review_recommendation": "recommended",
-    "claude_implementation_review_recommendation": "recommended",
-    "claude_design_review_required": false,
-    "claude_implementation_review_required": false,
-    "claude_design_review_status": "not_requested",
-    "claude_implementation_review_status": "not_requested",
-    "preferred_executor": "Claude",
-    "allowed_executors": "Claude, ChatGPT",
-    "executor_policy": "preferred_fallback",
-    "rollback": "relay import、schema migration、validator、test、portable evidenceのいずれかが失敗した場合はTASK-005 branch内の当該transactionをbyte-exact rollbackし、origin/mainと既存v1/v2/v3保存データを変更しない。",
-    "handoff_mode": "new",
-    "project_metadata": {},
-    "build": [
-      "pwsh -NoProfile -File tools/validate-ai-governance.ps1",
-      "pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1",
-      "powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1",
-      "powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1",
-      "npm ci",
-      "npm run typecheck",
-      "npm run lint",
-      "npm run format:check",
-      "npm run test",
-      "npm run test:rules",
-      "NISA focused rule tests (new dedicated command or direct Vitest target, recorded in package/CI)",
-      "npm run build",
-      "npm run test:portable",
-      "candidate exact GitHub Actions success",
-      "handoff-only exact GitHub Actions success"
-    ]
-  },
-  "created_at": "2026-08-12 09:27:52 JST"
+  "requirements": null,
+  "created_at": "2026-08-12 19:05:22 JST"
 }

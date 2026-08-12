@@ -1,65 +1,31 @@
----
-task_id: TASK-005
-title: NISAベータ
-status: changes_requested
-route: TWO_SESSION_FAST
-priority: normal
-spec_revision: 1
-spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: recommended
-claude_implementation_review_recommendation: recommended
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_requested
-claude_implementation_review_status: not_requested
-base_commit: 74599efd2afedfa8c1fba196aaab51459571913e
-base_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-review_stage: implementation
-changes_requested_cycles: 1
-implementation_review_attempt: 1
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-reviewed_spec_revision: 1
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: ChatGPT
-provider_substitution: none
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# RELAY HANDOFF — TASK-005
 
-updated_at: 2026-08-12
----
-
-# TASK-005 — NISAベータ
+- relay_schema: 2
+- task_id: TASK-005
+- decision: CHANGES_REQUESTED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-005-nisa-beta
+- reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- candidate_commit: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- reviewed_handoff_head: e95183fbe57049a484f2208d95a4a116fdcf969b
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: implementation
+- next_actor: Codex
+- next_role: IMPLEMENTER
+- model: 5.6 Sol
+- effort: high
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-005-nisa-beta
+- resolved_commit: e95183fbe57049a484f2208d95a4a116fdcf969b
+- next_action_blob: 562080d95e715eb9fa0b594410223f695b34fb12
+- handoff_blob: 60b1de9828541e8bf90a3ad2d934c3facfb5eb75
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- implementation_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
 
 ## Purpose
 
@@ -102,6 +68,21 @@ updated_at: 2026-08-12
 - TASK-007の統合サマリー、NISA拠出後の世帯手残り統合完成
 - TASK-008へ引き継いだschema v1改行表示名問題の修正・trim・置換・削除
 - docs/product/**変更、backend、cloud同期、runtime CDN、runtime外部API、main merge、tag、release
+
+## Required changes
+
+- FINDING-005-R1-01 [MAJOR] src/domain/nisa.ts::ageOnJanuaryFirst / calculateNisaPlan; tests/nisa-rules.test.ts: 利用年1月1日時点の18歳判定が日本の年齢計算ルールを反映しておらず、1月2日生まれを1歳若く扱う。2026年計画では2008-01-02生まれをunsupportedとするtestまで固定化している。 Evidence: ageOnJanuaryFirstは誕生日の月日が01-01より後なら一律1を減算するため、1月2日生まれを対象年1月1日時点で18歳に含めない。日本証券業協会NISA FAQ Q48は、年齢計算に関する法律により1月2日生まれも同年のNISA利用対象に含まれると明示している。 Impact: 制度上利用可能な成人をunsupportedとして拒否する。NISAの対象者判定は計算・制度rule・対象年月と同じく緩和禁止領域である。 Required: 利用年1月1日の法的年齢を正しく求める共通関数へ修正し、少なくとも2026年について2008-01-01と2008-01-02をadult、2008-01-03をunsupportedとする境界testを追加する。実在しない日付と閏日も既存の不正入力区分を維持して検証し、同じ誤判定をUI／portable経路へ残さない。
+- FINDING-005-R1-02 [MAJOR] src/domain/nisa.ts::NisaProjectionResult / calculateNisaPlan; src/modules/investments/investments-view.ts::resultView: 必須出力である年別の制度上限・残枠と、NISA枠を使い切る時期を算出・表示していない。現在は年別取得額と生涯総枠／成長内数の残額だけを返している。 Evidence: NisaProjectionResultにはannualContributionsとlifetimeRemainingYen系しかなく、resultViewも年別拠出額と生涯残枠のみを表示する。TASK-005 Acceptance criteriaは年間枠を文字で確認できることを要求し、製品CALCULATIONSはannualRemainingを定義し、製品REQUIREMENTSは枠を使い切る時期の表示を要求している。 Impact: 上限未満の通常ケースで利用者が年別の上限と残枠を確認できず、製品要件の主要出力が欠落する。required acceptance criteriaの未達であり緩和できない。 Required: rule由来のつみたて・成長・合計について、各暦年の上限と残枠をderived値として返して文字表示する。生涯総枠と成長投資枠内数について、計画内の取得順に基づく最初の到達年月、開始時点ですでに到達／超過、期間内未到達、未計算を区別して表示する。結果は永続化せず、上限未満・一致・1円超過、年跨ぎ、到達／未到達のdomain・UI・portable testを追加する。
+- FINDING-005-R1-03 [MAJOR] src/modules/investments/investments-view.ts::numberField / createPlan; NISA input persistence: NISA金額入力の空欄を明示的な0円と区別せず、空欄化するとNumber("")により0円を保存する。新規planも現在残高・簿価・使用額・月額をすべて0円で自動補完するため、未入力をcompleteな0円入力として扱い得る。 Evidence: numberFieldのchange handlerは常にNumber(input.value)を渡し、空文字は0になる。createPlanは全金額項目を0で生成し、domain側には未入力を表す状態がない一方、scenarioだけは空欄をnullとしてincompleteに区別している。 Impact: 不明な現在簿価やNISA使用額が0円として確定し、元本・総枠残量・projectionを過大または過少表示できる。必須入力欠落を0円で補完しないというAcceptance criteriaとデータ保全に反する。 Required: 金額の空欄と利用者が明示した0円を区別する。nullableな正本入力または永続Stateを書き換えないform draft等により、空欄はincomplete／入力errorとして表示し、0円へ変換して保存しない。明示0はvalidとして維持する。作成直後、clear、再入力、reload、export/import、invalid/overflow時のstorage bytes不変をdomain／Store／portable testで確認する。
+- FINDING-005-R1-04 [MAJOR] src/rules/jp/nisa/rules-2024.ts::resolveAdultNisaRule / validateNisaRule / validateNisaRulePackage: NISA rule validatorが必須metadataと最低年齢を十分に検証せず、resolverとmetadata日付も正規表現だけで実在日を検証していない。このため不正なruleや2024-13-40のような日付が受理・解決され得る。 Evidence: validateNisaRuleは一部source項目、effectiveFrom形式、上限整合だけを確認し、status、publishedAt、verifiedAt、verifiedBy、sourceTitle、sourcePublisher、sourceRetrievedAt、notes、minimumAgeOnJanuaryFirstを検証しない。effectiveToと各日付の実在性も確認せず、resolveAdultNisaRuleはYYYY-MM-DD形式だけで比較する。 Impact: metadata欠落、誤った対象年齢、存在しない有効日を持つruleがCIを通り、対象者・期間・公式根拠を誤適用できる。rule metadata／effective period validatorは必須受入条件であり緩和できない。 Required: RuleMetadataの全必須項目、status、minimumAgeOnJanuaryFirst、HTTPS source、実在するISO日付、effectiveFrom/effectiveTo順序をstrict検証する。resolverも不正な暦日をnullまたは明示errorで拒否する。空metadata、誤型・誤年齢、不正日、重複ID、期間重複・境界のnegative testをtest:nisaとCIへ追加する。
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
 
 ## Acceptance criteria
 
@@ -154,28 +135,10 @@ updated_at: 2026-08-12
 - v3→v4 migration、v1/v2/v3 import、preview bytes不変、invalid import rollback、prototype pollution拒否、overflow pre-write拒否
 - NISA計画がliving expenseへ混入しないことと既存budget/take-home/contribution回帰
 - file:// investments UI、臨時拠出CRUD、上限・残枠・projection、reload、360px、keyboard、focus、runtime request 0、console/page error 0
-
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run test:rules
-- NISA focused rule tests (new dedicated command or direct Vitest target, recorded in package/CI)
-- npm run build
-- npm run test:portable
-- candidate exact GitHub Actions success
-- handoff-only exact GitHub Actions success
-
-## Rollback
-
-relay import、schema migration、validator、test、portable evidenceのいずれかが失敗した場合はTASK-005 branch内の当該transactionをbyte-exact rollbackし、origin/mainと既存v1/v2/v3保存データを変更しない。
+- 年齢計算に関する法律を反映した2026年1月1日判定: 2008-01-01／2008-01-02はadult、2008-01-03はunsupported、閏日・不正日
+- 年別つみたて・成長・合計のrule上限と残枠表示、生涯総枠／成長内数の到達年月・開始時到達・期間内未到達
+- NISA金額入力のblankと明示0の区別、blank時incomplete／入力error、clear・reload・export/importで0円化しないこと
+- NISA rule全必須metadata・minimumAge・実在ISO日付・resolver不正日・duplicate／overlapのnegative validator tests
 
 ## Forbidden changes
 
@@ -195,3 +158,5 @@ relay import、schema migration、validator、test、portable evidenceのいず�
 - runtime CDN、runtime外部API、backend、cloud同期
 - ユーザー入力のinnerHTML連結、明示操作なしの外部source自動open
 - 既存test削除・skip・assertion弱体化・baseline件数減少、TASK外refactor
+
+Validated full bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json

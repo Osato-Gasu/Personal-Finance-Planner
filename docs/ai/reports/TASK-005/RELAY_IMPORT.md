@@ -1,21 +1,28 @@
 # RELAY IMPORT — TASK-005
 
-- source bundle: task-005-requirements-relay.json
-- source SHA-256: 46554D2C9D6D898907BFD518BCBD39778B0B690D73CBC9FD4D607F28B401CBE6
-- source bytes: 19585
+- source bundle: task-005-implementation-review-attempt-1-changes-requested-relay.json
+- source SHA-256: 9318CF2BC1FF75B1C9FD9D66645A96AC10F1071FE7FB44D34F38A04CFEA93DDF
+- source bytes: 24780
 - identity verified: true
 - canonical bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json
-- canonical SHA-256: 46554D2C9D6D898907BFD518BCBD39778B0B690D73CBC9FD4D607F28B401CBE6
-- canonical bytes: 19585
+- canonical SHA-256: 9318CF2BC1FF75B1C9FD9D66645A96AC10F1071FE7FB44D34F38A04CFEA93DDF
+- canonical bytes: 24780
 - semantic round-trip: verified
-- decision: REQUIREMENTS_DEFINED
+- decision: CHANGES_REQUESTED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
-- candidate: none
-- handoff HEAD: none
-- routing_mode: legacy_unspecified
+- candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- handoff HEAD: e95183fbe57049a484f2208d95a4a116fdcf969b
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-005-nisa-beta
+- resolved_commit: e95183fbe57049a484f2208d95a4a116fdcf969b
+- next_action_blob: 562080d95e715eb9fa0b594410223f695b34fb12
+- handoff_blob: 60b1de9828541e8bf90a3ad2d934c3facfb5eb75
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
-- imported findings: 0
-- accepted findings: 0
+- implementation_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
+- imported findings: 4
+- accepted findings: 4
 - finding dispositions: 0
