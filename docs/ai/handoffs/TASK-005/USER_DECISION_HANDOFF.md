@@ -1,65 +1,33 @@
----
-task_id: TASK-005
-title: NISAベータ
-status: needs_user_decision
-route: TWO_SESSION_FAST
-priority: normal
-spec_revision: 1
-spec_status: accepted
-current_phase: user_decision
-current_role_id: USER
-next_actor: USER
-next_role: USER
-assigned_model: none
-assigned_effort: none
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-005/USER_DECISION_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: recommended
-claude_implementation_review_recommendation: recommended
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_requested
-claude_implementation_review_status: not_requested
-base_commit: 74599efd2afedfa8c1fba196aaab51459571913e
-base_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
-accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
-implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-review_stage: implementation
-changes_requested_cycles: 2
-implementation_review_attempt: 2
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
-repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-reviewed_spec_revision: 1
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: ChatGPT
-provider_substitution: none
-shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# RELAY HANDOFF — TASK-005
 
-updated_at: 2026-08-12
----
-
-# TASK-005 — NISAベータ
+- relay_schema: 2
+- task_id: TASK-005
+- decision: NEEDS_USER_DECISION
+- source_decision: CHANGES_REQUESTED
+- changes_requested_cycles: 2
+- relay_recipient: USER
+- relay_recipient_role: USER
+- result_return_to: ChatGPT
+- repository: Osato-Gasu/Personal-Finance-Planner
+- branch: codex/task-005-nisa-beta
+- reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- candidate_commit: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- reviewed_handoff_head: 6def8de82e3d23a190bd49a7eb934a5fe67b60fc
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- next_phase: user_decision
+- next_actor: USER
+- next_role: USER
+- model: none
+- effort: none
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-005-nisa-beta
+- resolved_commit: 6def8de82e3d23a190bd49a7eb934a5fe67b60fc
+- next_action_blob: c069ae89f913e189acf998c7ebce9106c1484ebe
+- handoff_blob: 54ab4b1ca08ce27ddc23301623833ea217224705
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
 
 ## Purpose
 
@@ -103,6 +71,20 @@ updated_at: 2026-08-12
 - TASK-008へ引き継いだschema v1改行表示名問題の修正・trim・置換・削除
 - docs/product/**変更、backend、cloud同期、runtime CDN、runtime外部API、main merge、tag、release
 
+## Required changes
+
+- FINDING-005-R2-01 [MAJOR] src/domain/nisa.ts::calculateNisaPlan realValue calculation; validateInvestmentScenario; tests/nisa-rules.test.ts / tests/nisa-state.test.ts: 実質価値計算のインフレ係数がInfinityへoverflowした場合、非有限値として拒否せず、有限の0円へ変換してstatus=completeを返す。 Evidence: annualInflationBasisPointsは-10000より大きい任意のsafe integerを受理する。Number.MAX_SAFE_INTEGER bp、2026-01～2125-12の100年計画ではMath.pow(1 + 900719925474.0991, 100)がInfinityになるが、projectedBalanceYen / Infinityは0となり、safeRound(0)が成功するためout-of-rangeにならない。 Impact: 非有限の計算途中値をもっともらしい実質価値0円として保存可能なcomplete結果へ変換する。TASK-005が要求するnon-finite／overflowのout-of-range区分、金額計算の正確性、pre-write拒否に反し、attempt 3でも緩和できない。 Required: 実質価値のinflation factorと除算結果を明示的にNumber.isFiniteで検証し、factorが0、Infinity、NaNの場合はout-of-rangeを返す。必要に応じてmonthlyReturn、monthlyFee、netMonthlyFactor等の全derived factorも有限性を一貫して検査する。極端な正のインフレ率×長期計画、-100%近傍、有限境界についてdomain testを追加し、Store更新・JSON importではwriter/listener/storage変更前に拒否してbytes不変を確認する。
+- FINDING-005-R2-02 [MAJOR] src/rules/jp/nisa/rules-2024.ts::validateNisaRule sourceUrl / sources[].url validation; tests/nisa-rules.test.ts: source URLの検証が/^https:\/\//というprefix確認だけであり、絶対URLとして不正な文字列をstrictに拒否しない。 Evidence: 現validatorでは"https://"および"https://bad host"がHTTPS判定を通過する。これらはURL constructorでは解析不能であり、公式source identityとして有効な絶対URLではない。R1-04とTASK Acceptance criteriaはsource URLのstrict validatorを要求している。 Impact: 壊れたsource identityを持つrule packageがvalidatorとCIを通過でき、制度根拠の追跡性とrule governanceを失う。source identityとrequired validatorは緩和禁止領域である。 Required: top-level sourceUrlとsources[].urlをURLとしてparseし、absolute URL、protocol=https:、非空hostnameを必須にする。少なくとも"https://"、空白を含むhost、http、relative URL、誤型を拒否し、現在の金融庁・国税庁・日本証券業協会URLを受理するnegative／positive testをtest:nisaとCIへ追加する。
+- FINDING-005-R2-03 [MAJOR] src/modules/investments/investments-view.ts::resultView; src/domain/nisa.ts::calculateNisaPlan unsupported message: ruleを正本にする要件に反し、法定数値をrule外のUI／domain文言へ重複直書きしている。 Evidence: resultViewは「非課税保有限度額1,800万円への到達」「成長投資枠内数1,200万円への到達」を固定文字列で表示し、calculateNisaPlanも「18歳未満」を固定表示する。計算自体はruleを参照しているが、表示値は将来rule変更時に独立して陳腐化できる。TASK-005は成人NISA ruleの数値をUI/domainへ重複直書きしないことを明示している。 Impact: rule package更新後に判定値と説明文が不一致となり得る。現時点の数値が正しくてもsource-of-truth違反であり、NISA制度ruleはattempt 3でも緩和できない。 Required: 到達ラベルは数値を含まない汎用文言にするかresult.ruleのlifetimeTotalLimitYen／lifetimeGrowthLimitYenから生成し、年齢説明もrule.minimumAgeOnJanuaryFirstから生成する。rule module以外の製品sourceへ法定上限／最低年齢の重複定数を残さず、rule値から表示が生成されることをdomain／portable testで確認する。
+
+## User decisions required
+
+- none
+
+## Independent review disposition audit
+
+- not_applicable
+
 ## Acceptance criteria
 
 - Codexがmain exact commit 74599efd2afedfa8c1fba196aaab51459571913e／tree 25a0d8acd4910e562a816814affa61de92d4fdbfを再確認し、専用branch codex/task-005-nisa-betaをexact baseから作成した後にREQUIREMENTS_DEFINED relayをimportする。origin/mainを変更しない
@@ -134,6 +116,11 @@ updated_at: 2026-08-12
 - candidateを固定してpushした後、candidate exact GitHub Actions SUCCESSを確認してからimplementation review attempt 1／standard handoffを作成する。handoff-only commitのCIもSUCCESSを確認する
 - implementation report／review handoffにbase commit/tree、candidate commit/tree、spec revision、NISA official sources、rule metadata、schema migration、全test数、portable evidence、workflow run ID、runtime request/console/page error件数、未解決事項を記録する
 - main merge、tag、releaseを行わずChatGPTへcandidate exact reviewを返す
+- FINDING-005-R1-01～04の修正を維持し、1月2日成人境界、年別上限・残枠・到達年月、blank/nullと明示0円、strict metadata/date validatorを回帰させない
+- 極端なインフレ率と長期計画でinflation factorまたは実質価値計算が非有限になる場合、0円のcompleteへ丸めずout-of-rangeとし、Store／importのpre-write拒否でState・storage bytes・writer・listenerを不変にする
+- NISA ruleのtop-level sourceUrlおよびsources配列URLは有効なabsolute HTTPS URLとしてparseでき、空host・空白host・http・relative・誤型をvalidatorが拒否する
+- NISAの法定上限額と最低年齢はrule外のUI／domainへ重複直書きせず、汎用文言または選択されたrule値から表示を生成する
+- attempt 3はimplementation_review_attempt=3、profile=relaxed、final=true、changes_requested_cycles=2とするが、FINDING-005-R2-01～03はmoney calculation／rule governanceに属するため一切緩和しない
 
 ## Tests
 
@@ -154,28 +141,14 @@ updated_at: 2026-08-12
 - v3→v4 migration、v1/v2/v3 import、preview bytes不変、invalid import rollback、prototype pollution拒否、overflow pre-write拒否
 - NISA計画がliving expenseへ混入しないことと既存budget/take-home/contribution回帰
 - file:// investments UI、臨時拠出CRUD、上限・残枠・projection、reload、360px、keyboard、focus、runtime request 0、console/page error 0
-
-## Build
-
-- pwsh -NoProfile -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -File tools/test-requirements-defined-smoke.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- npm ci
-- npm run typecheck
-- npm run lint
-- npm run format:check
-- npm run test
-- npm run test:rules
-- NISA focused rule tests (new dedicated command or direct Vitest target, recorded in package/CI)
-- npm run build
-- npm run test:portable
-- candidate exact GitHub Actions success
-- handoff-only exact GitHub Actions success
-
-## Rollback
-
-relay import、schema migration、validator、test、portable evidenceのいずれかが失敗した場合はTASK-005 branch内の当該transactionをbyte-exact rollbackし、origin/mainと既存v1/v2/v3保存データを変更しない。
+- 年齢計算に関する法律を反映した2026年1月1日判定: 2008-01-01／2008-01-02はadult、2008-01-03はunsupported、閏日・不正日
+- 年別つみたて・成長・合計のrule上限と残枠表示、生涯総枠／成長内数の到達年月・開始時到達・期間内未到達
+- NISA金額入力のblankと明示0の区別、blank時incomplete／入力error、clear・reload・export/importで0円化しないこと
+- NISA rule全必須metadata・minimumAge・実在ISO日付・resolver不正日・duplicate／overlapのnegative validator tests
+- Number.MAX_SAFE_INTEGER級の正のインフレ率×100年計画で非有限inflation factorをout-of-rangeにし、有限値0円completeへ変換しないtest
+- 非有限projectionを含むscenario更新／JSON importのpre-write拒否、State・storage bytes・writer・listener不変test
+- sourceUrl／sources[].urlのabsolute HTTPS validator: https://、空白host、http、relative、誤型を拒否し公式URLを受理するtest
+- 非課税保有限度額・成長投資枠内数・最低年齢の表示がrule由来または数値なし汎用文言であり、UI／domainに法定数値を重複しないportable test
 
 ## Forbidden changes
 
@@ -195,3 +168,9 @@ relay import、schema migration、validator、test、portable evidenceのいず�
 - runtime CDN、runtime外部API、backend、cloud同期
 - ユーザー入力のinnerHTML連結、明示操作なしの外部source自動open
 - 既存test削除・skip・assertion弱体化・baseline件数減少、TASK外refactor
+- 非有限のインフレ係数または実質価値を0円へ丸めてcompleteとすること
+- source URLを文字列prefixだけで有効とみなし、absolute HTTPS URLとしての解析を省略すること
+- NISA法定上限額・最低年齢をrule外のUI／domainへ重複ハードコードすること
+- attempt 3のrelaxed profileを理由にFINDING-005-R2-01～03をdeferredまたは承認扱いすること
+
+Validated full bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json
