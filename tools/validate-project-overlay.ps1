@@ -61,6 +61,11 @@ foreach ($required in @('money_calculation','rule_period','double_counting','dat
     if (@($review.NonRelaxableCategories) -cnotcontains $required) { Fail "implementation review non-relaxable category missing: $required" }
 }
 
+try { & (Join-Path $root 'tools/validate-audit-identities.ps1') -ProjectRoot $root | Out-Null }
+catch { Fail "audit identity validation failed: $($_.Exception.Message)" }
+try { & (Join-Path $root 'tools/test-audit-identity-normalization.ps1') | Out-Null }
+catch { Fail "audit identity normalization test failed: $($_.Exception.Message)" }
+
 if ($failures.Count -gt 0) {
     foreach ($failure in $failures) { [Console]::Error.WriteLine("governance error: $failure") }
     exit 1
