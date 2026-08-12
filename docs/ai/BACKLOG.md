@@ -11,5 +11,5 @@
 | TASK-007 | normal | queued | high | requirements | 統合サマリー | TASK-003,TASK-006,TASK-010,TASK-011 | upstream正本の統合条件を定義する |
 | TASK-008 | normal | queued | high | requirements | データ保全・UX完成 | TASK-003,TASK-006,TASK-007,TASK-010,TASK-011 | schema v1改行表示名の保存互換性を含むmigration・import安全条件を定義する |
 | TASK-009 | low | queued | medium | requirements | 配布 | TASK-008 | release条件を定義する |
-| TASK-011 | high | ready | high | requirements | TASK-005監査identity修復 | TASK-002 | ChatGPTが正式要件を定義する |
+| TASK-011 | high | ready | high | implementation | TASK-005監査identity修復 | TASK-002 | Codexが監査identity修復を実装する |
 <!-- PROGRESS:END -->

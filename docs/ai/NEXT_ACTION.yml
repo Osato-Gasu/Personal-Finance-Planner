@@ -1,25 +1,21 @@
 schema_version: 1
-task_id: none
-feature: none
-phase: requirements
+task_id: TASK-011
+feature: TASK-005監査identity修復
+phase: implementation
 status: ready
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
-model: 5.6 Sol-Pro
-effort: Pro
-session_mode: existing_or_new
-handoff_file: docs/ai/handoffs/PROJECT_REQUIREMENTS.md
+next_actor: Codex
+next_role: IMPLEMENTER
+model: 5.6 Sol
+effort: high
+session_mode: new
+handoff_file: docs/ai/handoffs/TASK-011/CODEX_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: user
-write_bridge: required_for_state_transition
-write_probe: required_for_chatgpt
-relay_status: none
-updated_at: 2026-08-13
-actual_executor: ChatGPT
+return_to: ChatGPT
+actual_executor: Codex
 provider_substitution: none
 review_kind: none
 review_role: none
@@ -37,3 +33,7 @@ review_completed_at: none
 review_result: none
 review_findings_count: 0
 review_finding_ids: none
+write_bridge: required_for_state_transition
+write_probe: required_for_chatgpt
+relay_status: none
+updated_at: 2026-08-13

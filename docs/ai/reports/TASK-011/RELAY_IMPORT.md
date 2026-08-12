@@ -1,0 +1,27 @@
+# RELAY IMPORT — TASK-011
+
+- source bundle: task-011-requirements-relay.json
+- source SHA-256: 361F86558C9136100C3FA137F3BEC606307E9E909B641BEC5D533A29A571A211
+- source bytes: 22490
+- identity verified: true
+- canonical bundle: docs/ai/reports/TASK-011/RELAY_BUNDLE.json
+- canonical SHA-256: 361F86558C9136100C3FA137F3BEC606307E9E909B641BEC5D533A29A571A211
+- canonical bytes: 22490
+- semantic round-trip: verified
+- decision: REQUIREMENTS_DEFINED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- candidate: none
+- handoff HEAD: none
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-011-nisa-audit-identity-repair
+- resolved_commit: bc80f31c4283aa0031ae4a4aec1d23ca8780b1e0
+- next_action_blob: ab0fe04ca0851fcfebf13b820d27121b01eb8cc1
+- handoff_blob: e2dece4633ea63ce588c5e04f76f507d8aa610c4
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- imported findings: 1
+- accepted findings: 1
+- finding dispositions: 0
