@@ -2,6 +2,7 @@ import {
   SCHEMA_VERSION,
   parseAppState,
   parseLegacyAppState,
+  parseSchemaVersion4AppState,
   parseSchemaVersion3AppState,
   parseSchemaVersion2AppState,
   validateAppState,
@@ -12,6 +13,7 @@ import {
   type IncomeTarget,
   type SchemaVersion2AppState,
   type SchemaVersion3AppState,
+  type SchemaVersion4AppState,
 } from "./state";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,10 +31,12 @@ function uniqueId(preferred: string, used: Set<string>): string {
 export function migrateToCurrentState(value: unknown): AppState {
   if (!isRecord(value)) throw new Error("state must be an object");
   if (value.schemaVersion === SCHEMA_VERSION) return parseAppState(value);
+  if (value.schemaVersion === 4)
+    return migrateV4(parseSchemaVersion4AppState(value));
   if (value.schemaVersion === 3)
-    return migrateV3(parseSchemaVersion3AppState(value));
+    return migrateV4(migrateV3(parseSchemaVersion3AppState(value)));
   if (value.schemaVersion === 2)
-    return migrateV3(migrateV2(parseSchemaVersion2AppState(value)));
+    return migrateV4(migrateV3(migrateV2(parseSchemaVersion2AppState(value))));
   if (value.schemaVersion !== 1) throw new Error("unsupported schema version");
 
   const legacy = parseLegacyAppState(value);
@@ -117,7 +121,7 @@ export function migrateToCurrentState(value: unknown): AppState {
       ...source,
     })),
   };
-  return migrateV3(migrateV2(migrated));
+  return migrateV4(migrateV3(migrateV2(migrated)));
 }
 
 function migrateV2(previous: SchemaVersion2AppState): SchemaVersion3AppState {
@@ -143,12 +147,33 @@ function migrateV2(previous: SchemaVersion2AppState): SchemaVersion3AppState {
   return migrated;
 }
 
-function migrateV3(previous: SchemaVersion3AppState): AppState {
-  const migrated: AppState = {
+function migrateV3(previous: SchemaVersion3AppState): SchemaVersion4AppState {
+  const migrated: SchemaVersion4AppState = {
     ...structuredClone(previous),
     schemaVersion: 4,
     nisaPlans: [],
     investmentScenarios: [],
+  };
+  return migrated;
+}
+
+function migrateV4(previous: SchemaVersion4AppState): AppState {
+  const migrated: AppState = {
+    ...structuredClone(previous),
+    schemaVersion: 5,
+    takeHomePlans: previous.takeHomePlans.map((plan) =>
+      plan.mode === "calculated"
+        ? {
+            ...structuredClone(plan),
+            deductions: {
+              ...structuredClone(plan.deductions),
+              idecoContributionMode: "manual" as const,
+              linkedIdecoPlanId: null,
+            },
+          }
+        : structuredClone(plan),
+    ),
+    idecoPlans: [],
   };
   validateAppState(migrated);
   return migrated;

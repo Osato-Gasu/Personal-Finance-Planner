@@ -1,5 +1,5 @@
 import type { AppState } from "./state";
-import { calculateTakeHome } from "./take-home-calculator";
+import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
 
 export type LinkedValueResult =
   | { status: "selected"; valueYen: number; sourceId: string }
@@ -31,7 +31,7 @@ export function resolveIncomeTarget(
       sourceId: link.sourceId,
     };
   }
-  const result = calculateTakeHome(source, member);
+  const result = calculateTakeHomeFromState(state, source, member);
   if (result.averageMonthlyTakeHomeYen === null) {
     return {
       status: "broken-link",

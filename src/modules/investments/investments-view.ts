@@ -7,6 +7,7 @@ import {
   type ScenarioKind,
 } from "../../domain/nisa";
 import { nisaRuleSources } from "../../rules/jp/nisa/rules-2024";
+import { createIdecoRenderer } from "./ideco-view";
 
 interface Options {
   browserWindow: Window;
@@ -184,6 +185,7 @@ export function createInvestmentsRenderer(
   const { document, store } = options;
   let lastError: string | null = null;
   let selectedMemberId: string | null = null;
+  const idecoRenderer = createIdecoRenderer(options);
 
   const dispatch = (action: Parameters<Store["dispatch"]>[0]): boolean => {
     try {
@@ -290,14 +292,6 @@ export function createInvestmentsRenderer(
         "成人向けNISAの金額計画ベータです。2023年までの旧NISAは2024年以降の使用額へ含めません。商品適格性、商品・利回りの推奨、売却による枠の復活は計算しません。2027年からの0～17歳向け制度は対象外です。",
       ),
     );
-    const ideco = node(
-      document,
-      "p",
-      "iDeCoはTASK-006で実装予定です（未実装）。",
-    );
-    ideco.className = "notice";
-    main.append(ideco);
-
     if (
       selectedMemberId === null ||
       !state.members.some((member) => member.id === selectedMemberId)
@@ -666,6 +660,7 @@ export function createInvestmentsRenderer(
       official.append(paragraph);
     }
     main.append(official);
+    idecoRenderer(main);
     void options.browserWindow;
   };
 }

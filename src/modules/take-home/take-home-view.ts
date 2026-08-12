@@ -1,5 +1,5 @@
 import type { Store } from "../../app/store";
-import { calculateTakeHome } from "../../domain/take-home-calculator";
+import { calculateTakeHomeFromState } from "../../domain/take-home-linked-calculator";
 import {
   createCalculatedTakeHomePlan,
   type CalculatedTakeHomePlan,
@@ -323,7 +323,10 @@ export function createTakeHomeRenderer(
           );
           card.append(
             legacy,
-            resultTable(document, calculateTakeHome(plan, member)),
+            resultTable(
+              document,
+              calculateTakeHomeFromState(state, plan, member),
+            ),
           );
           continue;
         }
@@ -665,16 +668,60 @@ export function createTakeHomeRenderer(
             ),
           );
         }
+        const idecoMode = node(document, "label", "iDeCo控除の入力方法");
+        const idecoModeSelect = node(document, "select");
+        idecoModeSelect.append(
+          new Option("手入力", "manual"),
+          new Option("iDeCo計画から連携", "linked"),
+        );
+        idecoModeSelect.value = plan.deductions.idecoContributionMode;
+        idecoModeSelect.dataset.testid = "take-home-ideco-mode";
+        idecoModeSelect.addEventListener("change", () =>
+          update(plan, (draft) => {
+            draft.deductions.idecoContributionMode =
+              idecoModeSelect.value as typeof draft.deductions.idecoContributionMode;
+            draft.deductions.linkedIdecoPlanId =
+              idecoModeSelect.value === "linked"
+                ? (state.idecoPlans.find(
+                    (candidate) => candidate.memberId === plan.memberId,
+                  )?.id ?? null)
+                : null;
+          }),
+        );
+        idecoMode.append(idecoModeSelect);
+        form.append(idecoMode);
+        if (plan.deductions.idecoContributionMode === "manual") {
+          form.append(
+            numberInput(
+              document,
+              "年間iDeCo掛金（手入力）",
+              plan.deductions.annualIdecoContributionYen,
+              (value) =>
+                update(plan, (draft) => {
+                  draft.deductions.annualIdecoContributionYen = value;
+                }),
+            ),
+          );
+        } else {
+          const linkedPlan = node(document, "label", "連携するiDeCo計画");
+          const linkedPlanSelect = node(document, "select");
+          linkedPlanSelect.dataset.testid = "take-home-linked-ideco-plan";
+          linkedPlanSelect.append(new Option("選択してください", ""));
+          for (const candidate of state.idecoPlans.filter(
+            (item) => item.memberId === plan.memberId,
+          ))
+            linkedPlanSelect.append(new Option(candidate.id, candidate.id));
+          linkedPlanSelect.value = plan.deductions.linkedIdecoPlanId ?? "";
+          linkedPlanSelect.addEventListener("change", () =>
+            update(plan, (draft) => {
+              draft.deductions.linkedIdecoPlanId =
+                linkedPlanSelect.value || null;
+            }),
+          );
+          linkedPlan.append(linkedPlanSelect);
+          form.append(linkedPlan);
+        }
         form.append(
-          numberInput(
-            document,
-            "年間iDeCo掛金",
-            plan.deductions.annualIdecoContributionYen,
-            (value) =>
-              update(plan, (draft) => {
-                draft.deductions.annualIdecoContributionYen = value;
-              }),
-          ),
           numberInput(
             document,
             "その他所得控除年額",
@@ -743,7 +790,7 @@ export function createTakeHomeRenderer(
           }),
         );
         bonuses.append(addBonus);
-        const result = calculateTakeHome(plan, member);
+        const result = calculateTakeHomeFromState(state, plan, member);
         card.append(bonuses, resultTable(document, result));
         const target = state.incomeTargets.find(
           (item) => item.memberId === member.id,

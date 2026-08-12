@@ -6,6 +6,7 @@ import {
   type TakeHomePlan,
 } from "./take-home-plan";
 import { calculateTakeHome } from "./take-home-calculator";
+import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
 import {
   calculateNisaPlan,
   parseInvestmentScenario,
@@ -15,9 +16,16 @@ import {
   type InvestmentScenario,
   type NisaPlan,
 } from "./nisa";
+import {
+  calculateIdecoPlan,
+  parseIdecoPlan,
+  validateIdecoPlan,
+  type IdecoPlan,
+} from "./ideco";
 
-export const SCHEMA_VERSION = 4 as const;
-export const PREVIOUS_SCHEMA_VERSION = 3 as const;
+export const SCHEMA_VERSION = 5 as const;
+export const PREVIOUS_SCHEMA_VERSION = 4 as const;
+export const SCHEMA_VERSION_3 = 3 as const;
 export const SCHEMA_VERSION_2 = 2 as const;
 export const LEGACY_SCHEMA_VERSION = 1 as const;
 
@@ -112,6 +120,20 @@ export interface ExpenseItem {
 }
 
 export interface AppState {
+  schemaVersion: 5;
+  activeRoute: RouteId;
+  members: HouseholdMember[];
+  takeHomePlans: TakeHomePlan[];
+  incomeTargets: IncomeTarget[];
+  links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+  nisaPlans: NisaPlan[];
+  investmentScenarios: InvestmentScenario[];
+  idecoPlans: IdecoPlan[];
+}
+
+export interface SchemaVersion4AppState {
   schemaVersion: 4;
   activeRoute: RouteId;
   members: HouseholdMember[];
@@ -233,6 +255,9 @@ export type AppAction =
   | { type: "add-nisa-plan"; plan: NisaPlan }
   | { type: "update-nisa-plan"; planId: string; plan: NisaPlan }
   | { type: "delete-nisa-plan"; planId: string }
+  | { type: "add-ideco-plan"; plan: IdecoPlan }
+  | { type: "update-ideco-plan"; planId: string; plan: IdecoPlan }
+  | { type: "delete-ideco-plan"; planId: string }
   | { type: "add-investment-scenario"; scenario: InvestmentScenario }
   | {
       type: "update-investment-scenario";
@@ -592,6 +617,40 @@ export function validateAppState(state: AppState): void {
       activeNisaMembers.add(plan.memberId);
     }
   }
+  uniqueIds(state.idecoPlans, "iDeCo plan");
+  const activeIdecoMembers = new Set<string>();
+  for (const plan of state.idecoPlans) {
+    validateIdecoPlan(plan);
+    const member = state.members.find((item) => item.id === plan.memberId);
+    if (!member) throw new Error("iDeCo plan member is missing");
+    const scenario = scenarios.get(plan.activeScenarioId);
+    if (!scenario || scenario.memberId !== plan.memberId)
+      throw new Error(
+        "iDeCo active scenario is missing or belongs to another member",
+      );
+    if (calculateIdecoPlan(plan, scenario, member).status === "out-of-range")
+      throw new Error("iDeCo plan exceeds the supported range");
+    if (plan.active) {
+      if (activeIdecoMembers.has(plan.memberId))
+        throw new Error("only one active iDeCo plan is allowed per member");
+      activeIdecoMembers.add(plan.memberId);
+    }
+  }
+  for (const plan of state.takeHomePlans) {
+    if (plan.mode !== "calculated") continue;
+    if (!Object.hasOwn(plan.deductions, "idecoContributionMode"))
+      throw new Error("iDeCo contribution mode is required");
+    if (!Object.hasOwn(plan.deductions, "linkedIdecoPlanId"))
+      throw new Error("linked iDeCo plan identity is required");
+    if (plan.deductions.idecoContributionMode !== "linked") continue;
+    const linked = state.idecoPlans.find(
+      (candidate) => candidate.id === plan.deductions.linkedIdecoPlanId,
+    );
+    if (!linked || linked.memberId !== plan.memberId)
+      throw new Error(
+        "linked iDeCo plan is missing or belongs to another member",
+      );
+  }
   uniqueIds(state.budget.categories, "budget category");
   uniqueIds(state.budget.items, "expense item");
   assertBasisPoints(
@@ -915,6 +974,53 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
+    schemaVersion: 5,
+    activeRoute: (() => {
+      if (
+        typeof value.activeRoute !== "string" ||
+        !routeIds.includes(value.activeRoute as RouteId)
+      )
+        throw new Error("activeRoute is invalid");
+      return value.activeRoute as RouteId;
+    })(),
+    members,
+    takeHomePlans: requireArray(value, "takeHomePlans").map((plan) => {
+      if (
+        !isRecord(plan) ||
+        (plan.mode === "calculated" &&
+          (!isRecord(plan.deductions) ||
+            !Object.hasOwn(plan.deductions, "idecoContributionMode") ||
+            !Object.hasOwn(plan.deductions, "linkedIdecoPlanId")))
+      )
+        throw new Error("schema v5 take-home iDeCo link fields are required");
+      const memberId =
+        isRecord(plan) && typeof plan.memberId === "string"
+          ? plan.memberId
+          : "";
+      return parseTakeHomePlan(plan, memberProfiles.get(memberId));
+    }),
+    incomeTargets: parseIncomeTargets(value),
+    links: parseLinks(value),
+    contributionSources: parseContributions(value),
+    budget: parseBudget(value.budget),
+    nisaPlans: requireArray(value, "nisaPlans").map(parseNisaPlan),
+    investmentScenarios: requireArray(value, "investmentScenarios").map(
+      parseInvestmentScenario,
+    ),
+    idecoPlans: requireArray(value, "idecoPlans").map(parseIdecoPlan),
+  };
+  validateAppState(state);
+  return state;
+}
+
+export function parseSchemaVersion4AppState(
+  value: unknown,
+): SchemaVersion4AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  const members = parseMembers(value, true);
+  const memberProfiles = new Map(members.map((member) => [member.id, member]));
+  const state: SchemaVersion4AppState = {
     schemaVersion: 4,
     activeRoute: (() => {
       if (
@@ -941,14 +1047,18 @@ export function parseAppState(value: unknown): AppState {
       parseInvestmentScenario,
     ),
   };
-  validateAppState(state);
+  validateAppState({
+    ...structuredClone(state),
+    schemaVersion: 5,
+    idecoPlans: [],
+  });
   return state;
 }
 
 export function parseSchemaVersion3AppState(
   value: unknown,
 ): SchemaVersion3AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_3)
     throw new Error("unsupported schema version");
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
@@ -977,9 +1087,10 @@ export function parseSchemaVersion3AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 4,
+    schemaVersion: 5,
     nisaPlans: [],
     investmentScenarios: [],
+    idecoPlans: [],
   });
   return state;
 }
@@ -1000,7 +1111,11 @@ export function parseSchemaVersion2AppState(
 
 export function cloneState<
   T extends
-    AppState | SchemaVersion3AppState | SchemaVersion2AppState | LegacyAppState,
+    | AppState
+    | SchemaVersion4AppState
+    | SchemaVersion3AppState
+    | SchemaVersion2AppState
+    | LegacyAppState,
 >(state: T): T {
   return structuredClone(state);
 }
@@ -1318,6 +1433,19 @@ export function reduceState(state: AppState, action: AppAction): AppState {
         (plan) => plan.id !== action.planId,
       );
       break;
+    case "add-ideco-plan":
+      next.idecoPlans.push(structuredClone(action.plan));
+      break;
+    case "update-ideco-plan":
+      next.idecoPlans[
+        next.idecoPlans.findIndex((plan) => plan.id === action.planId)
+      ] = structuredClone(action.plan);
+      break;
+    case "delete-ideco-plan":
+      next.idecoPlans = next.idecoPlans.filter(
+        (plan) => plan.id !== action.planId,
+      );
+      break;
     case "add-investment-scenario":
       next.investmentScenarios.push(structuredClone(action.scenario));
       break;
@@ -1514,7 +1642,10 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       const member = state.members.find(
         (candidate) => candidate.id === source.memberId,
       );
-      if (!member || calculateTakeHome(source, member).status !== "complete")
+      if (
+        !member ||
+        calculateTakeHomeFromState(state, source, member).status !== "complete"
+      )
         throw new Error("only a complete take-home result can be linked");
       if (!action.link.active) throw new Error("added link must be active");
       if (hasActiveLink(state, action.link.targetId))
@@ -1539,7 +1670,7 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
           (candidate) => candidate.id === source.memberId,
         );
         if (!member) throw new Error("active link member is missing");
-        const result = calculateTakeHome(source, member);
+        const result = calculateTakeHomeFromState(state, source, member);
         if (
           result.averageMonthlyTakeHomeYen === null ||
           action.manualYen !== result.averageMonthlyTakeHomeYen
@@ -1700,6 +1831,39 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       if (!state.nisaPlans.some((plan) => plan.id === action.planId))
         throw new Error("NISA plan is missing");
       return;
+    case "add-ideco-plan":
+      if (state.idecoPlans.some((plan) => plan.id === action.plan.id))
+        throw new Error("iDeCo plan ID is already in use");
+      assertNisaStateChange({
+        ...cloneState(state),
+        idecoPlans: [...state.idecoPlans, structuredClone(action.plan)],
+      });
+      return;
+    case "update-ideco-plan":
+      if (!state.idecoPlans.some((plan) => plan.id === action.planId))
+        throw new Error("iDeCo plan is missing");
+      if (action.plan.id !== action.planId)
+        throw new Error("iDeCo plan ID cannot change");
+      assertNisaStateChange({
+        ...cloneState(state),
+        idecoPlans: state.idecoPlans.map((plan) =>
+          plan.id === action.planId ? structuredClone(action.plan) : plan,
+        ),
+      });
+      return;
+    case "delete-ideco-plan":
+      if (!state.idecoPlans.some((plan) => plan.id === action.planId))
+        throw new Error("iDeCo plan is missing");
+      if (
+        state.takeHomePlans.some(
+          (plan) =>
+            plan.mode === "calculated" &&
+            plan.deductions.idecoContributionMode === "linked" &&
+            plan.deductions.linkedIdecoPlanId === action.planId,
+        )
+      )
+        throw new Error("linked iDeCo plan must be unlinked before deletion");
+      return;
     case "add-investment-scenario":
       if (
         state.investmentScenarios.some(
@@ -1746,6 +1910,12 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
         )
       )
         throw new Error("active NISA scenario cannot be deleted");
+      if (
+        state.idecoPlans.some(
+          (plan) => plan.activeScenarioId === action.scenarioId,
+        )
+      )
+        throw new Error("active iDeCo scenario cannot be deleted");
       return;
   }
 }
@@ -1785,7 +1955,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },
@@ -1812,5 +1982,6 @@ export function createInitialState(): AppState {
     contributionSources: [],
     nisaPlans: [],
     investmentScenarios: [],
+    idecoPlans: [],
   };
 }

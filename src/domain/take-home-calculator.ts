@@ -625,6 +625,17 @@ function taxableAndTax(
 export function calculateTakeHome(
   plan: Readonly<TakeHomePlan>,
   member: Readonly<HouseholdMember>,
+  linkedIdeco?: Readonly<{
+    status:
+      | "complete"
+      | "invalid"
+      | "incomplete"
+      | "unsupported"
+      | "missing-rule"
+      | "out-of-range";
+    annualContributionYen: number | null;
+    message: string;
+  }>,
 ): TakeHomeResult {
   try {
     if (plan.memberId !== member.id) {
@@ -642,6 +653,20 @@ export function calculateTakeHome(
         warnings: ["schema v1/v2から移行した手入力値です"],
         assumptions: ["legacy-manual"],
       };
+    }
+    let annualIdecoContributionYen = plan.deductions.annualIdecoContributionYen;
+    if (plan.deductions.idecoContributionMode === "linked") {
+      if (!linkedIdeco)
+        return emptyResult(plan, "incomplete", "連携iDeCo計画を解決できません");
+      if (
+        linkedIdeco.status !== "complete" ||
+        linkedIdeco.annualContributionYen === null
+      ) {
+        const status =
+          linkedIdeco.status === "invalid" ? "incomplete" : linkedIdeco.status;
+        return emptyResult(plan, status, linkedIdeco.message);
+      }
+      annualIdecoContributionYen = linkedIdeco.annualContributionYen;
     }
     if (plan.targetYear !== SUPPORT_YEAR)
       return emptyResult(
@@ -762,7 +787,7 @@ export function calculateTakeHome(
     const afterIdeco = taxableAndTax(
       salaryIncome,
       socialTotal,
-      plan.deductions.annualIdecoContributionYen,
+      annualIdecoContributionYen,
       plan.deductions.annualOtherIncomeDeductionsYen,
     );
     const annualGross = add(

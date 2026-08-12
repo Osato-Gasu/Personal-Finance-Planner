@@ -72,6 +72,8 @@ export interface ResidentTaxSettings {
 
 export interface DeductionSettings {
   annualIdecoContributionYen: number;
+  idecoContributionMode: "manual" | "linked";
+  linkedIdecoPlanId: string | null;
   annualOtherIncomeDeductionsYen: number;
   otherIncomeDeductionsNote: string;
 }
@@ -426,6 +428,22 @@ function parseCalculatedPlan(
     deductions.annualIdecoContributionYen,
     "annualIdecoContributionYen",
   );
+  const idecoContributionMode =
+    deductions.idecoContributionMode === undefined
+      ? "manual"
+      : deductions.idecoContributionMode;
+  if (idecoContributionMode !== "manual" && idecoContributionMode !== "linked")
+    throw new Error("idecoContributionMode is invalid");
+  const linkedIdecoPlanId =
+    deductions.linkedIdecoPlanId === undefined
+      ? null
+      : deductions.linkedIdecoPlanId;
+  if (linkedIdecoPlanId !== null && typeof linkedIdecoPlanId !== "string")
+    throw new Error("linkedIdecoPlanId must be a string or null");
+  if (idecoContributionMode === "manual" && linkedIdecoPlanId !== null)
+    throw new Error("manual iDeCo deduction must not store a linked plan");
+  if (idecoContributionMode === "linked" && !linkedIdecoPlanId)
+    throw new Error("linked iDeCo deduction requires a plan reference");
   assertSafeYenValue(
     deductions.annualOtherIncomeDeductionsYen,
     "annualOtherIncomeDeductionsYen",
@@ -516,6 +534,8 @@ function parseCalculatedPlan(
     },
     deductions: {
       annualIdecoContributionYen: deductions.annualIdecoContributionYen,
+      idecoContributionMode,
+      linkedIdecoPlanId,
       annualOtherIncomeDeductionsYen: deductions.annualOtherIncomeDeductionsYen,
       otherIncomeDeductionsNote: string(
         deductions.otherIncomeDeductionsNote,
@@ -626,6 +646,8 @@ export function createCalculatedTakeHomePlan(options: {
     },
     deductions: {
       annualIdecoContributionYen: 0,
+      idecoContributionMode: "manual",
+      linkedIdecoPlanId: null,
       annualOtherIncomeDeductionsYen: 0,
       otherIncomeDeductionsNote: "",
     },

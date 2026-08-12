@@ -7,7 +7,7 @@ import { chromium } from "playwright-core";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v4";
+const storageKey = "personal-finance-planner:state:v5";
 const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
   ["overview", "総合サマリー"],
@@ -160,7 +160,7 @@ try {
       `NISA UI did not render: body=${JSON.stringify(await page.locator("body").innerText())}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`,
     );
   }
-  await page.getByText("iDeCoはTASK-006で実装予定です（未実装）。").waitFor();
+  await page.getByRole("heading", { name: "iDeCoベータ" }).waitFor();
   await page.getByTestId("nisa-member-select").selectOption("member-partner");
   assert.equal(
     await page.getByTestId("nisa-create-member-partner").isDisabled(),
@@ -288,6 +288,146 @@ try {
     .getByTestId("nisa-scenario-select")
     .selectOption({ label: "標準" });
   await page.getByRole("heading", { name: "試算状態: complete" }).waitFor();
+
+  await page.getByTestId("ideco-member-select").selectOption("member-partner");
+  assert.equal(
+    await page.getByTestId("ideco-create-member-partner").isDisabled(),
+    true,
+  );
+  await page.getByTestId("ideco-member-select").selectOption("member-self");
+  await page.getByTestId("ideco-create-member-self").click();
+  const idecoCard = page.locator(".ideco-card");
+  await idecoCard
+    .getByTestId("ideco-participant-category")
+    .selectOption("category2");
+  await idecoCard.getByTestId("ideco-category-confirmed").check();
+  await idecoCard.getByLabel("企業年金区分").selectOption("none");
+  await idecoCard.getByLabel("マッチング拠出").selectOption("false");
+  await idecoCard.getByTestId("ideco-plus").selectOption("false");
+  await idecoCard.getByTestId("ideco-annual-unit").selectOption("false");
+  await idecoCard.getByTestId("ideco-start-month").fill("2026-11");
+  await idecoCard.getByTestId("ideco-start-month").press("Tab");
+  await idecoCard.getByLabel("目標年月", { exact: true }).fill("2026-12");
+  await idecoCard.getByLabel("目標年月", { exact: true }).press("Tab");
+  for (const testId of ["ideco-current-balance", "ideco-monthly-fee"]) {
+    assert.equal(await idecoCard.getByTestId(testId).inputValue(), "");
+    await idecoCard.getByTestId(testId).fill("0");
+    await idecoCard.getByTestId(testId).press("Tab");
+  }
+  await idecoCard.getByLabel("開始月直前までの本人拠出元本累計").fill("0");
+  await idecoCard.getByLabel("開始月直前までの本人拠出元本累計").press("Tab");
+  assert.equal(
+    await idecoCard.getByTestId("ideco-monthly-contribution").inputValue(),
+    "",
+  );
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: incomplete" })
+    .waitFor();
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("0");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: complete" })
+    .waitFor();
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("23001");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: invalid" })
+    .waitFor();
+  await assertContains(idecoCard.getByTestId("ideco-result"), "1円");
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("23000");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: complete" })
+    .waitFor();
+  await assertContains(
+    idecoCard.getByTestId("ideco-result"),
+    "jp-ideco-2024-12-01",
+  );
+  await idecoCard.getByTestId("ideco-start-month").fill("2026-12");
+  await idecoCard.getByTestId("ideco-start-month").press("Tab");
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("62000");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: complete" })
+    .waitFor();
+  await assertContains(
+    idecoCard.getByTestId("ideco-result"),
+    "jp-ideco-2026-12-01",
+  );
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("62001");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: invalid" })
+    .waitFor();
+  await assertContains(idecoCard.getByTestId("ideco-result"), "1円");
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("62000");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await idecoCard.getByTestId("ideco-plus").selectOption("true");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: unsupported" })
+    .waitFor();
+  await idecoCard.getByTestId("ideco-plus").selectOption("false");
+  await idecoCard.getByTestId("ideco-annual-unit").selectOption("true");
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: unsupported" })
+    .waitFor();
+  await assertContains(
+    idecoCard.getByTestId("ideco-result"),
+    "月別指定（年単位）拠出は今回のベータでは未対応",
+  );
+  await idecoCard.getByTestId("ideco-annual-unit").selectOption("false");
+  await idecoCard
+    .getByTestId("ideco-scenario-select")
+    .selectOption({ label: "bull" });
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: incomplete" })
+    .waitFor();
+  await idecoCard
+    .getByTestId("ideco-scenario-select")
+    .selectOption({ label: "standard" });
+  await idecoCard
+    .getByRole("heading", { name: "iDeCo試算状態: complete" })
+    .waitFor();
+  await assertContains(
+    idecoCard.getByTestId("ideco-result"),
+    "住民税軽減額未計算",
+  );
+  await assertContains(
+    idecoCard.getByTestId("ideco-result"),
+    "iDeCo受取時の税引前",
+  );
+  await idecoCard.getByTestId("ideco-start-month").fill("2026-11");
+  await idecoCard.getByTestId("ideco-start-month").press("Tab");
+  await idecoCard.getByTestId("ideco-monthly-contribution").fill("23000");
+  await idecoCard.getByTestId("ideco-monthly-contribution").press("Tab");
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page
+      .locator(".ideco-card")
+      .getByTestId("ideco-monthly-contribution")
+      .inputValue(),
+    "23000",
+  );
+  await page.setViewportSize({ width: 360, height: 800 });
+  assert.equal(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.document.documentElement.clientWidth,
+    ),
+    true,
+  );
+  await page
+    .locator(".ideco-card")
+    .getByTestId("ideco-monthly-contribution")
+    .focus();
+  assert.equal(
+    await page
+      .locator(".ideco-card")
+      .getByTestId("ideco-monthly-contribution")
+      .evaluate((element) => element === globalThis.document.activeElement),
+    true,
+  );
   await page.setViewportSize({ width: 360, height: 800 });
   assert.equal(
     await page.evaluate(
@@ -415,6 +555,31 @@ try {
       requiredResultLabel,
     );
   }
+  await page.getByTestId("take-home-ideco-mode").selectOption("linked");
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await assertContains(
+    page.locator(".take-home-result"),
+    "iDeCoによる所得税等差額",
+  );
+  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page
+    .locator(".ideco-card")
+    .getByTestId("ideco-plus")
+    .selectOption("true");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
+  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page
+    .locator(".ideco-card")
+    .getByTestId("ideco-plus")
+    .selectOption("false");
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await page.getByTestId("take-home-ideco-mode").selectOption("manual");
+  assert.equal(
+    await page.getByLabel("年間iDeCo掛金（手入力）").inputValue(),
+    "0",
+  );
   await page.setViewportSize({ width: 360, height: 800 });
   assert.equal(
     await page.evaluate(
@@ -662,7 +827,7 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 4);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 5);
   await page.reload({ waitUntil: "load" });
   await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -782,7 +947,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=168, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=208, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

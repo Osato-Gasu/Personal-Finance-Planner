@@ -106,7 +106,7 @@ describe("schema version 3 migration and storage", () => {
   it("migrates v2 values without changing source and link IDs", () => {
     const previous = v2Fixture();
     const migrated = migrateToCurrentState(previous);
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.takeHomePlans.map((plan) => plan.id)).toEqual(
       previous.takeHomeInputs.map((input) => input.id),
     );
@@ -156,7 +156,7 @@ describe("schema version 3 migration and storage", () => {
     const storage = new BytesStorage();
     const v2Bytes = JSON.stringify(v2Fixture());
     storage.values.set(PREVIOUS_STORAGE_KEY, v2Bytes);
-    expect(new StorageRepository(storage).load()?.schemaVersion).toBe(4);
+    expect(new StorageRepository(storage).load()?.schemaVersion).toBe(5);
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBe(v2Bytes);
     expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
   });
@@ -178,7 +178,7 @@ describe("schema version 3 migration and storage", () => {
     const v1 = { ...v2Fixture(), schemaVersion: 1, livingExpenses: [] };
     const v1Bytes = JSON.stringify(v1);
     storage.values.set(LEGACY_STORAGE_KEY, v1Bytes);
-    expect(new StorageRepository(storage).load()?.schemaVersion).toBe(4);
+    expect(new StorageRepository(storage).load()?.schemaVersion).toBe(5);
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(v1Bytes);
   });
 
@@ -188,14 +188,14 @@ describe("schema version 3 migration and storage", () => {
     const v1 = { ...v2, schemaVersion: 1, livingExpenses: [] };
     expect(
       repository.prepareImport(JSON.stringify(v1)).preview.schemaVersion,
-    ).toBe(4);
+    ).toBe(5);
     expect(
       repository.prepareImport(JSON.stringify(v2)).preview.schemaVersion,
-    ).toBe(4);
+    ).toBe(5);
     expect(
       repository.prepareImport(JSON.stringify(createFixtureState())).preview
         .schemaVersion,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it("normalizes pre-finding v3 calculated plans by snapshotting member identity", () => {

@@ -168,5 +168,6 @@ export function createFixtureState(): AppState {
     ],
     nisaPlans: [],
     investmentScenarios: [],
+    idecoPlans: [],
   };
 }
