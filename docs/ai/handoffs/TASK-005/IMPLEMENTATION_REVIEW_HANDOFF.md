@@ -14,24 +14,24 @@
 - branch: codex/task-005-nisa-beta
 - baseline_commit: 74599efd2afedfa8c1fba196aaab51459571913e
 - baseline_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
-- previous_reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-- previous_reviewed_tree: 46151fe8e9944c0e772707615184b19f5b7cc5a8
-- implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-- candidate_commit: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-- candidate_tree: 70beaac8d897cc024bfde457c922775b96b12e1b
+- previous_reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- previous_reviewed_tree: 70beaac8d897cc024bfde457c922775b96b12e1b
+- implementation_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
+- candidate_commit: d127f26a78342ab3d7674ee99e6f50d87532e891
+- candidate_tree: fa83cf0bc4f7de19adc1dff92b8fd538dba3d443
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - spec_revision: 1
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: standard
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
 - implementation_review_terminated: false
-- review_attempt: 2
-- review_profile: standard
-- final_review: false
+- review_attempt: 3
+- review_profile: relaxed
+- final_review: true
 
 ## Assignment / result
 
@@ -40,17 +40,17 @@
 - out_of_scope: iDeCo、旧NISA、売却枠再利用、未成年向け2027年rule、商品適格性・推奨、統合サマリー、main反映、release
 - acceptance_criteria: docs/ai/tasks/TASK-005.mdのAcceptance criteria全件
 - forbidden_changes: docs/product/**、generated shared snapshot、main、tag、release、推奨利回り、商品適格性推測
-- tests_and_build: PowerShell 5.1/7 governance and product identity smoke PASS; npm ci/typecheck/lint/format/test/test:rules/test:nisa/build/test:portable PASS; 307 Vitest tests, 69 focused take-home rule tests, 60 focused NISA tests, 164 portable browser checks PASS
-- browser_evidence: system Edge file:// PASS; 1月2日成人境界、空欄null、明示0円、年別上限・残枠、総枠到達状態、1円超過invalid、scenario、reload、臨時拠出CRUD、360px、keyboard、focus、console/page errors 0、runtime requests 0
+- tests_and_build: PowerShell 5.1/7 governance and product identity smoke PASS; npm ci/typecheck/lint/format/test/test:rules/test:nisa/build/test:portable PASS; 315 Vitest tests, 69 focused take-home rule tests, 68 focused NISA tests, 168 portable browser checks PASS
+- browser_evidence: system Edge file:// PASS; 1月2日成人境界、空欄null、明示0円、年別上限・残枠、総枠到達状態、rule-owned labels、1円超過invalid、scenario、reload、臨時拠出CRUD、360px、keyboard、focus、console/page errors 0、runtime requests 0
 - commit_policy: implementation candidateを変更せずexact reviewする
 - stop_conditions: 制度上限・計算・data preservation・migration/import・validator・required test・security・backward compatibility・portability・candidate identityの失敗
 - return_to: Codex
 - report: docs/ai/reports/TASK-005/IMPLEMENTATION_REPORT.md
-- execution_started_at: 2026-08-12 19:19:46 JST
-- workflow_run_id: 31587709501
-- workflow_head_sha: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- execution_started_at: 2026-08-12 21:52:11 JST
+- workflow_run_id: 31600217793
+- workflow_head_sha: d127f26a78342ab3d7674ee99e6f50d87532e891
 - workflow_conclusion: success
-- execution_finished_at: 2026-08-12 19:32:47 JST
+- execution_finished_at: 2026-08-12 22:15:48 JST
 
 ## Primary sources and rule metadata
 
@@ -80,4 +80,8 @@
 - FINDING-005-R1-02 resolved: rule由来の年別上限・使用・残枠と、総枠／成長内数の開始時到達・到達年月・未到達・未計算をderived表示する。
 - FINDING-005-R1-03 resolved: 6金額項目と臨時拠出額をnullable正本とし、空欄nullと明示0円をsave／reload／import／portableで区別する。
 - FINDING-005-R1-04 resolved: 全必須metadata、18歳、HTTPS、実在ISO日、期間順序・重複・ID、resolver target dateをstrict検証する。
-- candidate exact workflow 31587709501はhead SHA bcae11d634ffbac6d76abd26638814eb8f4ddb27でSUCCESSした。
+- FINDING-005-R2-01 resolved: inflation factor／実質価値とmonthly derived factorの有限性を検証し、Infinity・0 underflowをout-of-rangeとしてStore／importのpre-writeで副作用なく拒否する。
+- FINDING-005-R2-02 resolved: top-level sourceUrlとsources[].urlをURL parseし、absolute HTTPS・非空hostnameをstrict検証する。
+- FINDING-005-R2-03 resolved: 最低年齢メッセージをrule.minimumAgeOnJanuaryFirst由来にし、総枠到達ラベルから法定数値の重複直書きを除去する。
+- candidate exact workflow 31600217793はhead SHA d127f26a78342ab3d7674ee99e6f50d87532e891でSUCCESSした。
+- attempt 3 is relaxed/final, but FINDING-005-R2-01 through FINDING-005-R2-03 remain non-relaxable; attempt 4 is forbidden.

@@ -2,47 +2,47 @@
 
 - task_id: TASK-005
 - spec_revision: 1
-- phase: implementation
-- status: changes_requested
+- phase: implementation_review
+- status: review_requested
 - baseline_commit: 74599efd2afedfa8c1fba196aaab51459571913e
 - baseline_tree: 25a0d8acd4910e562a816814affa61de92d4fdbf
-- previous_reviewed_candidate: a34bcd6b72df7b08d5d0b69ae322c588c4084864
-- previous_reviewed_tree: 46151fe8e9944c0e772707615184b19f5b7cc5a8
-- implementation_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-- candidate_commit: bcae11d634ffbac6d76abd26638814eb8f4ddb27
-- candidate_tree: 70beaac8d897cc024bfde457c922775b96b12e1b
+- previous_reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- previous_reviewed_tree: 70beaac8d897cc024bfde457c922775b96b12e1b
+- implementation_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
+- candidate_commit: d127f26a78342ab3d7674ee99e6f50d87532e891
+- candidate_tree: fa83cf0bc4f7de19adc1dff92b8fd538dba3d443
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 - product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 - source_match: requirements product identity matched
-- changed_files: .github/workflows/ci.yml; package.json; src/app/app.ts; src/data/storage-repository.ts; src/domain/migration.ts; src/domain/nisa.ts; src/domain/state.ts; src/modules/investments/investments-view.ts; src/rules/jp/nisa/rules-2024.ts; src/styles.css; tests/fixtures/state.ts; tests/migration-repository.test.ts; tests/nisa-rules.test.ts; tests/nisa-state.test.ts; tests/schema-v3.test.ts; tests/storage-repository.test.ts; tools/test-portable-build.mjs
+- changed_files: src/domain/nisa.ts; src/modules/investments/investments-view.ts; src/rules/jp/nisa/rules-2024.ts; tests/nisa-rules.test.ts; tests/nisa-state.test.ts; tools/test-portable-build.mjs
 - build_result: passed; standalone dist/index.html single-file build
-- tests_passed: 307 Vitest tests; 69 focused take-home rule tests; 60 focused NISA tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; 164 portable browser checks
+- tests_passed: 315 Vitest tests; 69 focused take-home rule tests; 68 focused NISA tests; PowerShell 5.1/7 governance and product identity smoke; npm ci; typecheck; lint; format; build; 168 portable browser checks
 - tests_failed: none
-- browser_evidence: Edge file:// portable suite passed 164 checks including 1月2日adult、blank null、explicit zero、annual limits/remaining、lifetime reach、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
+- browser_evidence: Edge file:// portable suite passed 168 checks including 1月2日adult、blank null、explicit zero、annual limits/remaining、lifetime reach、rule-owned labels、1円超過invalid、scenario、reload、additional contribution CRUD、360px、keyboard、focus、localStorage
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: FINDING-005-R2-01 through FINDING-005-R2-03 accepted for attempt 3 correction
-- worktree: user_approved_attempt_3_transition
+- unresolved: none
+- worktree: clean_candidate
 - actual_executor: Codex
 - provider_substitution: none
 - independent_review_kind: implementation
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: changes_requested
-- request_review_status: completed
+- review_status: requested
+- request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- reviewed_candidate: d127f26a78342ab3d7674ee99e6f50d87532e891
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: changes_requested
-- review_findings_count: 3
-- review_finding_ids: FINDING-005-R2-01, FINDING-005-R2-02, FINDING-005-R2-03
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
 - repository_write_access: available
 - user_relay_required: false
 - relay_bundle_name: task-005-requirements-relay.json
@@ -56,8 +56,8 @@
 - result_return_to: ChatGPT
 - canonical_relay_bundle: docs/ai/reports/TASK-005/RELAY_BUNDLE.json
 - routing_mode: legacy_unspecified
-- workflow_run_id: 31587709501
-- workflow_head_sha: bcae11d634ffbac6d76abd26638814eb8f4ddb27
+- workflow_run_id: 31600217793
+- workflow_head_sha: d127f26a78342ab3d7674ee99e6f50d87532e891
 - workflow_conclusion: success
 - review_stage: implementation
 - changes_requested_cycles: 2
@@ -74,8 +74,8 @@
 - rule_effective_period: 2024-01-01 onward
 - official_sources_verified_at: 2026-08-12
 - protected_paths: docs/product/** and docs/ai/generated/shared/** unchanged from baseline
-- execution_started_at: 2026-08-12 19:19:46 JST
-- execution_finished_at: 2026-08-12 19:32:47 JST
+- execution_started_at: 2026-08-12 21:52:11 JST
+- execution_finished_at: 2026-08-12 22:15:48 JST
 
 ## Implementation evidence
 
@@ -92,9 +92,9 @@
 - FINDING-005-R1-02: resolved — 全暦年のrule由来上限・使用・残枠と、総枠／成長内数の到達状態・年月をderived計算・表示した。
 - FINDING-005-R1-03: resolved — 金額空欄をnullで保存し、明示0円と区別してincomplete、reload、JSON importを検証した。
 - FINDING-005-R1-04: resolved — rule／source metadata、対象年齢、HTTPS、実在ISO日、期間、ID、重複、resolverをstrict検証した。
-- FINDING-005-R2-01: pending attempt 3 correction — non-finite／dangerous-underflowのprojectionをout-of-rangeとしてpre-write拒否する。
-- FINDING-005-R2-02: pending attempt 3 correction — sourceUrlとsources[].urlをabsolute HTTPS URLとしてstrict検証する。
-- FINDING-005-R2-03: pending attempt 3 correction — 法定上限・最低年齢のUI／domain重複直書きを除去しrule由来にする。
+- FINDING-005-R2-01: resolved — non-finite／dangerous-underflowのprojectionをout-of-rangeとしてStore／importのpre-writeで副作用なく拒否する。
+- FINDING-005-R2-02: resolved — sourceUrlとsources[].urlをabsolute HTTPS URLとしてstrict検証する。
+- FINDING-005-R2-03: resolved — 法定上限到達ラベルの数値直書きを除去し、最低年齢をrule由来で表示する。
 
 ## User-approved attempt 3 transition
 

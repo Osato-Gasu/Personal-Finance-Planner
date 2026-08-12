@@ -2,9 +2,9 @@
 updated_at: 2026-08-12
 active_tasks:
   - TASK-005
-next_action: Codex fixes FINDING-005-R2-01 through FINDING-005-R2-03 for implementation review attempt 3 relaxed final
+next_action: ChatGPT performs TASK-005 implementation review attempt 3 with the relaxed final profile
 ---
 
 # Current state
 
-TASK-005 spec revision 1 is in implementation for attempt 3 relaxed final after explicit user approval. FINDING-005-R2-01 through FINDING-005-R2-03 remain non-relaxable, and attempt 4 is forbidden.
+TASK-005 candidate d127f26a78342ab3d7674ee99e6f50d87532e891 resolves FINDING-005-R2-01 through FINDING-005-R2-03. Candidate exact workflow 31600217793 succeeded; implementation review attempt 3 uses the relaxed final profile and attempt 4 is forbidden.
