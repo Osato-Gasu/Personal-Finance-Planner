@@ -77,3 +77,10 @@
 - Permanent gates passed in PowerShell 7 and 5.1 with 21 historical source-binding checks. Product evidence remained 315 Vitest, 69 take-home focused, 68 NISA focused, 168 portable checks, runtime requests 0, console errors 0, page errors 0, and zero carry-forward diff for `src/**`, `tests/**`, and `tools/test-portable-build.mjs`.
 - TASK-005 remains terminated and unapproved as TASK-005; attempt 4 remains forbidden and there is no retroactive TASK-005 approval. TASK-011 is the approved successor release path.
 - TASK-011 active TASK/handoff/report artifacts remain traceable at release-handoff commit `51548c913cb83bd42b88f76abc294e8f4331d5be`; canonical `git_only` completion sync removes them from the current tree. No tag or GitHub Release was created.
+
+## GOV-011 TASK-006 approval, main integration, and completion
+
+- TASK-006 spec revision 1 implementation candidate `2d72860abfa342ee800b183ec5dbc8bb4be51c3b` (tree `fe16d3e402da524863c2a5fde7ce3b2da82dbd82`) was approved in implementation review attempt 2／standard with 0 findings. Candidate workflow `31647525559` and review-handoff workflow `31648422117` succeeded; attempts 3 and 4 were not created.
+- APPROVED release head `2655beee4d2d9970dff54a57e1935a44741c7a0b` (tree `13c887a5c2e55d549992e85e3f28d79fc26a255b`) and workflow `31650601125` succeeded. Main was fast-forwarded from `b8f4c27544534c8ed00a92493307ac37ed7649d3` to that exact release head, and main integration workflow `31651737269` succeeded.
+- `FINDING-006-R1-01`, `FINDING-006-R1-02`, and `FINDING-006-R1-03` are resolved. The approved implementation remains traceable through the candidate, review handoff, and release-head identities above.
+- TASK-006 active TASK/handoff/report artifacts remain traceable at release head `2655beee4d2d9970dff54a57e1935a44741c7a0b`; canonical `git_only` completion sync removes them from the current tree. No tag, GitHub Release, or distribution was created.

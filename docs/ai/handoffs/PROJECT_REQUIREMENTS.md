@@ -7,7 +7,7 @@
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011はユーザー承認済みcarry-forwardのためtransition exact commitをbaseとする
 - product_source: docs/product/
-- next_candidate: TASK-006
+- next_candidate: TASK-007
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
@@ -23,7 +23,11 @@
 - historical_identity_TASK_011: historical declarationはcommit 89895a6c9188b5011766ef4b848822bfccb0c597／path docs/ai/handoffs/TASK-005/RELAY_HANDOFF.md／blob 0f60e90764e81d4e7b02efa62c8a8900305d025b／SHA-256 0143D33D69C56705FFA74B5E73265A4594681FA7E8440B743EF7658F6829731E／34723 bytesとしてhistory-onlyで保持
 - completion_evidence_TASK_011: PowerShell 7／5.1、21 source-binding checks、315 Vitest、69 take-home focused、68 NISA focused、168 portable、runtime requests 0、console errors 0、page errors 0をPASSし、src/**、tests/**、tools/test-portable-build.mjsはcarry-forward candidateと差分ゼロ
 - task_history_TASK_011: active TASK/handoff/report packetはrelease-handoff commit 51548c913cb83bd42b88f76abc294e8f4331d5beのGit履歴で保持し、git_only completion sync後のcurrent treeには残さない
-- next_requirements_TASK_006: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-006「iDeCoベータ」の対象年月別rule要件を定義する
+- completed_TASK_006: TASK-006 spec revision 1はimplementation review attempt 2／standard、findings 0でAPPROVEDとなり、release head 2655beee4d2d9970dff54a57e1935a44741c7a0b（tree 13c887a5c2e55d549992e85e3f28d79fc26a255b）をmainへfast-forward統合済み
+- completed_candidate_TASK_006: approved candidate 2d72860abfa342ee800b183ec5dbc8bb4be51c3b（tree fe16d3e402da524863c2a5fde7ce3b2da82dbd82）／workflow 31647525559、review handoff c1faac7f31df24a8957a531d393a6d3d2fe1546e（tree 6a8769ffc1d8d2dc3837535ca997281a0b1bb423）／workflow 31648422117、APPROVED release head workflow 31650601125、main integration workflow 31651737269はすべてSUCCESS
+- resolved_findings_TASK_006: FINDING-006-R1-01～03は解消済み。attempt 3とattempt 4は作成せず、tag、GitHub Release、distributionも行っていない
+- task_history_TASK_006: active TASK/handoff/report packetはrelease head 2655beee4d2d9970dff54a57e1935a44741c7a0bのGit履歴で保持し、git_only completion sync後のcurrent treeには残さない
+- next_requirements_TASK_007: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-007「統合サマリー」の正式要件を定義する
 - transition_artifact_TASK_011: project-user-decision-separate-task-transition-v1／BBB9C4FC832FF3BAB7A99D39EAB25E051C8CF01FE7727ED40370F110485E22C8／11691 bytes
 - implementation_gate: TASK、handoff、CURRENT_STATE、NEXT_ACTION、Progressを同じstateへ更新するまで製品実装を開始しない
 - write_capability: state transition前にrepository write accessを実測する
