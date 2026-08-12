@@ -2,8 +2,8 @@
 
 - task_id: TASK-006
 - spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- phase: implementation
+- status: changes_requested
 - branch: codex/task-006-ideco-beta
 - baseline_commit: b8f4c27544534c8ed00a92493307ac37ed7649d3
 - baseline_tree: 900ba8cff38ed6969f7bef8d79dacdfab05a67ca
@@ -54,12 +54,12 @@
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: none
-- review_findings_count: 0
-- review_finding_ids: none
+- review_result: changes_requested
+- review_findings_count: 3
+- review_finding_ids: FINDING-006-R1-01,FINDING-006-R1-02,FINDING-006-R1-03
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_final: false
 - implementation_review_terminated: false

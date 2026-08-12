@@ -1,19 +1,19 @@
 ---
 task_id: TASK-006
 title: iDeCoベータ
-status: review_requested
+status: changes_requested
 route: TWO_SESSION_FAST
 priority: normal
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
+current_phase: implementation
+current_role_id: IMPLEMENTER
+next_actor: Codex
+next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-006/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-006/RELAY_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -30,8 +30,8 @@ base_tree: 900ba8cff38ed6969f7bef8d79dacdfab05a67ca
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 review_stage: implementation
-changes_requested_cycles: 0
-implementation_review_attempt: 1
+changes_requested_cycles: 1
+implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
@@ -50,12 +50,13 @@ reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
 review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
+review_result: changes_requested
+review_findings_count: 3
+review_finding_ids: FINDING-006-R1-01,FINDING-006-R1-02,FINDING-006-R1-03
 actual_executor: ChatGPT
 provider_substitution: none
 
+shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 updated_at: 2026-08-13
 ---
 
