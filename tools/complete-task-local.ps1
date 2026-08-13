@@ -71,10 +71,10 @@ foreach ($line in (Invoke-Git $repository @('worktree', 'list', '--porcelain')))
 }
 if ($null -ne $current) { $records += [pscustomobject]$current }
 
-$mainBranchRecords = @($records | Where-Object { $_.Branch -eq 'refs/heads/main' })
+$mainBranchRecords = @($records | Where-Object { $_.Branch -ceq 'refs/heads/main' })
 if ($mainBranchRecords.Count -ne 1) { throw 'exactly one main branch worktree is required' }
 $mainRecord = $mainBranchRecords[0]
-if ((Split-Path -Leaf $mainRecord.Path) -ne 'Personal-Finance-Planner') {
+if ((Split-Path -Leaf $mainRecord.Path) -cne 'Personal-Finance-Planner') {
     throw 'main branch worktree must be named Personal-Finance-Planner'
 }
 $main = (Resolve-Path -LiteralPath $mainRecord.Path).Path

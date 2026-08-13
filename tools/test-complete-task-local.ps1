@@ -146,25 +146,38 @@ function Get-PreservationSnapshot {
         ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
         $paths += @($relativePaths | ForEach-Object { Join-Path $worktree ([string]$_) })
     }
-    $snapshot = @{}
+    $files = @{}
     $paths += @($Fixture.UserOwnedPaths)
     foreach ($path in @($paths | Select-Object -Unique)) {
-        $snapshot[$path] = if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $files[$path] = if (Test-Path -LiteralPath $path -PathType Leaf) {
             [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
         } else { $null }
     }
-    return $snapshot
+    return [ordered]@{
+        Files = $files
+        MainStatus = (@(Invoke-External git @('-C', $Fixture.Main, 'status', '--porcelain=v2', '--branch', '--untracked-files=all')) -join "`n")
+        MainHead = [string](@(Invoke-External git @('-C', $Fixture.Main, 'rev-parse', 'HEAD'))[0])
+        MainBranch = [string](@(Invoke-External git @('-C', $Fixture.Main, 'rev-parse', '--symbolic-full-name', 'HEAD'))[0])
+        TaskStatus = (@(Invoke-External git @('-C', $Fixture.Task, 'status', '--porcelain=v2', '--branch', '--untracked-files=all')) -join "`n")
+        TaskHead = [string](@(Invoke-External git @('-C', $Fixture.Task, 'rev-parse', 'HEAD'))[0])
+        TaskBranch = [string](@(Invoke-External git @('-C', $Fixture.Task, 'rev-parse', '--symbolic-full-name', 'HEAD'))[0])
+        WorktreeRecords = (@(Invoke-External git @('-C', $Fixture.Main, 'worktree', 'list', '--porcelain')) -join "`n")
+    }
 }
 
 function Assert-Preserved {
     param($Fixture, $Snapshot)
     if (-not (Test-Path -LiteralPath $Fixture.Main -PathType Container)) { throw 'main worktree was removed on failure' }
     if (-not (Test-Path -LiteralPath $Fixture.Task -PathType Container)) { throw 'TASK worktree was removed on failure' }
-    foreach ($path in $Snapshot.Keys) {
+    foreach ($path in $Snapshot.Files.Keys) {
         $actual = if (Test-Path -LiteralPath $path -PathType Leaf) {
             [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
         } else { $null }
-        if ($actual -cne $Snapshot[$path]) { throw "failure changed protected bytes: $path" }
+        if ($actual -cne $Snapshot.Files[$path]) { throw "failure changed protected bytes: $path" }
+    }
+    $actualState = Get-PreservationSnapshot $Fixture
+    foreach ($key in @('MainStatus', 'MainHead', 'MainBranch', 'TaskStatus', 'TaskHead', 'TaskBranch', 'WorktreeRecords')) {
+        if ([string]$actualState[$key] -cne [string]$Snapshot[$key]) { throw "failure changed protected worktree state: $key" }
     }
 }
 
@@ -207,12 +220,24 @@ try {
 
 $fixture = New-Fixture -MainName 'wrong-main-folder'
 try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture } 'wrong main folder' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture -MainName 'personal-finance-planner'
+try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture } 'wrong-case main folder' } finally { Remove-Fixture $fixture }
 
 $fixture = New-Fixture
 try {
     Publish-Completion $fixture
     Invoke-External git @('-C', $fixture.Main, 'checkout', '--detach') | Out-Null
     Expect-Failure $fixture { Invoke-Completion $fixture } 'missing main branch worktree'
+} finally { Remove-Fixture $fixture }
+
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    Invoke-External git @('-C', $fixture.Main, 'branch', '-m', 'main', 'main-case-transition') | Out-Null
+    Invoke-External git @('-C', $fixture.Main, 'branch', '-m', 'main-case-transition', 'Main') | Out-Null
+    $branch = [string](@(Invoke-External git @('-C', $fixture.Main, 'symbolic-ref', 'HEAD'))[0])
+    if ($branch -cne 'refs/heads/Main') { throw "wrong-case branch fixture is not exact: $branch" }
+    Expect-Failure $fixture { Invoke-Completion $fixture } 'wrong-case main branch ref'
 } finally { Remove-Fixture $fixture }
 
 $fixture = New-Fixture
@@ -232,6 +257,16 @@ try {
     Invoke-Completion $fixture | Out-Null
     Assert-ExcludedWorktreePreserved $fixture $excluded $snapshot
     $caseNames.Add('same-name non-main worktree excluded and preserved')
+} finally { Remove-Fixture $fixture }
+
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    $excluded = Add-ExcludedSameNameWorktree $fixture
+    $snapshot = Get-ExcludedWorktreeSnapshot $fixture $excluded
+    $env:PFP_TEST_CI_CONCLUSION = 'failure'
+    Expect-Failure $fixture { Invoke-Completion $fixture } 'same-name non-main worktree preserved on CI failure'
+    Assert-ExcludedWorktreePreserved $fixture $excluded $snapshot
 } finally { Remove-Fixture $fixture }
 
 $fixture = New-Fixture
@@ -264,6 +299,14 @@ $fixture = New-Fixture
 try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture -TaskPath $fixture.Main } 'main worktree removal' } finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
 try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture -RepositoryPath $fixture.Task } 'RepositoryPath mismatch' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    $excluded = Add-ExcludedSameNameWorktree $fixture
+    $snapshot = Get-ExcludedWorktreeSnapshot $fixture $excluded
+    Expect-Failure $fixture { Invoke-Completion $fixture -RepositoryPath $excluded.Path } 'RepositoryPath same-name non-main mismatch'
+    Assert-ExcludedWorktreePreserved $fixture $excluded $snapshot
+} finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
 try { Expect-Failure $fixture { Invoke-Completion $fixture } 'unreachable completion commit' } finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
@@ -323,11 +366,13 @@ try {
 } finally { Remove-Fixture $fixture }
 
 $expectedCases = @(
-    'production mandatory gates have no public bypass', 'unique main worktree', 'wrong main folder',
-    'missing main branch worktree', 'multiple main branch worktrees',
-    'same-name non-main worktree excluded and preserved', 'tracked dirty main', 'untracked main', 'tracked dirty TASK',
+    'production mandatory gates have no public bypass', 'unique main worktree', 'wrong main folder', 'wrong-case main folder',
+    'missing main branch worktree', 'wrong-case main branch ref', 'multiple main branch worktrees',
+    'same-name non-main worktree excluded and preserved', 'same-name non-main worktree preserved on CI failure',
+    'tracked dirty main', 'untracked main', 'tracked dirty TASK',
     'untracked TASK', 'unfinished MERGE_HEAD', 'unfinished CHERRY_PICK_HEAD', 'unfinished rebase',
-    'main worktree removal', 'RepositoryPath mismatch', 'unreachable completion commit', 'wrong TASK branch',
+    'main worktree removal', 'RepositoryPath mismatch', 'RepositoryPath same-name non-main mismatch',
+    'unreachable completion commit', 'wrong TASK branch',
     'TASK HEAD identity mismatch', 'non-fast-forward main',
     'exact CI wrong SHA', 'exact CI unsuccessful conclusion', 'exact CI wrong branch',
     'exact CI wrong event', 'exact CI wrong workflow', 'exact main push Governance CI success', 'launcher freshness failure',
