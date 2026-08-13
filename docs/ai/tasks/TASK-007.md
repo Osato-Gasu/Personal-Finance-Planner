@@ -1,23 +1,23 @@
 ---
 task_id: TASK-007
 title: 統合サマリー
-status: review_requested
+status: approved
 route: TWO_SESSION_FAST
 priority: normal
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
+current_phase: release
+current_role_id: IMPLEMENTER
+next_actor: Codex
+next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-007/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-007/RELEASE_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
+return_to: ChatGPT
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -30,7 +30,7 @@ base_tree: 4b7fda5d05c5c1ca43ee3a1576aaca83d75bb489
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 review_stage: implementation
-changes_requested_cycles: 1
+changes_requested_cycles: 0
 implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
