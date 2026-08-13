@@ -28,7 +28,7 @@ function New-TestCommands {
     New-Item -ItemType Directory -Path $bin | Out-Null
     Write-Utf8NoBom (Join-Path $bin 'gh.cmd') @'
 @echo off
-echo {"headSha":"%PFP_TEST_CI_SHA%","conclusion":"%PFP_TEST_CI_CONCLUSION%"}
+echo {"headSha":"%PFP_TEST_CI_SHA%","conclusion":"%PFP_TEST_CI_CONCLUSION%","headBranch":"%PFP_TEST_CI_BRANCH%","event":"%PFP_TEST_CI_EVENT%","name":"%PFP_TEST_CI_NAME%"}
 '@
     Write-Utf8NoBom (Join-Path $bin 'npm.cmd') @'
 @echo off
@@ -65,8 +65,24 @@ function New-Fixture {
     New-TestCommands $root
     $env:PFP_TEST_CI_SHA = $commit
     $env:PFP_TEST_CI_CONCLUSION = 'success'
+    $env:PFP_TEST_CI_BRANCH = 'main'
+    $env:PFP_TEST_CI_EVENT = 'push'
+    $env:PFP_TEST_CI_NAME = 'Governance CI'
     $env:PFP_TEST_NPM_FAIL_ON = ''
-    return [pscustomobject]@{ Root = $root; Main = $main; Remote = $remote; Task = $task; Commit = $commit; Branch = 'codex/task-008-fixture' }
+    return [pscustomobject]@{ Root = $root; Main = $main; Remote = $remote; Task = $task; Commit = $commit; Branch = 'codex/task-008-fixture'; UserOwnedPaths = @() }
+}
+
+function Add-IgnoredUserOwnedFiles {
+    param($Fixture)
+    $relativePath = 'ci-user-owned.bin'
+    $exclude = [string](@(Invoke-External git @('-C', $Fixture.Main, 'rev-parse', '--git-path', 'info/exclude'))[0])
+    if (-not [IO.Path]::IsPathRooted($exclude)) { $exclude = Join-Path $Fixture.Main $exclude }
+    [IO.File]::AppendAllText($exclude, "`n$relativePath`n", (New-Object Text.UTF8Encoding($false)))
+    $mainUserFile = Join-Path $Fixture.Main $relativePath
+    $taskUserFile = Join-Path $Fixture.Task $relativePath
+    Write-Utf8NoBom $mainUserFile 'main-user-owned-before-ci-failure'
+    Write-Utf8NoBom $taskUserFile 'task-user-owned-before-ci-failure'
+    $Fixture.UserOwnedPaths = @($mainUserFile, $taskUserFile)
 }
 
 function Publish-Completion {
@@ -93,7 +109,8 @@ function Get-PreservationSnapshot {
         $paths += @($relativePaths | ForEach-Object { Join-Path $worktree ([string]$_) })
     }
     $snapshot = @{}
-    foreach ($path in $paths) {
+    $paths += @($Fixture.UserOwnedPaths)
+    foreach ($path in @($paths | Select-Object -Unique)) {
         $snapshot[$path] = if (Test-Path -LiteralPath $path -PathType Leaf) {
             [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
         } else { $null }
@@ -128,6 +145,9 @@ function Remove-Fixture {
     $env:PATH = $originalPath
     $env:PFP_TEST_CI_SHA = $null
     $env:PFP_TEST_CI_CONCLUSION = $null
+    $env:PFP_TEST_CI_BRANCH = $null
+    $env:PFP_TEST_CI_EVENT = $null
+    $env:PFP_TEST_CI_NAME = $null
     $env:PFP_TEST_NPM_FAIL_ON = $null
     if (Test-Path -LiteralPath $Fixture.Root) { Remove-Item -LiteralPath $Fixture.Root -Recurse -Force }
 }
@@ -205,6 +225,19 @@ try { Publish-Completion $fixture; $env:PFP_TEST_CI_SHA = '000000000000000000000
 $fixture = New-Fixture
 try { Publish-Completion $fixture; $env:PFP_TEST_CI_CONCLUSION = 'failure'; Expect-Failure $fixture { Invoke-Completion $fixture } 'exact CI unsuccessful conclusion' } finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
+try { Publish-Completion $fixture; Add-IgnoredUserOwnedFiles $fixture; $env:PFP_TEST_CI_BRANCH = 'codex/task-008-fixture'; Expect-Failure $fixture { Invoke-Completion $fixture } 'exact CI wrong branch' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
+try { Publish-Completion $fixture; Add-IgnoredUserOwnedFiles $fixture; $env:PFP_TEST_CI_EVENT = 'pull_request'; Expect-Failure $fixture { Invoke-Completion $fixture } 'exact CI wrong event' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
+try { Publish-Completion $fixture; $env:PFP_TEST_CI_NAME = 'Other CI'; Expect-Failure $fixture { Invoke-Completion $fixture } 'exact CI wrong workflow' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    Invoke-Completion $fixture -WhatIf | Out-Null
+    if (-not (Test-Path -LiteralPath $fixture.Task)) { throw 'valid main push CI WhatIf removed the TASK worktree' }
+    $caseNames.Add('exact main push Governance CI success')
+} finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
 try { Publish-Completion $fixture; $env:PFP_TEST_NPM_FAIL_ON = 'verify:launcher'; Expect-Failure $fixture { Invoke-Completion $fixture } 'launcher freshness failure' } finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
 try { Publish-Completion $fixture; $env:PFP_TEST_NPM_FAIL_ON = 'test:portable'; Expect-Failure $fixture { Invoke-Completion $fixture } 'launcher portable failure' } finally { Remove-Fixture $fixture }
@@ -228,7 +261,8 @@ $expectedCases = @(
     'ambiguous named main worktree', 'tracked dirty main', 'untracked main', 'tracked dirty TASK',
     'untracked TASK', 'unfinished MERGE_HEAD', 'unfinished CHERRY_PICK_HEAD', 'unfinished rebase',
     'main worktree removal', 'unreachable completion commit', 'wrong TASK branch', 'non-fast-forward main',
-    'exact CI wrong SHA', 'exact CI unsuccessful conclusion', 'launcher freshness failure',
+    'exact CI wrong SHA', 'exact CI unsuccessful conclusion', 'exact CI wrong branch',
+    'exact CI wrong event', 'exact CI wrong workflow', 'exact main push Governance CI success', 'launcher freshness failure',
     'launcher portable failure', 'ff-only synchronization success', 'safe TASK worktree remove',
     'worktree prune result'
 )

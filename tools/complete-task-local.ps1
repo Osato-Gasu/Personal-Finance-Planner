@@ -102,13 +102,19 @@ $originMain = [string](@(Invoke-Git $main @('rev-parse', 'origin/main'))[0])
 $remoteUrl = [string](@(Invoke-Git $main @('remote', 'get-url', 'origin'))[0])
 $previousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$ciJson = & gh run view $WorkflowRunId --repo $remoteUrl --json headSha,conclusion 2>&1
+$ciJson = & gh run view $WorkflowRunId --repo $remoteUrl --json headSha,conclusion,headBranch,event,name 2>&1
 $ciExit = $LASTEXITCODE
 $ErrorActionPreference = $previousErrorActionPreference
 if ($ciExit -ne 0) { throw "GitHub Actions lookup failed: $ciJson" }
 $ci = ($ciJson | ConvertFrom-Json)
-if ($ci.headSha -cne $originMain -or $ci.conclusion -cne 'success') {
-    throw 'origin/main exact GitHub Actions run is not successful'
+if (
+    $ci.headSha -cne $originMain -or
+    $ci.conclusion -cne 'success' -or
+    $ci.headBranch -cne 'main' -or
+    $ci.event -cne 'push' -or
+    $ci.name -cne 'Governance CI'
+) {
+    throw 'origin/main exact Governance CI push run is not successful'
 }
 
 # Validate the exact origin/main source in an isolated generated clone so a gate failure
