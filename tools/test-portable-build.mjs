@@ -991,19 +991,43 @@ try {
     ],
     contributionSources: [],
   };
-  const installedLegacyBytes = await page.evaluate(
-    ({ legacyKey, state }) => {
-      for (const key of Object.keys(globalThis.localStorage)) {
-        if (key.startsWith("personal-finance-planner:state:v"))
-          globalThis.localStorage.removeItem(key);
-      }
-      globalThis.localStorage.setItem(legacyKey, JSON.stringify(state));
-      return globalThis.localStorage.getItem(legacyKey);
+  const legacyFixtureSessionKey =
+    "personal-finance-planner:test:legacy-fixture";
+  await page.evaluate(
+    ({ fixtureKey, legacyKey, state }) => {
+      globalThis.sessionStorage.setItem(
+        fixtureKey,
+        JSON.stringify({ legacyKey, state }),
+      );
     },
-    { legacyKey: legacyStorageKey, state: legacyState },
+    {
+      fixtureKey: legacyFixtureSessionKey,
+      legacyKey: legacyStorageKey,
+      state: legacyState,
+    },
   );
-  assert.equal(installedLegacyBytes, JSON.stringify(legacyState));
+  await page.addInitScript((fixtureKey) => {
+    const fixtureBytes = globalThis.sessionStorage.getItem(fixtureKey);
+    if (fixtureBytes === null) return;
+    const fixture = JSON.parse(fixtureBytes);
+    for (const key of Object.keys(globalThis.localStorage)) {
+      if (key.startsWith("personal-finance-planner:state:v"))
+        globalThis.localStorage.removeItem(key);
+    }
+    globalThis.localStorage.setItem(
+      fixture.legacyKey,
+      JSON.stringify(fixture.state),
+    );
+    globalThis.sessionStorage.removeItem(fixtureKey);
+  }, legacyFixtureSessionKey);
   await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      legacyStorageKey,
+    ),
+    JSON.stringify(legacyState),
+  );
   const legacySelfName = page.getByLabel("本人表示名");
   const legacyPartnerName = page.getByLabel("相手表示名");
   assert.equal(await legacySelfName.inputValue(), " 本人 ");
