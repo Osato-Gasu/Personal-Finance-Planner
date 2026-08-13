@@ -1,23 +1,23 @@
 ---
 task_id: TASK-012
 title: completion main worktree選択修正
-status: changes_requested
+status: review_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-012/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-012/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: false
 claude_design_review_recommendation: not_needed
 claude_implementation_review_recommendation: optional
@@ -36,7 +36,7 @@ implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
 attempt_4_forbidden: false
-implementation_candidate: 19054c64de2d09daee625e4e0489468ef5af5d97
+implementation_candidate: c70cfabee1c1909660e9ed242d93ecd953f4f709
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
@@ -45,7 +45,7 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: 19054c64de2d09daee625e4e0489468ef5af5d97
+reviewed_candidate: c70cfabee1c1909660e9ed242d93ecd953f4f709
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
