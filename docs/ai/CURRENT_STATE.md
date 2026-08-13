@@ -2,7 +2,7 @@
 updated_at: 2026-08-14
 active_tasks:
   - TASK-012
-next_action: ChatGPT performs TASK-012 implementation review attempt 2 with the standard profile
+next_action: Codex processes APPROVED relay for TASK-012
 ---
 
 # Current state
