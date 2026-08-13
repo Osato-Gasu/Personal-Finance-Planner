@@ -7,7 +7,7 @@
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011はユーザー承認済みcarry-forwardのためtransition exact commitをbaseとする
 - product_source: docs/product/
-- next_candidate: TASK-007
+- next_candidate: TASK-008
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
@@ -27,7 +27,12 @@
 - completed_candidate_TASK_006: approved candidate 2d72860abfa342ee800b183ec5dbc8bb4be51c3b（tree fe16d3e402da524863c2a5fde7ce3b2da82dbd82）／workflow 31647525559、review handoff c1faac7f31df24a8957a531d393a6d3d2fe1546e（tree 6a8769ffc1d8d2dc3837535ca997281a0b1bb423）／workflow 31648422117、APPROVED release head workflow 31650601125、main integration workflow 31651737269はすべてSUCCESS
 - resolved_findings_TASK_006: FINDING-006-R1-01～03は解消済み。attempt 3とattempt 4は作成せず、tag、GitHub Release、distributionも行っていない
 - task_history_TASK_006: active TASK/handoff/report packetはrelease head 2655beee4d2d9970dff54a57e1935a44741c7a0bのGit履歴で保持し、git_only completion sync後のcurrent treeには残さない
-- next_requirements_TASK_007: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-007「統合サマリー」の正式要件を定義する
+- completed_TASK_007: TASK-007 spec revision 1はimplementation review attempt 2／standard、findings 0でAPPROVEDとなり、release head 398f0dae73a12050fa2781445aab8a793c758137（tree 24ef70353b5491b4fb57b7b716c20348c0ff5667）をmainへfast-forward統合済み
+- completed_candidate_TASK_007: approved candidate 5df7eb8ff64a212e70d0982c83d664d7b979a5ae（tree 0112d447cf98a28ace8d976afd4315c351d8a8b6）／workflow 31686352635、review handoff 9137ccc4cf95a0b2e4a81e2f066460f754a0adeb／workflow 31686923314、release head workflow 31688961835、main integration workflow 31692284846はすべてSUCCESS
+- resolved_findings_TASK_007: FINDING-007-R1-01、FINDING-007-R1-02、FINDING-007-R1-03は解消済み。attempt 3とattempt 4は作成せず、tag、GitHub Release、distributionも行っていない
+- completion_evidence_TASK_007: PowerShell 7／5.1 governance、429 Vitest、69 take-home focused、68 NISA focused、86 iDeCo focused、28 overview focused、262 portable checks、runtime requests 0、console errors 0、page errors 0をPASSし、candidate以後の製品source／test差分は0件
+- task_history_TASK_007: active TASK/handoff/report packetはrelease head 398f0dae73a12050fa2781445aab8a793c758137のGit履歴で完全に追跡可能で、git_only completion sync後のcurrent treeには残さない
+- next_requirements_TASK_008: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-008「データ保全・UX完成」の正式要件を定義し、TASK-003から引き継いだschema v1改行表示名の保存互換性問題を要件・受入条件へ保持する
 - transition_artifact_TASK_011: project-user-decision-separate-task-transition-v1／BBB9C4FC832FF3BAB7A99D39EAB25E051C8CF01FE7727ED40370F110485E22C8／11691 bytes
 - implementation_gate: TASK、handoff、CURRENT_STATE、NEXT_ACTION、Progressを同じstateへ更新するまで製品実装を開始しない
 - write_capability: state transition前にrepository write accessを実測する

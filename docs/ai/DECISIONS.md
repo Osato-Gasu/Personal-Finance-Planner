@@ -84,3 +84,10 @@
 - APPROVED release head `2655beee4d2d9970dff54a57e1935a44741c7a0b` (tree `13c887a5c2e55d549992e85e3f28d79fc26a255b`) and workflow `31650601125` succeeded. Main was fast-forwarded from `b8f4c27544534c8ed00a92493307ac37ed7649d3` to that exact release head, and main integration workflow `31651737269` succeeded.
 - `FINDING-006-R1-01`, `FINDING-006-R1-02`, and `FINDING-006-R1-03` are resolved. The approved implementation remains traceable through the candidate, review handoff, and release-head identities above.
 - TASK-006 active TASK/handoff/report artifacts remain traceable at release head `2655beee4d2d9970dff54a57e1935a44741c7a0b`; canonical `git_only` completion sync removes them from the current tree. No tag, GitHub Release, or distribution was created.
+
+## GOV-012 TASK-007 approval, main integration, and completion
+
+- TASK-007 spec revision 1 implementation candidate `5df7eb8ff64a212e70d0982c83d664d7b979a5ae` (tree `0112d447cf98a28ace8d976afd4315c351d8a8b6`) was approved in implementation review attempt 2／standard with 0 findings. Candidate workflow `31686352635` and review-handoff workflow `31686923314` succeeded; attempts 3 and 4 were not created.
+- APPROVED release head `398f0dae73a12050fa2781445aab8a793c758137` (tree `24ef70353b5491b4fb57b7b716c20348c0ff5667`) and workflow `31688961835` succeeded. Main was fast-forwarded from `02e223ad04574ee7a8772eaf7a9833f80935f3a8` to that exact release head, and main integration exact workflow `31692284846` succeeded.
+- `FINDING-007-R1-01`, `FINDING-007-R1-02`, and `FINDING-007-R1-03` are resolved. Candidate以後の製品source／test差分は0件で、approved implementationはcandidate、review handoff、release-head identitiesから追跡できる。
+- TASK-007 active TASK/handoff/report artifacts are removed from the current tree by canonical `git_only` completion sync and remain fully auditable at release head `398f0dae73a12050fa2781445aab8a793c758137`. No tag, GitHub Release, or distribution was created.
