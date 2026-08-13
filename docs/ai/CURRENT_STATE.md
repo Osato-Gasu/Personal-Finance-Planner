@@ -2,7 +2,7 @@
 updated_at: 2026-08-14
 active_tasks:
   - TASK-008
-next_action: ChatGPT performs TASK-008 implementation review attempt 2 with the standard profile
+next_action: USER decides NEEDS_USER_DECISION relay for TASK-008
 ---
 
 # Current state

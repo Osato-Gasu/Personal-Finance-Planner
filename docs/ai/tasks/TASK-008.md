@@ -1,23 +1,23 @@
 ---
 task_id: TASK-008
 title: データ保全・UX完成
-status: review_requested
+status: needs_user_decision
 route: TWO_SESSION_FAST
 priority: normal
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
-assigned_model: 5.6 Sol
-assigned_effort: high
+current_phase: user_decision
+current_role_id: USER
+next_actor: USER
+next_role: USER
+assigned_model: none
+assigned_effort: none
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-008/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-008/USER_DECISION_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
+return_to: ChatGPT
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -30,7 +30,7 @@ base_tree: cf40250e338056abdb486408a32c7fda560d2039
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: FC4483E4705C32908B72BA1E23F23E1F76FC31AD52F0527C41663852E58264DF
 review_stage: implementation
-changes_requested_cycles: 1
+changes_requested_cycles: 2
 implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
