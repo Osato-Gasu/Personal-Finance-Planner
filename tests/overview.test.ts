@@ -248,6 +248,84 @@ describe("integrated overview selector", () => {
     ).toBe(0);
   });
 
+  it("distinguishes iDeCo before-start, start, target, and after-end months", () => {
+    const cases = [
+      {
+        name: "before-start",
+        reference: "2026-07-01",
+        start: "2026-08",
+        target: "2026-12",
+        amount: 0,
+        status: "not-configured",
+        householdIdeco: 0,
+      },
+      {
+        name: "start",
+        reference: "2026-08-13",
+        start: "2026-08",
+        target: "2026-12",
+        amount: 10_000,
+        status: "complete",
+        householdIdeco: 10_000,
+      },
+      {
+        name: "target",
+        reference: "2026-08-13",
+        start: "2026-08",
+        target: "2026-08",
+        amount: 10_000,
+        status: "complete",
+        householdIdeco: 10_000,
+      },
+      {
+        name: "after-end",
+        reference: "2026-08-13",
+        start: "2026-07",
+        target: "2026-07",
+        amount: 0,
+        status: "not-configured",
+        householdIdeco: 0,
+      },
+    ] as const;
+
+    for (const item of cases) {
+      const state = completeState();
+      const plan = required(state.idecoPlans[0], "iDeCo plan is missing");
+      plan.startMonth = item.start;
+      plan.projectionTarget = { type: "month", month: item.target };
+      plan.taxContributionSnapshots = [];
+      const result = selectOverview(state, item.reference);
+      const member = required(
+        result.members[0],
+        `${item.name} overview member is missing`,
+      );
+      expect(member.ideco.currentMonthContributionYen, item.name).toBe(
+        item.amount,
+      );
+      expect(member.ideco.status, item.name).toBe(item.status);
+      expect(result.household.idecoContributionYen, item.name).toBe(
+        item.householdIdeco,
+      );
+      expect(result.household.investmentContributionYen, item.name).toBe(
+        (result.household.nisaContributionYen ?? 0) + item.householdIdeco,
+      );
+      const periodWarning = result.warnings.find(
+        (entry) =>
+          entry.domain === "ideco" &&
+          entry.sourceId === plan.id &&
+          entry.code === "not-configured",
+      );
+      if (item.status === "not-configured") {
+        expect(periodWarning, item.name).toMatchObject({
+          category: "blocking",
+          memberId: "member-self",
+        });
+      } else {
+        expect(periodWarning, item.name).toBeUndefined();
+      }
+    }
+  });
+
   it("excludes an inactive partner and preserves the input state bytes", () => {
     const state = completeState();
     state.members[1] = {
@@ -414,6 +492,131 @@ describe("integrated overview selector", () => {
     expect(member.ideco).toMatchObject({
       status: "incomplete",
       currentMonthContributionYen: 10_000,
+    });
+  });
+
+  it("propagates iDeCo context, missing-rule, and out-of-range statuses", () => {
+    const contextState = completeState();
+    required(
+      contextState.idecoPlans[0],
+      "iDeCo plan is missing",
+    ).participantCategoryConfirmed = false;
+    expect(
+      selectOverview(contextState, referenceDate).members[0]?.ideco,
+    ).toMatchObject({
+      status: "incomplete",
+      currentMonthContributionYen: 10_000,
+    });
+
+    const missingRuleState = completeState();
+    const missingRulePlan = required(
+      missingRuleState.idecoPlans[0],
+      "iDeCo plan is missing",
+    );
+    missingRulePlan.startMonth = "2024-11";
+    missingRulePlan.projectionTarget = { type: "month", month: "2024-11" };
+    expect(
+      selectOverview(missingRuleState, "2024-11-01").members[0]?.ideco,
+    ).toMatchObject({
+      status: "missing-rule",
+      currentMonthContributionYen: 10_000,
+    });
+
+    const outOfRangeState = completeState();
+    required(
+      outOfRangeState.investmentScenarios[0],
+      "investment scenario is missing",
+    ).annualReturnBasisPoints = Number.MAX_SAFE_INTEGER;
+    required(
+      outOfRangeState.idecoPlans[0],
+      "iDeCo plan is missing",
+    ).currentBalanceYen = Number.MAX_SAFE_INTEGER;
+    expect(
+      selectOverview(outOfRangeState, referenceDate).members[0]?.ideco,
+    ).toMatchObject({
+      status: "out-of-range",
+      currentMonthContributionYen: 10_000,
+    });
+  });
+
+  it("propagates NISA missing-rule and out-of-range statuses", () => {
+    const missingRuleState = completeState();
+    const missingRulePlan = required(
+      missingRuleState.nisaPlans[0],
+      "NISA plan is missing",
+    );
+    missingRulePlan.startMonth = "2023-01";
+    missingRulePlan.targetMonth = "2023-12";
+    missingRulePlan.additionalPurchases = [];
+    expect(
+      selectOverview(missingRuleState, "2023-08-01").members[0]?.nisa,
+    ).toMatchObject({
+      status: "missing-rule",
+      currentMonthContributionYen: 15_000,
+    });
+
+    const outOfRangeState = completeState();
+    required(
+      outOfRangeState.investmentScenarios[0],
+      "investment scenario is missing",
+    ).annualReturnBasisPoints = Number.MAX_SAFE_INTEGER;
+    required(
+      outOfRangeState.nisaPlans[0],
+      "NISA plan is missing",
+    ).currentBalanceYen = Number.MAX_SAFE_INTEGER;
+    expect(
+      selectOverview(outOfRangeState, referenceDate).members[0]?.nisa,
+    ).toMatchObject({
+      status: "out-of-range",
+      currentMonthContributionYen: 17_000,
+    });
+  });
+
+  it("preserves negative NISA and iDeCo projected gains", () => {
+    const state = completeState();
+    required(
+      state.investmentScenarios[0],
+      "investment scenario is missing",
+    ).annualReturnBasisPoints = -10_000;
+    required(state.idecoPlans[0], "iDeCo plan is missing").monthlyFeeYen =
+      100_000;
+    const member = required(
+      selectOverview(state, referenceDate).members[0],
+      "overview member is missing",
+    );
+    expect(member.nisa.projectedGainYen).toBeLessThan(0);
+    expect(member.ideco.projectedGainYen).toBeLessThan(0);
+    expect(member.projectedGainYen).toBe(
+      (member.nisa.projectedGainYen ?? 0) +
+        (member.ideco.projectedGainYen ?? 0),
+    );
+  });
+
+  it("keeps household NISA, iDeCo, and combined contributions separate", () => {
+    const empty = selectOverview(createInitialState(), referenceDate);
+    expect(empty.household).toMatchObject({
+      nisaContributionYen: 0,
+      idecoContributionYen: 0,
+      investmentContributionYen: 0,
+    });
+
+    const complete = selectOverview(completeState(), referenceDate);
+    expect(complete.household).toMatchObject({
+      nisaContributionYen: 17_000,
+      idecoContributionYen: 10_000,
+      investmentContributionYen: 27_000,
+    });
+
+    const partialState = completeState();
+    required(
+      partialState.nisaPlans[0],
+      "NISA plan is missing",
+    ).monthlyGrowthYen = null;
+    const partial = selectOverview(partialState, referenceDate);
+    expect(partial.household).toMatchObject({
+      nisaContributionYen: null,
+      idecoContributionYen: 10_000,
+      investmentContributionYen: null,
     });
   });
 

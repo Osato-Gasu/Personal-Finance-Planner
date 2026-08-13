@@ -123,6 +123,8 @@ function renderOverview(
     card(document, "月間手取り", result.household.takeHomeMonthlyYen),
     card(document, "月間生活費", result.household.livingExpenseMonthlyYen),
     card(document, "生活費差引後", result.household.afterLivingExpenseYen),
+    card(document, "月間NISA拠出", result.household.nisaContributionYen),
+    card(document, "月間iDeCo掛金", result.household.idecoContributionYen),
     card(document, "月間投資額", result.household.investmentContributionYen),
     card(document, "投資差引後", result.household.afterInvestmentYen),
     card(document, "想定元本", result.household.projectedPrincipalYen),

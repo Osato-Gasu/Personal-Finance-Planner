@@ -1,5 +1,5 @@
 import { tryCalculateBudgetSummary } from "./budget";
-import { calculateIdecoPlan, type IdecoResultStatus } from "./ideco";
+import { calculateIdecoPlan } from "./ideco";
 import {
   calculateNisaPlan,
   type InvestmentScenario,
@@ -265,12 +265,18 @@ function currentIdecoContribution(
   plan: Readonly<AppState["idecoPlans"][number]>,
   member: Readonly<HouseholdMember>,
   referenceMonth: string,
-): number | null {
-  if (plan.annualUnitContributionActive !== false) return null;
+): {
+  amountYen: number | null;
+  period: "in-period" | "before-start" | "after-end" | "unresolved";
+} {
+  if (plan.annualUnitContributionActive !== false)
+    return { amountYen: null, period: "unresolved" };
   const target = idecoTargetMonth(plan, member);
-  if (target === null) return null;
-  if (referenceMonth < plan.startMonth || referenceMonth > target) return 0;
-  return plan.monthlyContributionYen;
+  if (target === null) return { amountYen: null, period: "unresolved" };
+  if (referenceMonth < plan.startMonth)
+    return { amountYen: 0, period: "before-start" };
+  if (referenceMonth > target) return { amountYen: 0, period: "after-end" };
+  return { amountYen: plan.monthlyContributionYen, period: "in-period" };
 }
 
 function statusWarningText(
@@ -515,15 +521,24 @@ function overviewForMember(
       member,
       { referenceDate, taxYear: referenceYear },
     );
-    const amount = currentIdecoContribution(plan, member, referenceMonth);
-    const status: IdecoResultStatus =
-      amount === null && result.status === "complete"
-        ? "out-of-range"
-        : result.status;
+    const currentContribution = currentIdecoContribution(
+      plan,
+      member,
+      referenceMonth,
+    );
+    const status: OverviewStatus =
+      result.status !== "complete"
+        ? result.status
+        : currentContribution.period === "before-start" ||
+            currentContribution.period === "after-end"
+          ? "not-configured"
+          : currentContribution.amountYen === null
+            ? "out-of-range"
+            : "complete";
     ideco = {
       sourceId: plan.id,
       status,
-      currentMonthContributionYen: amount,
+      currentMonthContributionYen: currentContribution.amountYen,
       projectedPrincipalYen: result.projectedPrincipalYen,
       projectedBalanceYen: result.projectedBalanceYen,
       projectedGainYen: result.projectedGainYen,

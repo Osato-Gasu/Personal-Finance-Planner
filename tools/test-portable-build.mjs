@@ -901,6 +901,8 @@ try {
   await page.getByRole("heading", { name: "警告・前提" }).waitFor();
   await page.getByRole("heading", { name: "適用ルールと根拠" }).waitFor();
   await assertContains(page.getByTestId("overview-household"), "月間生活費");
+  await assertContains(page.getByTestId("overview-household"), "月間NISA拠出");
+  await assertContains(page.getByTestId("overview-household"), "月間iDeCo掛金");
   await assertContains(page.getByTestId("overview-household"), "月間投資額");
   await assertContains(page.getByTestId("overview-household"), "投資差引後");
   await assertContains(page.locator("table.overview-table").first(), "本人");
@@ -938,6 +940,138 @@ try {
     ),
     overviewBytesBeforeReload,
   );
+
+  const periodCases = [
+    {
+      name: "before-start",
+      startMonth: "2026-09",
+      targetMonth: "2026-12",
+      expectedStatus: "iDeCo 未設定",
+      expectedAmount: "0円",
+    },
+    {
+      name: "start",
+      startMonth: "2026-08",
+      targetMonth: "2026-12",
+      expectedStatus: "iDeCo 計算済み",
+      expectedAmount: null,
+    },
+    {
+      name: "target",
+      startMonth: "2026-08",
+      targetMonth: "2026-08",
+      expectedStatus: "iDeCo 計算済み",
+      expectedAmount: null,
+    },
+    {
+      name: "after-end",
+      startMonth: "2026-07",
+      targetMonth: "2026-07",
+      expectedStatus: "iDeCo 未設定",
+      expectedAmount: "0円",
+    },
+  ];
+  for (const periodCase of periodCases) {
+    const periodBytes = await page.evaluate(
+      ({ key, startMonth, targetMonth }) => {
+        const bytes = globalThis.localStorage.getItem(key);
+        if (bytes === null) throw new Error("overview state is missing");
+        const state = JSON.parse(bytes);
+        const plan = state.idecoPlans.find(
+          (candidate) =>
+            candidate.memberId === "member-self" && candidate.active,
+        );
+        if (!plan) throw new Error("active self iDeCo plan is missing");
+        plan.startMonth = startMonth;
+        plan.projectionTarget = { type: "month", month: targetMonth };
+        plan.taxContributionSnapshots = [];
+        const updated = JSON.stringify(state);
+        globalThis.localStorage.setItem(key, updated);
+        return updated;
+      },
+      {
+        key: storageKey,
+        startMonth: periodCase.startMonth,
+        targetMonth: periodCase.targetMonth,
+      },
+    );
+    await page.reload({ waitUntil: "load" });
+    await page.getByRole("heading", { name: "世帯サマリー" }).waitFor();
+    await assertContains(
+      page.getByRole("heading", { name: "人物別の計算状態" }).locator(".."),
+      periodCase.expectedStatus,
+    );
+    const idecoCard = page.locator("article.summary-card").filter({
+      has: page.getByRole("heading", { name: "月間iDeCo掛金" }),
+    });
+    if (periodCase.expectedAmount === null) {
+      assert.notEqual(await idecoCard.locator("strong").innerText(), "0円");
+    } else {
+      assert.equal(
+        await idecoCard.locator("strong").innerText(),
+        periodCase.expectedAmount,
+      );
+      await assertContains(
+        page.getByTestId("overview-warnings"),
+        "iDeCoの状態はnot-configuredです。",
+      );
+    }
+    assert.equal(
+      await page.evaluate(
+        (key) => globalThis.localStorage.getItem(key),
+        storageKey,
+      ),
+      periodBytes,
+      `${periodCase.name} overview changed persisted bytes`,
+    );
+  }
+
+  const maliciousName = '<img src=x onerror="globalThis.__overviewXss=1">';
+  const maliciousBytes = await page.evaluate(
+    ({ key, displayName }) => {
+      const bytes = globalThis.localStorage.getItem(key);
+      if (bytes === null) throw new Error("overview state is missing");
+      const state = JSON.parse(bytes);
+      const self = state.members.find((member) => member.role === "self");
+      if (!self) throw new Error("self member is missing");
+      self.displayName = displayName;
+      state.budget.mode = "simple";
+      state.budget.simpleMonthlyExpenseYen = 9_000_000;
+      const updated = JSON.stringify(state);
+      globalThis.localStorage.setItem(key, updated);
+      return updated;
+    },
+    { key: storageKey, displayName: maliciousName },
+  );
+  await page.reload({ waitUntil: "load" });
+  await page.getByRole("heading", { name: "人物別サマリー" }).waitFor();
+  const maliciousRow = page
+    .locator("table.overview-table")
+    .first()
+    .locator("tr", {
+      hasText: maliciousName,
+    });
+  await maliciousRow.getByText(maliciousName, { exact: true }).waitFor();
+  assert.equal(await page.locator("main img").count(), 0);
+  assert.equal(await page.evaluate(() => globalThis.__overviewXss), undefined);
+  assert.match(
+    await maliciousRow.locator('td[data-label="投資差引後"]').innerText(),
+    /^-/u,
+  );
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    maliciousBytes,
+  );
+
+  await page.evaluate(
+    ({ key, bytes }) => globalThis.localStorage.setItem(key, bytes),
+    { key: storageKey, bytes: overviewBytesBeforeReload },
+  );
+  await page.reload({ waitUntil: "load" });
+  await page.getByRole("heading", { name: "世帯サマリー" }).waitFor();
   await page.setViewportSize({ width: 360, height: 800 });
   assert.equal(
     await page.evaluate(
@@ -1097,7 +1231,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=236, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=262, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();
