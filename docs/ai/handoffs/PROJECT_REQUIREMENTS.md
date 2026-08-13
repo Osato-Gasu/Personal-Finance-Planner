@@ -7,7 +7,7 @@
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011はユーザー承認済みcarry-forwardのためtransition exact commitをbaseとする
 - product_source: docs/product/
-- next_candidate: TASK-008
+- next_candidate: TASK-012
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
@@ -43,6 +43,9 @@
 - active_requirements_TASK_008: TASK-008 spec revision 1はexact baseline c3cf916048d59867e016b2979e6d0875fb563c82から開始し、schema v1 CR/LF/CRLF表示名保存互換性、lossless migration、atomic backup/import、settings UX、root launcher、local main同期、worktree安全cleanupを必須・非緩和要件として保持する
 - completion_flow: remote main統合だけで完了とせず、origin/main exact CI、cleanな常設mainのfetch+ff-only同期、root launcher freshness/portable smoke、完成commit reachability、cleanなTASK worktreeの安全remove/prune、git_only completion syncまでを恒久条件とする
 - completion_blocked_conditions: dirty/untracked/ambiguous worktree、non-fast-forward、unreachable commit、CIまたはlauncher gate失敗では破壊的回避を行わずBLOCKEDとする
+- approved_predecessor_TASK_008: TASK-008 attempt 3／relaxed／finalはAPPROVED。release head 74b6f47b2e11dfe622f956de2fb3ba2640413552／tree 0ea6a788d90c5d66d68e1d15981b033399866cfcをorigin/mainへFF統合済みで、Governance CI 31734131847 attempt 2はmain／push／SUCCESS
+- deferred_local_completion_TASK_008: TASK-008 local completion toolはTASK-012で実行せず、C:\Users\owner\Development\personal\Personal-Finance-Planner-task-008 worktreeを変更・削除しない
+- next_requirements_TASK_012: completion toolのmain選択をbranch refs/heads/mainのexactly one recordへ限定し、別branchの同名worktreeをclean／untracked／unfinished operation／同期／変更／削除／pruneの対象から除外する
 
 ## TASK-011 requirements draft (lossless user-decision carry-forward)
 

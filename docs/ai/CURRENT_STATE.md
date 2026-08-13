@@ -1,10 +1,9 @@
 ---
 updated_at: 2026-08-14
-active_tasks:
-  - TASK-008
-next_action: Codex processes APPROVED relay for TASK-008
+active_tasks: []
+next_action: ChatGPT defines formal TASK-012 requirements for completion main worktree selection
 ---
 
 # Current state
 
-TASK-008 FINDING-008-R2-01を非緩和で修正したimplementation candidateは`d1a8fcb19a3ee6cb1b3832d7494cd412c8e81697`（tree `913849ae303c9d03bd0fff0cb69a8e63513627df`）、exact workflow `31728513797` SUCCESS。changes_requested_cycles=2、implementation_review_attempt=3、profile=relaxed、final=true、terminated=falseでChatGPTへ最終reviewを依頼する。attempt 3不合格後はレビューを打ち切り、attempt 4は禁止する。
+TASK-008 attempt 3／relaxed／finalはAPPROVEDとなり、release head `74b6f47b2e11dfe622f956de2fb3ba2640413552`（tree `0ea6a788d90c5d66d68e1d15981b033399866cfc`）をorigin/mainへfast-forward統合済み、exact Governance CI `31734131847` attempt 2はSUCCESSである。TASK-008 packetはgit_only履歴へ移すが、TASK-008 local completion toolは実行せず、worktreeを変更・削除しない。ユーザー承認済みの独立TASK-012をreadyにし、別branchの同名user-owned worktreeをmain選択から除外する正式要件を定義する。
