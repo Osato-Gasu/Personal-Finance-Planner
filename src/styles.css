@@ -55,6 +55,7 @@ section + section {
 
 button,
 input,
+textarea,
 select {
   font: inherit;
 }
@@ -74,6 +75,7 @@ label {
 }
 
 input,
+textarea,
 select {
   border: 1px solid #8c959f;
   border-radius: 0.35rem;
@@ -81,6 +83,10 @@ select {
   min-height: 2.75rem;
   padding: 0.55rem;
   width: 100%;
+}
+
+textarea {
+  resize: vertical;
 }
 
 input[readonly] {

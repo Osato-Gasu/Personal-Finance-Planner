@@ -1179,7 +1179,12 @@ try {
     schemaVersion: 1,
     activeRoute: "budget",
     members: [
-      { id: "legacy-self", role: "self", displayName: " 本人 ", active: true },
+      {
+        id: "legacy-self",
+        role: "self",
+        displayName: "本人\r\n旧版",
+        active: true,
+      },
       {
         id: "legacy-partner",
         role: "partner",
@@ -1246,8 +1251,10 @@ try {
   );
   const legacySelfName = page.getByLabel("本人表示名");
   const legacyPartnerName = page.getByLabel("相手表示名");
-  assert.equal(await legacySelfName.inputValue(), " 本人 ");
+  assert.equal(await legacySelfName.inputValue(), String.raw`本人\r\n旧版`);
   assert.equal(await legacyPartnerName.inputValue(), legacyLongName);
+  await legacySelfName.fill(String.raw`本人\r\n旧版更新`);
+  await legacyPartnerName.fill(`${legacyLongName}更新`);
   await page.getByLabel("本人の月間手取り").fill("345678");
   await page.getByLabel("本人の既定負担割合（%）").fill("64");
   await page.getByLabel("同棲モード").uncheck();
@@ -1257,18 +1264,95 @@ try {
     if (!bytes) throw new Error("migrated v4 state is missing");
     return JSON.parse(bytes).members.map((member) => member.displayName);
   }, storageKey);
-  assert.deepEqual(legacyNamesAfterSave, [" 本人 ", legacyLongName]);
+  assert.deepEqual(legacyNamesAfterSave, [
+    "本人\r\n旧版更新",
+    `${legacyLongName}更新`,
+  ]);
   await page.reload({ waitUntil: "load" });
-  assert.equal(await page.getByLabel("本人表示名").inputValue(), " 本人 ");
+  assert.equal(
+    await page.getByLabel("本人表示名").inputValue(),
+    String.raw`本人\r\n旧版更新`,
+  );
   assert.equal(
     await page.getByLabel("相手表示名").inputValue(),
-    legacyLongName,
+    `${legacyLongName}更新`,
   );
+  const beforeInvalidBudgetNameEdit = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  await page.getByLabel("本人表示名").fill(" \n ");
+  await page.getByRole("button", { name: "世帯設定を保存" }).click();
+  assert.match(await page.getByRole("alert").innerText(), /self name/);
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    beforeInvalidBudgetNameEdit,
+  );
+  await page.getByRole("link", { name: "設定" }).click();
+  await page.waitForURL(`${standaloneUrl}#/settings`);
+  const settingsSelfName = page.getByLabel("本人の表示名");
+  const settingsPartnerName = page.getByLabel("相手の表示名");
+  assert.equal(
+    settingsSelfName ? await settingsSelfName.inputValue() : "",
+    String.raw`本人\r\n旧版更新`,
+  );
+  await settingsSelfName.fill(String.raw` 本人\n設定更新 `);
+  await settingsSelfName
+    .locator("xpath=ancestor::form")
+    .getByRole("button", { name: "表示名を保存" })
+    .click();
+  await settingsPartnerName.fill(`${legacyLongName}${String.raw`\r`}更新`);
+  await settingsPartnerName
+    .locator("xpath=ancestor::form")
+    .getByRole("button", { name: "表示名を保存" })
+    .click();
+  const explicitLegacyNames = await page.evaluate((key) => {
+    const bytes = globalThis.localStorage.getItem(key);
+    if (!bytes) throw new Error("edited v6 state is missing");
+    return JSON.parse(bytes).members.map((member) => member.displayName);
+  }, storageKey);
+  assert.deepEqual(explicitLegacyNames, [
+    " 本人\n設定更新 ",
+    `${legacyLongName}\r更新`,
+  ]);
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page.getByLabel("本人の表示名").inputValue(),
+    String.raw` 本人\n設定更新 `,
+  );
+  assert.equal(
+    await page.getByLabel("相手の表示名").inputValue(),
+    `${legacyLongName}${String.raw`\r`}更新`,
+  );
+  const beforeInvalidDisplayNameEdit = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  await page.getByLabel("本人の表示名").fill(" \n ");
+  await page
+    .getByLabel("本人の表示名")
+    .locator("xpath=ancestor::form")
+    .getByRole("button", { name: "表示名を保存" })
+    .click();
+  assert.match(await page.getByRole("alert").innerText(), /displayName/);
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    beforeInvalidDisplayNameEdit,
+  );
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.waitForURL(`${standaloneUrl}#/budget`);
 
   const overflowBytes = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
     if (!bytes) throw new Error("v4 state is missing");
     const state = JSON.parse(bytes);
+    state.activeRoute = "budget";
     const source = state.budget.items[0];
     state.budget.items = [
       { ...source, amountYen: Number.MAX_SAFE_INTEGER },
@@ -1313,7 +1397,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=276, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=284, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

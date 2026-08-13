@@ -430,6 +430,37 @@ describe("versioned repository migration and active link integrity", () => {
     ).toBe("本人更新");
   });
 
+  it.each([
+    ["CR", "本人\r旧版"],
+    ["LF", "本人\n旧版"],
+    ["CRLF", "本人\r\n旧版"],
+    ["surrounding whitespace", " 本人 "],
+    ["more than 50 characters", "長".repeat(51)],
+  ])(
+    "persists an explicit %s legacy-name edit exactly",
+    (_label, legacyName) => {
+      const migrated = migrateToCurrentState(createLegacyFixtureState());
+      const self = required(
+        migrated.members.find((member) => member.role === "self"),
+        "self",
+      );
+      self.displayName = legacyName;
+      const submitted = `${legacyName}更新`;
+      const store = new Store(migrated);
+      store.dispatch({
+        type: "update-household",
+        selfName: submitted,
+        partnerName: "相手",
+        partnerActive: true,
+        globalSelfShareBasisPoints: 5000,
+      });
+      expect(
+        store.getState().members.find((member) => member.role === "self")
+          ?.displayName,
+      ).toBe(submitted);
+    },
+  );
+
   it("rejects an invalid intentional legacy-name change without effects", () => {
     const storage = new ByteStorage();
     const migrated = migrateToCurrentState(createLegacyFixtureState());

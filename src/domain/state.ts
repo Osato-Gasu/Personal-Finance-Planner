@@ -416,6 +416,19 @@ function assertPersistedDisplayName(value: unknown): asserts value is string {
   }
 }
 
+function assertEditableDisplayName(
+  value: unknown,
+  field: string,
+): asserts value is string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.trim().length === 0
+  ) {
+    throw new Error(`${field} must contain a non-whitespace character`);
+  }
+}
+
 function validateShare(
   shareMode: ShareMode,
   basisPoints: number | undefined,
@@ -1296,7 +1309,7 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       requirePresent(
         next.members.find((m) => m.id === action.memberId),
         "rename member is missing",
-      ).displayName = action.displayName.trim();
+      ).displayName = action.displayName;
       break;
     case "update-member-profile": {
       const member = requirePresent(
@@ -1407,13 +1420,13 @@ export function reduceState(state: AppState, action: AppAction): AppState {
         "self is missing",
       );
       if (action.selfName !== self.displayName)
-        self.displayName = action.selfName.trim();
+        self.displayName = action.selfName;
       const partner = requirePresent(
         next.members.find((m) => m.role === "partner"),
         "partner is missing",
       );
       if (action.partnerName !== partner.displayName)
-        partner.displayName = action.partnerName.trim();
+        partner.displayName = action.partnerName;
       partner.active = action.partnerActive;
       next.budget.globalSelfShareBasisPoints =
         action.globalSelfShareBasisPoints;
@@ -1588,7 +1601,7 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
     case "rename-member":
       if (!state.members.some((m) => m.id === action.memberId))
         throw new Error("rename member is missing");
-      assertTrimmedText(action.displayName.trim(), "member displayName", 1, 50);
+      assertEditableDisplayName(action.displayName, "member displayName");
       return;
     case "update-member-profile": {
       const member = state.members.find((item) => item.id === action.memberId);
@@ -1809,9 +1822,9 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       if (!self || !partner)
         throw new Error("household members are incomplete");
       if (action.selfName !== self.displayName)
-        assertTrimmedText(action.selfName.trim(), "self name", 1, 50);
+        assertEditableDisplayName(action.selfName, "self name");
       if (action.partnerName !== partner.displayName)
-        assertTrimmedText(action.partnerName.trim(), "partner name", 1, 50);
+        assertEditableDisplayName(action.partnerName, "partner name");
       assertBasisPoints(
         action.globalSelfShareBasisPoints,
         "globalSelfShareBasisPoints",

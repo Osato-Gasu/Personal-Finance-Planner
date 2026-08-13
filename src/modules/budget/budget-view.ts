@@ -5,6 +5,10 @@ import {
   tryCalculateBudgetSummary,
 } from "../../domain/budget";
 import { resolveIncomeTarget } from "../../domain/linked-value";
+import {
+  displayNameFromEditor,
+  displayNameToEditor,
+} from "../../domain/display-name";
 import type {
   AppAction,
   BudgetCategory,
@@ -65,6 +69,22 @@ function labeledInput(
   if (options.step !== undefined) input.step = options.step;
   input.required = options.required ?? false;
   input.readOnly = options.readOnly ?? false;
+  wrapper.append(input);
+  return { wrapper, input };
+}
+
+function labeledTextArea(
+  document: Document,
+  labelText: string,
+  options: { value: string; name: string },
+): { wrapper: HTMLLabelElement; input: HTMLTextAreaElement } {
+  const wrapper = node(document, "label");
+  wrapper.append(node(document, "span", labelText));
+  const input = node(document, "textarea");
+  input.name = options.name;
+  input.value = options.value;
+  input.required = true;
+  input.rows = 3;
   wrapper.append(input);
   return { wrapper, input };
 }
@@ -362,10 +382,9 @@ export function createBudgetRenderer(options: {
     section.append(node(options.document, "h3", "世帯・手取り設定"));
     const form = node(options.document, "form");
     form.className = "form-grid";
-    const selfName = labeledInput(options.document, "本人表示名", {
+    const selfName = labeledTextArea(options.document, "本人表示名", {
       name: "self-name",
-      value: self.displayName,
-      required: true,
+      value: displayNameToEditor(self.displayName),
     });
     const selfIncome = labeledInput(options.document, "本人の月間手取り", {
       name: "self-income",
@@ -389,10 +408,9 @@ export function createBudgetRenderer(options: {
       partnerCheckbox,
       node(options.document, "span", "同棲モード"),
     );
-    const partnerName = labeledInput(options.document, "相手表示名", {
+    const partnerName = labeledTextArea(options.document, "相手表示名", {
       name: "partner-name",
-      value: partner.displayName,
-      required: true,
+      value: displayNameToEditor(partner.displayName),
     });
     const partnerIncome = labeledInput(options.document, "相手の月間手取り", {
       name: "partner-income",
@@ -497,9 +515,11 @@ export function createBudgetRenderer(options: {
       event.preventDefault();
       performAction({
         type: "update-household",
-        selfName: selfNameTouched ? selfName.input.value : self.displayName,
+        selfName: selfNameTouched
+          ? displayNameFromEditor(selfName.input.value)
+          : self.displayName,
         partnerName: partnerNameTouched
-          ? partnerName.input.value
+          ? displayNameFromEditor(partnerName.input.value)
           : partner.displayName,
         partnerActive: partnerCheckbox.checked,
         selfManualYen: selfLinked

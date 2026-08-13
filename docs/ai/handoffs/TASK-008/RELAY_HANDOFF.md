@@ -26,6 +26,11 @@
 - adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
 - implementation_candidate: 5da12c38b280251d6d37df00aa37b0b015f7a504
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
 
 ## Purpose
 

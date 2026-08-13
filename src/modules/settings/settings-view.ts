@@ -6,6 +6,10 @@ import {
   type StorageRepository,
 } from "../../data/storage-repository";
 import { selectBackupReminder } from "../../domain/backup";
+import {
+  displayNameFromEditor,
+  displayNameToEditor,
+} from "../../domain/display-name";
 
 export type BackupDownload = (
   contents: string,
@@ -78,11 +82,11 @@ export function createSettingsRenderer(
         "label",
         `${member.role === "self" ? "本人" : "相手"}の表示名`,
       );
-      const input = node(options.document, "input");
+      const input = node(options.document, "textarea");
       input.name = `member-name-${member.id}`;
-      input.value = member.displayName;
+      input.value = displayNameToEditor(member.displayName);
       input.required = true;
-      input.maxLength = 50;
+      input.rows = 3;
       let touched = false;
       input.addEventListener("input", () => {
         touched = true;
@@ -98,7 +102,7 @@ export function createSettingsRenderer(
             options.store.dispatch({
               type: "rename-member",
               memberId: member.id,
-              displayName: input.value,
+              displayName: displayNameFromEditor(input.value),
             });
           report("人物設定を保存しました。");
         } catch (error) {
@@ -110,6 +114,13 @@ export function createSettingsRenderer(
           );
         }
       });
+      form.append(
+        node(
+          options.document,
+          "p",
+          "改行は\\r、\\nとして表示・編集します。\\は\\\\として保持します。",
+        ),
+      );
       profile.append(form);
     }
     main.append(profile);

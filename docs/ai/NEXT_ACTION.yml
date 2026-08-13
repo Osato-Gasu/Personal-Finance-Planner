@@ -36,4 +36,4 @@ review_finding_ids: none
 write_bridge: required_for_state_transition
 write_probe: required_for_chatgpt
 relay_status: none
-updated_at: 2026-08-13
+updated_at: 2026-08-14

@@ -115,6 +115,32 @@ describe("Store and state invariants", () => {
   });
 
   it.each([
+    ["CR", "本人\r旧版更新"],
+    ["LF", "本人\n旧版更新"],
+    ["CRLF", "本人\r\n旧版更新"],
+    ["surrounding whitespace", " 本人更新 "],
+    ["more than 50 characters", `${"長".repeat(51)}更新`],
+  ])("persists an explicit rename-member %s value exactly", (_label, value) => {
+    const store = new Store(createFixtureState());
+    store.dispatch({
+      type: "rename-member",
+      memberId: "self",
+      displayName: value,
+    });
+    expect(
+      store.getState().members.find((member) => member.role === "self")
+        ?.displayName,
+    ).toBe(value);
+  });
+
+  it("rejects a whitespace-only rename without state, writer, or listener effects", () => {
+    expectRejectedWithoutEffects(
+      { type: "rename-member", memberId: "self", displayName: " \r\n " },
+      "member displayName",
+    );
+  });
+
+  it.each([
     [
       "set-partner-active on self",
       {

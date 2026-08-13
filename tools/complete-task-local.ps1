@@ -2,11 +2,10 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryPath,
     [Parameter(Mandatory = $true)][string]$TaskWorktree,
+    [Parameter(Mandatory = $true)][ValidatePattern('^TASK-[0-9]+$')][string]$TaskId,
+    [Parameter(Mandatory = $true)][string]$ExpectedTaskBranch,
     [Parameter(Mandatory = $true)][string]$CompletionCommit,
-    [long]$WorkflowRunId,
-    [switch]$SkipFetch,
-    [switch]$SkipLauncherGate,
-    [switch]$SkipCiGate
+    [Parameter(Mandatory = $true)][ValidateRange(1, [long]::MaxValue)][long]$WorkflowRunId
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,8 +33,33 @@ function Assert-Clean {
     }
 }
 
+function Same-Path {
+    param([string]$Left, [string]$Right)
+    return [string]::Equals(
+        [IO.Path]::GetFullPath($Left).TrimEnd([IO.Path]::DirectorySeparatorChar),
+        [IO.Path]::GetFullPath($Right).TrimEnd([IO.Path]::DirectorySeparatorChar),
+        [StringComparison]::OrdinalIgnoreCase
+    )
+}
+
+function Invoke-NpmGate {
+    param([string]$Path, [string[]]$Arguments, [string]$FailureMessage)
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & npm --prefix $Path @Arguments
+    $exitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorActionPreference
+    if ($exitCode -ne 0) { throw $FailureMessage }
+}
+
 $repository = (Resolve-Path -LiteralPath $RepositoryPath).Path
 $task = (Resolve-Path -LiteralPath $TaskWorktree).Path
+$expectedBranchRef = "refs/heads/$ExpectedTaskBranch"
+$taskPrefix = "codex/$($TaskId.ToLowerInvariant())-"
+if (-not $ExpectedTaskBranch.StartsWith($taskPrefix, [StringComparison]::Ordinal)) {
+    throw 'expected TASK branch does not match TaskId'
+}
+
 $records = @()
 $current = $null
 foreach ($line in (Invoke-Git $repository @('worktree', 'list', '--porcelain'))) {
@@ -47,56 +71,83 @@ foreach ($line in (Invoke-Git $repository @('worktree', 'list', '--porcelain')))
 }
 if ($null -ne $current) { $records += [pscustomobject]$current }
 
-$mainRecords = @($records | Where-Object { $_.Branch -eq 'refs/heads/main' -and (Split-Path -Leaf $_.Path) -eq 'Personal-Finance-Planner' })
-if ($mainRecords.Count -ne 1) { throw 'exactly one main worktree named Personal-Finance-Planner is required' }
-$main = (Resolve-Path -LiteralPath $mainRecords[0].Path).Path
-if ($task -eq $main) { throw 'main worktree must never be removed' }
-$taskRecords = @($records | Where-Object { (Resolve-Path -LiteralPath $_.Path).Path -eq $task })
+$mainBranchRecords = @($records | Where-Object { $_.Branch -eq 'refs/heads/main' })
+$namedMainRecords = @($records | Where-Object { (Split-Path -Leaf $_.Path) -eq 'Personal-Finance-Planner' })
+if ($mainBranchRecords.Count -ne 1 -or $namedMainRecords.Count -ne 1) {
+    throw 'exactly one main worktree named Personal-Finance-Planner is required'
+}
+if (-not (Same-Path $mainBranchRecords[0].Path $namedMainRecords[0].Path)) {
+    throw 'main branch worktree must be the unique Personal-Finance-Planner folder'
+}
+$main = (Resolve-Path -LiteralPath $mainBranchRecords[0].Path).Path
+if (-not (Same-Path $repository $main)) { throw 'RepositoryPath must identify the unique main worktree' }
+if (Same-Path $task $main) { throw 'main worktree must never be removed' }
+$taskRecords = @($records | Where-Object { Same-Path $_.Path $task })
 if ($taskRecords.Count -ne 1) { throw 'TASK worktree is not registered exactly once' }
+if ($taskRecords[0].Branch -cne $expectedBranchRef) { throw 'TASK worktree branch does not match the expected TASK branch' }
 
-# All destructive-operation preconditions are checked before synchronization/removal.
+# Every repository and user-data precondition is checked before synchronization or removal.
 Assert-Clean $main 'main'
 Assert-Clean $task 'TASK'
-$completionOutput = @(Invoke-Git $task @('rev-parse', "$CompletionCommit^{commit}"))
-$completion = [string]$completionOutput[0]
+$completion = [string](@(Invoke-Git $task @('rev-parse', "$CompletionCommit^{commit}"))[0])
 if ($taskRecords[0].Head -ne $completion) { throw 'TASK worktree HEAD must equal the completion commit' }
-if (-not $SkipFetch) { Invoke-Git $main @('fetch', 'origin', 'main') | Out-Null }
+
+Invoke-Git $main @('fetch', 'origin', 'main') | Out-Null
 & git -C $main merge-base --is-ancestor $completion 'origin/main'
 if ($LASTEXITCODE -ne 0) { throw 'completion commit is not reachable from origin/main' }
 & git -C $main merge-base --is-ancestor 'HEAD' 'origin/main'
 if ($LASTEXITCODE -ne 0) { throw 'local main cannot be fast-forwarded to origin/main' }
-if (-not $SkipCiGate) {
-    if ($WorkflowRunId -le 0) { throw 'exact origin/main workflow run ID is required' }
-    $remoteUrl = [string](@(Invoke-Git $main @('remote', 'get-url', 'origin'))[0])
-    $previousErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    $ciJson = & gh run view $WorkflowRunId --repo $remoteUrl --json headSha,conclusion 2>&1
-    $ciExit = $LASTEXITCODE
-    $ErrorActionPreference = $previousErrorActionPreference
-    if ($ciExit -ne 0) { throw "GitHub Actions lookup failed: $ciJson" }
-    $ci = ($ciJson | ConvertFrom-Json)
-    $originMain = [string](@(Invoke-Git $main @('rev-parse', 'origin/main'))[0])
-    if ($ci.headSha -ne $originMain -or $ci.conclusion -ne 'success') { throw 'origin/main exact GitHub Actions run is not successful' }
+
+$originMain = [string](@(Invoke-Git $main @('rev-parse', 'origin/main'))[0])
+$remoteUrl = [string](@(Invoke-Git $main @('remote', 'get-url', 'origin'))[0])
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+$ciJson = & gh run view $WorkflowRunId --repo $remoteUrl --json headSha,conclusion 2>&1
+$ciExit = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+if ($ciExit -ne 0) { throw "GitHub Actions lookup failed: $ciJson" }
+$ci = ($ciJson | ConvertFrom-Json)
+if ($ci.headSha -cne $originMain -or $ci.conclusion -cne 'success') {
+    throw 'origin/main exact GitHub Actions run is not successful'
 }
 
-if ($PSCmdlet.ShouldProcess($main, 'fast-forward local main and validate launcher')) {
-    Invoke-Git $main @('merge', '--ff-only', 'origin/main') | Out-Null
-    $local = [string](@(Invoke-Git $main @('rev-parse', 'HEAD'))[0])
-    $remote = [string](@(Invoke-Git $main @('rev-parse', 'origin/main'))[0])
-    if ($local -ne $remote) { throw 'local main does not equal origin/main' }
-    if (-not $SkipLauncherGate) {
-        & npm --prefix $main run verify:launcher
-        if ($LASTEXITCODE -ne 0) { throw 'launcher freshness gate failed' }
-        & npm --prefix $main run test:portable
-        if ($LASTEXITCODE -ne 0) { throw 'launcher portable smoke failed' }
-        Assert-Clean $main 'main after launcher gate'
+# Validate the exact origin/main source in an isolated generated clone so a gate failure
+# cannot change the user's main or TASK worktree bytes.
+$gateParent = Join-Path ([IO.Path]::GetTempPath()) 'personal-finance-planner-completion-gates'
+[IO.Directory]::CreateDirectory($gateParent) | Out-Null
+$gate = Join-Path $gateParent ([guid]::NewGuid().ToString('N'))
+try {
+    & git clone --no-hardlinks --quiet $main $gate
+    if ($LASTEXITCODE -ne 0) { throw 'launcher gate clone failed' }
+    Invoke-Git $gate @('checkout', '--detach', $originMain) | Out-Null
+    Invoke-NpmGate $gate @('ci') 'launcher dependency gate failed'
+    Invoke-NpmGate $gate @('run', 'verify:launcher') 'launcher freshness gate failed'
+    Invoke-NpmGate $gate @('run', 'test:portable') 'launcher portable smoke failed'
+    Assert-Clean $gate 'launcher gate'
+} finally {
+    if (Test-Path -LiteralPath $gate) {
+        $resolvedGate = [IO.Path]::GetFullPath($gate)
+        $resolvedParent = [IO.Path]::GetFullPath($gateParent).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        if (-not $resolvedGate.StartsWith($resolvedParent, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'temporary launcher gate path escaped its parent'
+        }
+        [IO.Directory]::Delete($resolvedGate, $true)
     }
 }
 
+Assert-Clean $main 'main before synchronization'
+Assert-Clean $task 'TASK before removal'
+if ($PSCmdlet.ShouldProcess($main, 'fast-forward local main')) {
+    Invoke-Git $main @('merge', '--ff-only', 'origin/main') | Out-Null
+    $local = [string](@(Invoke-Git $main @('rev-parse', 'HEAD'))[0])
+    if ($local -cne $originMain) { throw 'local main does not equal origin/main' }
+}
 if ($PSCmdlet.ShouldProcess($task, 'remove completed TASK worktree')) {
     Invoke-Git $main @('worktree', 'remove', $task) | Out-Null
     Invoke-Git $main @('worktree', 'prune') | Out-Null
     if (Test-Path -LiteralPath $task) { throw 'TASK worktree still exists after removal' }
+    $remaining = @(Invoke-Git $main @('worktree', 'list', '--porcelain')) -join "`n"
+    if ($remaining -match [regex]::Escape($task)) { throw 'TASK worktree metadata remains after prune' }
 }
 
-Write-Output "completion local flow: PASS main=$main completion=$completion task_removed=$task"
+Write-Output "completion local flow: PASS task=$TaskId branch=$ExpectedTaskBranch main=$main completion=$completion task_removed=$task"
