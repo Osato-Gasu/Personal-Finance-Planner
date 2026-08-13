@@ -1,23 +1,23 @@
 ---
 task_id: TASK-007
 title: 統合サマリー
-status: changes_requested
+status: review_requested
 route: TWO_SESSION_FAST
 priority: normal
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-007/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-007/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -31,12 +31,12 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements
 accepted_product_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
 review_stage: implementation
 changes_requested_cycles: 1
-implementation_review_attempt: 1
+implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
 attempt_4_forbidden: false
-implementation_candidate: 4f8d0898e62a8efa1bf463c48030d46e8c1e204d
+implementation_candidate: 5df7eb8ff64a212e70d0982c83d664d7b979a5ae
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
@@ -45,7 +45,7 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: 4f8d0898e62a8efa1bf463c48030d46e8c1e204d
+reviewed_candidate: 5df7eb8ff64a212e70d0982c83d664d7b979a5ae
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
