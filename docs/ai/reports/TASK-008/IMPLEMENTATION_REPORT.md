@@ -7,36 +7,39 @@
 - branch: codex/task-008-data-preservation-ux
 - baseline_commit: c3cf916048d59867e016b2979e6d0875fb563c82
 - baseline_tree: cf40250e338056abdb486408a32c7fda560d2039
-- baseline_workflow_run_id: 31693464952
 - activation_commit: 73ac6e0011562b5bf7ca67def8baede128148c9c
-- activation_tree: 00051c28ca97c3e6cd46422a53eb45bad78b9d22
-- activation_workflow_run_id: 31699596062
-- implementation_candidate: 5da12c38b280251d6d37df00aa37b0b015f7a504
-- candidate_tree: d8244741c257f2dc2ef29861d023b32782f269c1
-- candidate_workflow_run_id: 31705042741
+- import_commit: 2f0251abd4c487bfd534bf73a4ff9ead21907c55
+- import_tree: 8865f7ea6a1049f37c63fa6c5d88a56fe08c806f
+- import_workflow_run_id: 31719024662
+- import_workflow_conclusion: success
+- implementation_candidate: 0a51924331669ba5a76b4d698d3e9c4d7dd1f4de
+- candidate_tree: 68d9831f0a15d99dd0453f1f1d8e1898c503a01b
+- candidate_workflow_run_id: 31721539641
 - candidate_workflow_conclusion: success
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
 - product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 - product_requirements_sha256: FC4483E4705C32908B72BA1E23F23E1F76FC31AD52F0527C41663852E58264DF
-- changed_files: .github/workflows/ci.yml; Personal-Finance-Planner.html; README.md; package.json; src/app/app.ts; src/app/store.ts; src/data/storage-repository.ts; src/domain/backup.ts; src/domain/migration.ts; src/domain/overview.ts; src/domain/state.ts; src/modules/budget/budget-view.ts; src/modules/settings/settings-view.ts; tests/backup.test.ts; tests/fixtures/state.ts; tests/ideco-state.test.ts; tests/migration-repository.test.ts; tests/nisa-state.test.ts; tests/overview.test.ts; tests/schema-v3.test.ts; tests/storage-repository.test.ts; tools/complete-task-local.ps1; tools/sync-root-launcher.mjs; tools/test-complete-task-local.ps1; tools/test-portable-build.mjs
-- validation_result: PowerShell 7/5.1 governance、product identity smoke、audit validator、21-check normalization、completion simulation PASS。npm ci/typecheck/lint/format/test/test:rules/test:nisa/test:ideco/test:overview/build/verify:launcher/test:portable PASS
-- tests_passed: 444 Vitest; 69 take-home; 68 NISA; 86 iDeCo; 28 overview; 276 portable; completion simulation 6 checks on PowerShell 7 and 5.1
+- remediation_changed_files: Personal-Finance-Planner.html; board/PROGRESS.html; docs/ai/CURRENT_STATE.md; docs/ai/NEXT_ACTION.yml; docs/ai/handoffs/TASK-008/RELAY_HANDOFF.md; docs/ai/tasks/TASK-008.md; src/domain/display-name.ts; src/domain/state.ts; src/modules/budget/budget-view.ts; src/modules/settings/settings-view.ts; src/styles.css; tests/display-name.test.ts; tests/migration-repository.test.ts; tests/store-state.test.ts; tools/complete-task-local.ps1; tools/test-complete-task-local.ps1; tools/test-portable-build.mjs
+- finding_008_r1_01: resolved。raw persisted displayNameとescape-visible multiline edit bufferを分離し、CR/LF/CRLF／前後空白／50+文字／literal escapeのexact round-tripを実装。rename-member／update-householdのsilent trimを除去し、whitespace-only editは副作用0で拒否
+- finding_008_r1_01_tests: tests/display-name.test.ts round-trip 7 cases、tests/store-state.test.ts exact rename 5 cases＋invalid副作用0、tests/migration-repository.test.ts exact household edit 5 cases、portable budget/settings explicit edit＋invalid storage不変
+- finding_008_r1_02: resolved。production公開skip parameter 3件を削除。TaskId、ExpectedTaskBranch、WorkflowRunIdを必須化。fetch／exact CI／reachability／ff-only／isolated exact-origin npm ci＋launcher freshness＋portableを必須化し、全precondition後だけmain同期・TASK remove/prune
+- finding_008_r1_02_tests: bypass parameter不存在、wrong TaskId branch、wrong actual branch、CI SHA／conclusion、launcher各failure、safe exact branch removeを実行可能fixtureで検証
+- finding_008_r1_03: resolved。completion simulationをPS7／PS5.1それぞれ6から22 checksへ拡張。failure時にmain/TASK worktree残存と全tracked/untracked bytes不変を共通snapshotで検証
+- completion_cases: production mandatory gates have no public bypass; unique main worktree; wrong main folder; ambiguous named main worktree; tracked dirty main; untracked main; tracked dirty TASK; untracked TASK; unfinished MERGE_HEAD; unfinished CHERRY_PICK_HEAD; unfinished rebase; main worktree removal; unreachable completion commit; wrong TASK branch; non-fast-forward main; exact CI wrong SHA; exact CI unsuccessful conclusion; launcher freshness failure; launcher portable failure; ff-only synchronization success; safe TASK worktree remove; worktree prune result
+- validation_result: PowerShell 7/5.1 governance、requirements smoke、audit validator、21-check normalization、overlay、22-check completion matrix PASS。npm ci/typecheck/lint/format/test/focused/build/launcher/portable PASS
+- tests_passed: 462 Vitest; 69 take-home; 68 NISA; 86 iDeCo; 28 overview; 284 portable; completion simulation 22 checks on PowerShell 7 and 5.1
 - tests_failed: none
-- browser_evidence: Edge file:// standalone root launcher passed 276 checks at 1280px and 360px, including settings export/import, confirmation/cancel, CRLF preservation, routes/history/reload
+- browser_evidence: Edge file:// root launcher 284 checks PASS; budget/settings lossless explicit displayName edit and invalid storage preservation; 360px; keyboard focus
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- migration: schemaVersion 6 with deterministic v1-v5 migration and BackupMetadata defaults; legacy bytes retained; corrupt current never falls back
-- import_atomicity: size/UTF-8/JSON/schema/migration/invariant/preview/confirmation/write ordering; before/after-mutation failures restore exact bytes
-- legacy_names: LF、CR、CRLF、whitespace、50+ characters preserved; untouched single-line input never writes normalized DOM value back
-- backup: success-only lastExportedAt; injected clock; due/dismiss derivation; overview warning and settings status from metadata
-- launcher: root file byte-equals dist build; CI detects stale committed launcher before any sync; standalone copy runs from Japanese/space path
-- completion: no absolute path; worktree list resolution; clean/untracked/operation/main removal/unreachable/HEAD/ff-only/CI/launcher gates; safe remove and prune
+- launcher: root file byte-equals candidate dist build; candidate exact CI freshness and portable PASS
+- completion: normal production gates skip不能、expected TASK branch exact、failure bytes不変、safe ff-only/remove/prune PASS
 - unresolved: none
 - worktree: clean_candidate
 - main_state: origin/main remains c3cf916048d59867e016b2979e6d0875fb563c82 / tree cf40250e338056abdb486408a32c7fda560d2039
 - release_state: no_main_merge; no_tag; no_release; no_distribution; no_actual_task_worktree_cleanup
-- actual_executor: Codex
+- actual_executor: ChatGPT
 - provider_substitution: none
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
@@ -45,7 +48,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: 5da12c38b280251d6d37df00aa37b0b015f7a504
+- reviewed_candidate: 0a51924331669ba5a76b4d698d3e9c4d7dd1f4de
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -54,18 +57,17 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_final: false
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
-- execution_started_at: 2026-08-13 22:06:05 JST
-- execution_finished_at: 2026-08-13 22:35:05 JST
+- execution_started_at: 2026-08-14 01:03:07 JST
+- execution_finished_at: 2026-08-14 01:46:37 JST
 
 ## Implementation evidence
 
-- AppState v6 adds only backup metadata; all financial collections remain canonical and derived overview values are excluded from persistence.
-- Import validates untrusted bytes without mutation, presents a textContent preview, requires explicit confirmation, and publishes Store state only after storage commit.
-- Settings exposes person editing, backup/export/import, reminder, save/schema status, file path preservation warning, and operation-local status/errors.
-- Root launcher and completion automation are repository-native, deterministic, and covered in Windows CI.
+- R1-01: lossless edit codec prevents DOM newline normalization from replacing raw legacy names; reducers persist valid submitted bytes exactly.
+- R1-02: all completion gates are mandatory on production invocation and validate exact TASK identity before any main or TASK worktree mutation.
+- R1-03: the same named 22-case matrix runs on PowerShell 7 and Windows PowerShell 5.1 in CI.
