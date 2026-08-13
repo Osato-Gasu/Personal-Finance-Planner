@@ -22,3 +22,9 @@
 
 - TASK-001 changes governance files only.
 - Product code, rule data, packages, `README.md`, `.gitattributes`, `.gitignore`, and `docs/product/**` remain unchanged from baseline `171a1879416e6454a837c12fd465eb3eab111c35`.
+
+## Completion safety
+
+- A TASK is not complete merely because remote main was updated. Completion also requires exact main CI success, a uniquely identified clean local main checkout named `Personal-Finance-Planner`, fetch plus fast-forward-only synchronization, a fresh and portable root launcher, and canonical completion sync.
+- A completed TASK worktree may be removed only after it is clean, has no untracked user files or unfinished Git operation, its completion commit is reachable from origin/main, local main is synchronized, and launcher gates pass.
+- Dirty or ambiguous main/TASK worktrees, non-fast-forward state, unreachable commits, or failed CI/launcher gates are `BLOCKED`. Never discard user data with reset, stash, clean, restore, history rewriting, or forced filesystem deletion.

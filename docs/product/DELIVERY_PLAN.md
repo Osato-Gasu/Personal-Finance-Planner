@@ -72,20 +72,22 @@
 
 ## TASK-008 データ保全・UX完成
 
-- JSON backup
-- backup reminder
-- schema migration
-- responsive
-- keyboard・focus・label
-- error states
-- documentation
+- v1～currentのlossless・deterministic・idempotent migrationと失敗時byte preservation
+- schema v1 CR/LF/CRLF表示名のsingle-line input保存互換性
+- 検証・preview・確認後だけatomic replacementするJSON backup/export/import
+- BackupMetadataに基づくbackup reminder
+- settings、responsive 360px、keyboard・focus・label、error states
+- root `Personal-Finance-Planner.html`の決定的生成、freshness gate、`file://` portable verification
+- cleanな常設mainのff-only同期とclean/reachable TASK worktreeの安全cleanup automation
+- data preservation、migration、import atomicity、launcher freshness、main/worktree safetyはレビューで緩和しない
 
 ## TASK-009 配布
 
-- GitHub Actions
-- standalone HTML配布と必要に応じたstatic deployment
+- GitHub Release
+- static deployment
+- distribution automation
 - release checklist
-- 制度確認日とversion表示
+- 配布version管理、制度確認日表示
 
 ## 実装順序の制約
 

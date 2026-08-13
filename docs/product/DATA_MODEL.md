@@ -32,6 +32,8 @@ interface AppState {
 }
 ```
 
+TASK-008の開始正本はschemaVersion 5とする。永続化shapeを変更する場合だけ次versionを追加し、既存v1～v5 migrationの意味を変更しない。
+
 ## 3. 人物
 
 ```ts
@@ -46,6 +48,8 @@ interface HouseholdMember {
 ```
 
 `self`は常に1件。`partner`は最大1件。同棲モード解除時もpartnerデータを削除せずinactiveにできる。
+
+schema v1由来のotherwise-validな`displayName`はLF、CR、CRLF、前後空白、50文字超を含み得る。migrationと通常表示では文字列をlosslessに保持し、UIのsingle-line編集bufferとpersisted valueを区別する。明示的な編集・保存時だけ新しい入力制約を適用する。
 
 ## 4. 手取り計画
 
@@ -233,6 +237,8 @@ interface BackupMetadata {
 
 `lastExportedAt`はダウンロード開始ではなく、JSON生成とブラウザへの引渡しが成功した時点で更新する。
 
+`reminderDismissedUntil`は期限付き表示抑制だけを表し、`lastExportedAt`を更新しない。backup metadataは金融計算へ影響せず、warningは注入可能なreference dateから導出する。
+
 ## 10. 不変条件
 
 - entity IDは一度発行したら名称変更で変えない。
@@ -247,3 +253,7 @@ interface BackupMetadata {
 - 同じsourceの資産形成拠出を重複保存しない。
 - rule期間の重複を許可しない。
 - schema migration失敗時に元データを変更しない。
+- migrationはdeterministicかつidempotentで、legacy/current storage bytesをcommit前に変更しない。
+- corrupt currentをlegacyでsilent fallback/overwriteしない。
+- importはschema・全invariant検証とユーザー確認後だけAppState全体をatomic replacementする。
+- legacy表示名のCR/LFをDOM正規化だけでpersisted valueへ書き戻さない。

@@ -40,6 +40,9 @@
 - write_unavailable: 正本更新を主張せずUSER_RELAY_REQUIRED portable bundleを返す
 - review_policy: implementation review最大3回、第3回のみ限定緩和、第3回不通過でNEEDS_USER_DECISION
 - return_to: user or Codex through verified relay
+- active_requirements_TASK_008: TASK-008 spec revision 1はexact baseline c3cf916048d59867e016b2979e6d0875fb563c82から開始し、schema v1 CR/LF/CRLF表示名保存互換性、lossless migration、atomic backup/import、settings UX、root launcher、local main同期、worktree安全cleanupを必須・非緩和要件として保持する
+- completion_flow: remote main統合だけで完了とせず、origin/main exact CI、cleanな常設mainのfetch+ff-only同期、root launcher freshness/portable smoke、完成commit reachability、cleanなTASK worktreeの安全remove/prune、git_only completion syncまでを恒久条件とする
+- completion_blocked_conditions: dirty/untracked/ambiguous worktree、non-fast-forward、unreachable commit、CIまたはlauncher gate失敗では破壊的回避を行わずBLOCKEDとする
 
 ## TASK-011 requirements draft (lossless user-decision carry-forward)
 

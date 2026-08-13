@@ -32,6 +32,8 @@ UIフレームワークを導入しない。状態管理・ルーティングも
 
 `npm run build`はsingle-file build処理により、application JavaScript、CSS、必要な静的assetを`dist/index.html`へinlineする。build outputには`<script src>`、外部stylesheet、modulepreload、実行時dynamic import、絶対pathを残さず、複数chunkや外部assetを実行に要求しない。end userはHTMLをダブルクリックして`file://`で起動でき、HTTP server、Node.js、npm、runtime CDN、外部networkを必要としない。
 
+end user向けの通常起動fileは常設main folder直下の`Personal-Finance-Planner.html`とする。root launcherはstandalone buildから決定的に同期し、手編集しない。source buildに対するfreshness checkをCI gateとし、launcher単体を空白・日本語pathへコピーしたportable browser testでも検証する。
+
 portable browser testは生成HTMLだけを空白・日本語を含む一時folderへコピーし、system Chromium browserで5 route、hash正規化、navigation、history、reload、console／page error、runtime request、same-path localStorageを動的に検証する。
 
 ## 3. モジュール境界
@@ -170,7 +172,9 @@ validateImport()
 commitImport()
 ```
 
-保存単位はAppState全体とし、書込前にserialize可能性・schema version・invariantを検証する。保存失敗時はメモリ上の操作を維持してエラーを表示し、成功したと誤表示しない。
+保存単位はAppState全体とし、書込前にserialize可能性・schema version・invariantを検証する。保存失敗時はメモリ上の操作を維持してエラーを表示し、成功したと誤表示しない。current schemaが壊れている場合はlegacyへ黙ってfallbackして上書きしない。
+
+schema v1の表示名はLF、CR、CRLFを含む既存値をlosslessに保持する。single-line input用の編集bufferとpersisted compatibility valueを分け、画面表示、rerender、route変更、reload、名前と無関係な保存ではDOM正規化値をStateへ書き戻さない。
 
 `file://`利用時は同一file pathでlocalStorageを再利用する。HTMLの移動・folder名変更・file名変更ではbrowser origin相当の保存領域が変わる可能性があるため、移動前のJSON backupを案内する。
 
@@ -178,16 +182,24 @@ commitImport()
 
 ```text
 read bytes
+-> finite size limit
 -> JSON parse
--> schema validation
+-> schema selection
 -> migration in memory
+-> schema validation
 -> invariant validation
 -> preview
 -> user confirmation
 -> atomic replacement
 ```
 
-途中失敗時に現行データを変更しない。
+preview前、confirmation前、cancel、途中失敗時に現行データとstorage bytesを変更しない。unknown objectをblind mergeせず、成功時だけAppState全体をatomic replacementする。
+
+### TASK completion local-main flow
+
+通常のTASK実装は専用worktreeで行い、常設main checkoutを実装に使用しない。TASK完了は、review APPROVED、release/completion stateのorigin/main統合、origin/main exact CI SUCCESS、cleanな常設mainのfetch + fast-forward only同期、root launcher freshness・portable smoke、完成commit reachability、cleanなTASK worktreeの安全な`git worktree remove`と`git worktree prune`、completion sync正本更新までを含む。
+
+mainまたはTASK worktreeがdirty/untracked、main folderを一意に特定できない、fast-forward不能、完成commitがorigin/mainから到達不能、未解決operationがある場合はBLOCKEDとする。reset、stash、clean、restoreによる差分破棄、rebase、history rewrite、force push、filesystem先行削除は禁止する。
 
 ## 11. セキュリティ・プライバシー
 

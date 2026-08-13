@@ -38,9 +38,11 @@
 - 開発sourceは`index.html`、TypeScript、CSS、その他moduleへ分離する。
 - 開発時は`npm run dev`でViteを利用する。
 - `npm run build`はJavaScript、CSS、必要な静的assetをinlineしたstandalone `dist/index.html`を生成する。
-- end userはビルド済み`dist/index.html`をダブルクリックし、`file://`で起動する。
+- end user向け通常起動ファイルは常設main folder直下の`Personal-Finance-Planner.html`とし、ダブルクリックだけで`file://`起動できる。
+- `Personal-Finance-Planner.html`はstandalone buildから決定的に生成・同期するGit管理対象であり、第二のsource of truthとして手編集しない。source buildに対してstaleならCIを失敗させる。
+- `dist/index.html`は内部build artifactとして維持できる。
 - ビルド済みアプリの利用時にHTTP server、Node.js、npmを必要としない。
-- `dist/index.html`だけを空の別folderへコピーしても起動する。
+- root launcherだけを空白・日本語を含む別folderへコピーしても起動する。
 - runtime CDN、外部script、外部stylesheet、modulepreload、dynamic import、外部network requestへ依存しない。
 - routingはhashだけを使用し、file pathをrouteとして扱わない。
 - Windows 10／11上のChromium系browserを初期対象とする。
@@ -240,16 +242,15 @@
 
 ## 10. 保存とバックアップ
 
-- 初期版はlocalStorageをRepository経由で使用
-- スキーマバージョンとマイグレーションを持つ
-- 有効な変更を自動保存
-- 破損データを自動上書きしない
-- JSONエクスポート・インポート
-- インポート前の完全検証と確認
-- 最終バックアップ日時の表示
-- 定期バックアップ通知
-- 複数端末同期は対象外
-- 端末間移行はJSONで行う
+- localStorageへはRepositoryだけがアクセスし、有効なState遷移だけを保存する。
+- current AppStateはschemaVersion 5を開始正本とする。永続化shape変更時だけ次versionへの一方向migrationを追加し、v1～currentの既存データを決定的かつidempotentに移行する。
+- migration前のlegacy bytesを削除・上書きしない。migration失敗時はlegacy/current双方を変更せず、corrupt currentを古いlegacyへ黙ってfallbackして上書きしない。
+- schema v1のotherwise-validな表示名に含まれるLF、CR、CRLF、前後空白、50文字超、日本語・記号をlosslessに保持する。単一行inputのDOM正規化値を自動write-backせず、明示的な名前編集と保存が行われた場合だけ置換する。
+- JSON exportはvalidate済みcurrent AppStateだけをUTF-8で生成し、derived resultを重複保存しない。JSON生成とbrowser file handoffが成功した場合だけ`lastExportedAt`を更新する。
+- JSON importは`read bytes → size limit → parse → schema判定 → in-memory migration → schema validation → invariant validation → preview → confirmation → atomic replacement`の順序とする。confirmation前、cancel、失敗時のwriteは0件とする。
+- unknown keyのblind merge、prototype pollution、unsafe integer、broken active link、member mismatchを拒否する。
+- 最終backup日時と設定期間からwarningを導出する。dismissは期限付きとし、`lastExportedAt`やbackup成功を偽装しない。
+- 複数端末同期は対象外とし、端末間移行はJSONで行う。networkへ金融データを送信しない。
 
 ## 11. 非機能要件
 
@@ -259,6 +260,8 @@
 - 同じ入力・同じルールでは同じ結果
 - 360px以上の画面幅に対応
 - キーボード操作、フォーカス表示、ラベル関連付け
+- `#/settings`で人物、JSON export/import、backup reminder、保存状態、schema/version、データ保全と`file://`保存領域の注意を扱う。
+- expected errorは操作付近へ表示し、whole-page crashやStateの0/default置換を行わない。destructive importは確認を必須とする。
 - 色だけで状態を表現しない
 - ユーザー入力を未エスケープHTMLとして挿入しない
 - 初期版の実行時外部依存を持たない
@@ -312,6 +315,10 @@
 - 不正JSONで現在データを失わない。
 - 再読み込み後にデータを復元できる。
 - 最終バックアップ日時と通知が機能する。
+- v1～currentのmigrationと再migrationがlossless、deterministic、idempotentで、失敗時に既存bytesを変更しない。
+- v1表示名のLF、CR、CRLFがsettings表示、無関係保存、reload、export/importでsilent mutationせず、明示編集時だけ変更される。
+- import preview・confirmation前・cancel・失敗時はwrite 0で、成功時だけatomic replacementする。
+- `Personal-Finance-Planner.html`が常設main folder直下でfreshに生成され、ダブルクリックと単体コピーで起動する。
 - 重要計算に自動テストがある。
 - `npm run build`、`npm run test`、`npm run lint`が成功する。
 - `npm run test:portable`が、空白・日本語を含む別folderのHTML単体を実browserの`file://`で検証する。
