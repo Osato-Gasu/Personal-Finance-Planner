@@ -2,8 +2,8 @@
 
 - task_id: TASK-012
 - spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- phase: implementation
+- status: changes_requested
 - origin_main_baseline: 74b6f47b2e11dfe622f956de2fb3ba2640413552
 - origin_main_baseline_tree: 0ea6a788d90c5d66d68e1d15981b033399866cfc
 - origin_main_workflow_run_id: 31734131847
@@ -44,14 +44,14 @@
 - tests_failed: none
 - browser_evidence: not required; candidate CI portable suite passed 284 checks
 - network: runtime_requests_0; console_errors_0; page_errors_0
-- unresolved: none
+- unresolved: FINDING-012-R1-01; FINDING-012-R1-02
 - worktree: clean_candidate
 - actual_executor: Codex
 - provider_substitution: none
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: requested
+- review_status: completed
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
@@ -60,12 +60,12 @@
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
-- review_result: none
-- review_findings_count: 0
-- review_finding_ids: none
+- review_result: CHANGES_REQUESTED
+- review_findings_count: 2
+- review_finding_ids: FINDING-012-R1-01,FINDING-012-R1-02
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
 - implementation_review_profile: standard
 - implementation_review_final: false
 - implementation_review_terminated: false

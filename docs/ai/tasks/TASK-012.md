@@ -1,23 +1,23 @@
 ---
 task_id: TASK-012
 title: completion main worktree選択修正
-status: review_requested
+status: changes_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
+current_phase: implementation
+current_role_id: IMPLEMENTER
+next_actor: Codex
+next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-012/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-012/RELAY_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
+return_to: ChatGPT
 browser_evidence_required: false
 claude_design_review_recommendation: not_needed
 claude_implementation_review_recommendation: optional
@@ -30,8 +30,8 @@ base_tree: c467caa363ea22716ba3a3ea1eee4f5c41f2bd39
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: FC4483E4705C32908B72BA1E23F23E1F76FC31AD52F0527C41663852E58264DF
 review_stage: implementation
-changes_requested_cycles: 0
-implementation_review_attempt: 1
+changes_requested_cycles: 1
+implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
@@ -56,6 +56,7 @@ review_finding_ids: none
 actual_executor: ChatGPT
 provider_substitution: none
 
+shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 updated_at: 2026-08-14
 ---
 
