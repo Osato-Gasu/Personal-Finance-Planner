@@ -8,13 +8,17 @@
 - baseline_commit: c3cf916048d59867e016b2979e6d0875fb563c82
 - baseline_tree: cf40250e338056abdb486408a32c7fda560d2039
 - activation_commit: 73ac6e0011562b5bf7ca67def8baede128148c9c
-- import_commit: 2f0251abd4c487bfd534bf73a4ff9ead21907c55
-- import_tree: 8865f7ea6a1049f37c63fa6c5d88a56fe08c806f
-- import_workflow_run_id: 31719024662
+- import_commit: 2556538b9ce19ded078de850faf746de19323e7d
+- import_tree: a1eb226ec835f397b33e6f64077f0ee4aa8a6ebd
+- import_workflow_run_id: 31725434763
 - import_workflow_conclusion: success
-- implementation_candidate: 0a51924331669ba5a76b4d698d3e9c4d7dd1f4de
-- candidate_tree: 68d9831f0a15d99dd0453f1f1d8e1898c503a01b
-- candidate_workflow_run_id: 31721539641
+- corrective_state_commit: 392696c952f26f93fd53e994d8da0deccae1442b
+- corrective_state_tree: 156952b5eccc0470d8b5c333f168e342e4e39aa6
+- corrective_state_workflow_run_id: 31727125271
+- corrective_state_workflow_conclusion: success
+- implementation_candidate: d1a8fcb19a3ee6cb1b3832d7494cd412c8e81697
+- candidate_tree: 913849ae303c9d03bd0fff0cb69a8e63513627df
+- candidate_workflow_run_id: 31728513797
 - candidate_workflow_conclusion: success
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
@@ -27,9 +31,11 @@
 - finding_008_r1_02: resolved。production公開skip parameter 3件を削除。TaskId、ExpectedTaskBranch、WorkflowRunIdを必須化。fetch／exact CI／reachability／ff-only／isolated exact-origin npm ci＋launcher freshness＋portableを必須化し、全precondition後だけmain同期・TASK remove/prune
 - finding_008_r1_02_tests: bypass parameter不存在、wrong TaskId branch、wrong actual branch、CI SHA／conclusion、launcher各failure、safe exact branch removeを実行可能fixtureで検証
 - finding_008_r1_03: resolved。completion simulationをPS7／PS5.1それぞれ6から22 checksへ拡張。failure時にmain/TASK worktree残存と全tracked/untracked bytes不変を共通snapshotで検証
-- completion_cases: production mandatory gates have no public bypass; unique main worktree; wrong main folder; ambiguous named main worktree; tracked dirty main; untracked main; tracked dirty TASK; untracked TASK; unfinished MERGE_HEAD; unfinished CHERRY_PICK_HEAD; unfinished rebase; main worktree removal; unreachable completion commit; wrong TASK branch; non-fast-forward main; exact CI wrong SHA; exact CI unsuccessful conclusion; launcher freshness failure; launcher portable failure; ff-only synchronization success; safe TASK worktree remove; worktree prune result
-- validation_result: PowerShell 7/5.1 governance、requirements smoke、audit validator、21-check normalization、overlay、22-check completion matrix PASS。npm ci/typecheck/lint/format/test/focused/build/launcher/portable PASS
-- tests_passed: 462 Vitest; 69 take-home; 68 NISA; 86 iDeCo; 28 overview; 284 portable; completion simulation 22 checks on PowerShell 7 and 5.1
+- finding_008_r2_01: resolved。gh run metadataのheadSha／conclusion／headBranch／event／nameを検証し、current origin/main SHA・success・main・push・Governance CIの完全一致だけを受理
+- finding_008_r2_01_tests: same SHA TASK branch拒否、main pull_request拒否、別workflow拒否、valid main push Governance CI受理。wrong branch／event failureでmain/TASK worktree残存、tracked bytes、ignored untracked user-owned bytesのbyte-exact不変を検証
+- completion_cases: production mandatory gates have no public bypass; unique main worktree; wrong main folder; ambiguous named main worktree; tracked dirty main; untracked main; tracked dirty TASK; untracked TASK; unfinished MERGE_HEAD; unfinished CHERRY_PICK_HEAD; unfinished rebase; main worktree removal; unreachable completion commit; wrong TASK branch; non-fast-forward main; exact CI wrong SHA; exact CI unsuccessful conclusion; exact CI wrong branch; exact CI wrong event; exact CI wrong workflow; exact main push Governance CI success; launcher freshness failure; launcher portable failure; ff-only synchronization success; safe TASK worktree remove; worktree prune result
+- validation_result: PowerShell 7/5.1 governance、requirements smoke、audit validator、21-check normalization、overlay、26-check completion matrix PASS。npm ci/typecheck/lint/format/test/focused/build/launcher/portable PASS
+- tests_passed: 462 Vitest; 69 take-home; 68 NISA; 86 iDeCo; 28 overview; 284 portable; completion simulation 26 checks on PowerShell 7 and 5.1
 - tests_failed: none
 - browser_evidence: Edge file:// root launcher 284 checks PASS; budget/settings lossless explicit displayName edit and invalid storage preservation; 360px; keyboard focus
 - network: runtime_requests_0; console_errors_0; page_errors_0
@@ -48,7 +54,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: 0a51924331669ba5a76b4d698d3e9c4d7dd1f4de
+- reviewed_candidate: d1a8fcb19a3ee6cb1b3832d7494cd412c8e81697
 - reviewed_spec_revision: 1
 - review_request_id: none
 - review_started_at: none
@@ -57,17 +63,18 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: standard
-- implementation_review_final: false
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: relaxed
+- implementation_review_final: true
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
-- execution_started_at: 2026-08-14 01:03:07 JST
-- execution_finished_at: 2026-08-14 01:46:37 JST
+- execution_started_at: 2026-08-14 02:40:50 JST
+- execution_finished_at: 2026-08-14 03:09:55 JST
 
 ## Implementation evidence
 
 - R1-01: lossless edit codec prevents DOM newline normalization from replacing raw legacy names; reducers persist valid submitted bytes exactly.
 - R1-02: all completion gates are mandatory on production invocation and validate exact TASK identity before any main or TASK worktree mutation.
 - R1-03: the same named 22-case matrix runs on PowerShell 7 and Windows PowerShell 5.1 in CI.
+- R2-01: exact completion CI now requires current origin/main SHA, success, main branch, push event, and Governance CI workflow identity; the shared matrix is 26 cases on both PowerShell versions.
