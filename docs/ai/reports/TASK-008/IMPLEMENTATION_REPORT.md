@@ -1,0 +1,71 @@
+# IMPLEMENTATION REPORT — TASK-008
+
+- task_id: TASK-008
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- branch: codex/task-008-data-preservation-ux
+- baseline_commit: c3cf916048d59867e016b2979e6d0875fb563c82
+- baseline_tree: cf40250e338056abdb486408a32c7fda560d2039
+- baseline_workflow_run_id: 31693464952
+- activation_commit: 73ac6e0011562b5bf7ca67def8baede128148c9c
+- activation_tree: 00051c28ca97c3e6cd46422a53eb45bad78b9d22
+- activation_workflow_run_id: 31699596062
+- implementation_candidate: 5da12c38b280251d6d37df00aa37b0b015f7a504
+- candidate_tree: d8244741c257f2dc2ef29861d023b32782f269c1
+- candidate_workflow_run_id: 31705042741
+- candidate_workflow_conclusion: success
+- shared_version: 0.12.20
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
+- product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
+- product_requirements_sha256: FC4483E4705C32908B72BA1E23F23E1F76FC31AD52F0527C41663852E58264DF
+- changed_files: .github/workflows/ci.yml; Personal-Finance-Planner.html; README.md; package.json; src/app/app.ts; src/app/store.ts; src/data/storage-repository.ts; src/domain/backup.ts; src/domain/migration.ts; src/domain/overview.ts; src/domain/state.ts; src/modules/budget/budget-view.ts; src/modules/settings/settings-view.ts; tests/backup.test.ts; tests/fixtures/state.ts; tests/ideco-state.test.ts; tests/migration-repository.test.ts; tests/nisa-state.test.ts; tests/overview.test.ts; tests/schema-v3.test.ts; tests/storage-repository.test.ts; tools/complete-task-local.ps1; tools/sync-root-launcher.mjs; tools/test-complete-task-local.ps1; tools/test-portable-build.mjs
+- validation_result: PowerShell 7/5.1 governance、product identity smoke、audit validator、21-check normalization、completion simulation PASS。npm ci/typecheck/lint/format/test/test:rules/test:nisa/test:ideco/test:overview/build/verify:launcher/test:portable PASS
+- tests_passed: 444 Vitest; 69 take-home; 68 NISA; 86 iDeCo; 28 overview; 276 portable; completion simulation 6 checks on PowerShell 7 and 5.1
+- tests_failed: none
+- browser_evidence: Edge file:// standalone root launcher passed 276 checks at 1280px and 360px, including settings export/import, confirmation/cancel, CRLF preservation, routes/history/reload
+- network: runtime_requests_0; console_errors_0; page_errors_0
+- migration: schemaVersion 6 with deterministic v1-v5 migration and BackupMetadata defaults; legacy bytes retained; corrupt current never falls back
+- import_atomicity: size/UTF-8/JSON/schema/migration/invariant/preview/confirmation/write ordering; before/after-mutation failures restore exact bytes
+- legacy_names: LF、CR、CRLF、whitespace、50+ characters preserved; untouched single-line input never writes normalized DOM value back
+- backup: success-only lastExportedAt; injected clock; due/dismiss derivation; overview warning and settings status from metadata
+- launcher: root file byte-equals dist build; CI detects stale committed launcher before any sync; standalone copy runs from Japanese/space path
+- completion: no absolute path; worktree list resolution; clean/untracked/operation/main removal/unreachable/HEAD/ff-only/CI/launcher gates; safe remove and prune
+- unresolved: none
+- worktree: clean_candidate
+- main_state: origin/main remains c3cf916048d59867e016b2979e6d0875fb563c82 / tree cf40250e338056abdb486408a32c7fda560d2039
+- release_state: no_main_merge; no_tag; no_release; no_distribution; no_actual_task_worktree_cleanup
+- actual_executor: Codex
+- provider_substitution: none
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: 5da12c38b280251d6d37df00aa37b0b015f7a504
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- review_stage: implementation
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- attempt_4_forbidden: false
+- execution_started_at: 2026-08-13 22:06:05 JST
+- execution_finished_at: 2026-08-13 22:35:05 JST
+
+## Implementation evidence
+
+- AppState v6 adds only backup metadata; all financial collections remain canonical and derived overview values are excluded from persistence.
+- Import validates untrusted bytes without mutation, presents a textContent preview, requires explicit confirmation, and publishes Store state only after storage commit.
+- Settings exposes person editing, backup/export/import, reminder, save/schema status, file path preservation warning, and operation-local status/errors.
+- Root launcher and completion automation are repository-native, deterministic, and covered in Windows CI.
