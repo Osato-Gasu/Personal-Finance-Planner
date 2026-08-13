@@ -50,6 +50,8 @@ jobs:
         run: npm run test:nisa
       - name: Validate iDeCo rule package, linked tax source, and state safety
         run: npm run test:ideco
+      - name: Validate integrated overview source selection and state safety
+        run: npm run test:overview
       - name: Build
         run: npm run build
       - name: Test standalone file build

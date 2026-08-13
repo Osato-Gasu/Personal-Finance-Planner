@@ -241,6 +241,20 @@ fieldset input {
   padding: 0.45rem;
 }
 
+.overview-table-wrapper {
+  overflow-x: auto;
+}
+
+.overview-rule {
+  border-left: 0.25rem solid #0969da;
+  padding-left: 1rem;
+}
+
+.overview-remediation {
+  background: #eef6ff;
+  padding: 0.75rem;
+}
+
 .nisa-result dd {
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -329,5 +343,11 @@ fieldset input {
   .summary-table td,
   .summary-table td:first-child {
     text-align: left;
+  }
+
+  .overview-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 700;
   }
 }

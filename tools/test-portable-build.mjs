@@ -157,6 +157,12 @@ try {
   await page.goto(`${standaloneUrl}#/unknown`, { waitUntil: "load" });
   await page.waitForURL(`${standaloneUrl}#/overview`);
   await page.getByRole("heading", { level: 2, name: "総合サマリー" }).waitFor();
+  await assertContains(page.getByTestId("overview-reference-month"), "2026-08");
+  await assertContains(
+    page.getByRole("heading", { name: "人物別の計算状態" }).locator(".."),
+    "手取り 未設定／NISA 未設定／iDeCo 未設定",
+  );
+  assert.equal(await page.locator("main [role='alert']").count(), 0);
 
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
@@ -887,6 +893,71 @@ try {
   );
   assert.equal(savedAfterReload, savedBeforeReload);
 
+  await page.getByRole("link", { name: "総合サマリー" }).click();
+  await page.waitForURL(`${standaloneUrl}#/overview`);
+  await page.getByRole("heading", { name: "世帯サマリー" }).waitFor();
+  await page.getByRole("heading", { name: "人物別サマリー" }).waitFor();
+  await page.getByRole("heading", { name: "人物別資産形成" }).waitFor();
+  await page.getByRole("heading", { name: "警告・前提" }).waitFor();
+  await page.getByRole("heading", { name: "適用ルールと根拠" }).waitFor();
+  await assertContains(page.getByTestId("overview-household"), "月間生活費");
+  await assertContains(page.getByTestId("overview-household"), "月間投資額");
+  await assertContains(page.getByTestId("overview-household"), "投資差引後");
+  await assertContains(page.locator("table.overview-table").first(), "本人");
+  await assertContains(page.locator("table.overview-table").first(), "相手");
+  await assertContains(
+    page.locator("table.overview-table").nth(1),
+    "想定残高合計",
+  );
+  assert.equal(
+    await page.locator("main input, main button, main select").count(),
+    0,
+  );
+  const evidenceLinks = page.getByTestId("overview-rules").locator("a");
+  assert.ok((await evidenceLinks.count()) > 0);
+  for (const link of await evidenceLinks.all()) {
+    assert.match(await link.getAttribute("href"), /^https:\/\//u);
+  }
+  const overviewWarningsBeforeReload = await page
+    .getByTestId("overview-warnings")
+    .innerText();
+  const overviewBytesBeforeReload = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  await page.reload({ waitUntil: "load" });
+  await page.getByRole("heading", { name: "世帯サマリー" }).waitFor();
+  assert.equal(
+    await page.getByTestId("overview-warnings").innerText(),
+    overviewWarningsBeforeReload,
+  );
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    overviewBytesBeforeReload,
+  );
+  await page.setViewportSize({ width: 360, height: 800 });
+  assert.equal(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.document.documentElement.clientWidth,
+    ),
+    true,
+  );
+  await page.getByRole("link", { name: "家計・生活費" }).focus();
+  assert.equal(
+    await page
+      .getByRole("link", { name: "家計・生活費" })
+      .evaluate((element) => element === element.ownerDocument.activeElement),
+    true,
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.waitForURL(`${standaloneUrl}#/budget`);
+
   const legacyLongName = "長".repeat(51);
   const legacyState = {
     schemaVersion: 1,
@@ -997,7 +1068,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=217, routes=${routes.length}, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=236, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

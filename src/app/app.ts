@@ -13,6 +13,7 @@ import {
 } from "../modules/budget/budget-view";
 import { createTakeHomeRenderer } from "../modules/take-home/take-home-view";
 import { createInvestmentsRenderer } from "../modules/investments/investments-view";
+import { createOverviewRenderer } from "../modules/overview/overview-view";
 
 const routeLabels: Record<RouteId, string> = {
   overview: "総合サマリー",
@@ -102,6 +103,11 @@ export function startApp(
     requestRender: () => render(currentRoute),
     getReferenceDate,
   });
+  const overviewRenderer = createOverviewRenderer({
+    document,
+    store,
+    getReferenceDate,
+  });
 
   render = (route: RouteId): void => {
     currentRoute = route;
@@ -124,22 +130,16 @@ export function startApp(
     shell.append(navigation);
     const main = element(document, "main");
     main.append(element(document, "h2", routeLabels[route]));
-    if (route === "budget") {
+    if (route === "overview") {
+      overviewRenderer(main);
+    } else if (route === "budget") {
       budgetRenderer(main);
     } else if (route === "take-home") {
       takeHomeRenderer(main);
     } else if (route === "investments") {
       investmentsRenderer(main);
     } else {
-      main.append(
-        element(
-          document,
-          "p",
-          route === "overview"
-            ? "家計・生活費タブで月間生活費と手残りを確認できます。"
-            : "この画面は後続TASKで実装します。",
-        ),
-      );
+      main.append(element(document, "p", "この画面は後続TASKで実装します。"));
     }
     shell.append(main);
     root.append(shell);
