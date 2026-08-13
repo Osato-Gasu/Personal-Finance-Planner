@@ -23,8 +23,9 @@ import {
   type IdecoPlan,
 } from "./ideco";
 
-export const SCHEMA_VERSION = 5 as const;
-export const PREVIOUS_SCHEMA_VERSION = 4 as const;
+export const SCHEMA_VERSION = 6 as const;
+export const PREVIOUS_SCHEMA_VERSION = 5 as const;
+export const SCHEMA_VERSION_4 = 4 as const;
 export const SCHEMA_VERSION_3 = 3 as const;
 export const SCHEMA_VERSION_2 = 2 as const;
 export const LEGACY_SCHEMA_VERSION = 1 as const;
@@ -120,6 +121,28 @@ export interface ExpenseItem {
 }
 
 export interface AppState {
+  schemaVersion: 6;
+  activeRoute: RouteId;
+  members: HouseholdMember[];
+  takeHomePlans: TakeHomePlan[];
+  incomeTargets: IncomeTarget[];
+  links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+  nisaPlans: NisaPlan[];
+  investmentScenarios: InvestmentScenario[];
+  idecoPlans: IdecoPlan[];
+  backup: BackupMetadata;
+}
+
+export interface BackupMetadata {
+  lastSuccessfulSaveAt: string | null;
+  lastExportedAt: string | null;
+  reminderIntervalDays: number;
+  reminderDismissedUntil: string | null;
+}
+
+export interface SchemaVersion5AppState {
   schemaVersion: 5;
   activeRoute: RouteId;
   members: HouseholdMember[];
@@ -181,6 +204,9 @@ export interface LegacyAppState {
 
 export type AppAction =
   | { type: "navigate"; route: RouteId }
+  | { type: "record-export-success"; at: string }
+  | { type: "set-backup-reminder-interval"; days: number }
+  | { type: "dismiss-backup-reminder"; until: string | null }
   | { type: "rename-member"; memberId: string; displayName: string }
   | {
       type: "update-member-profile";
@@ -591,6 +617,7 @@ export function validateAppState(state: AppState): void {
     throw new Error("unsupported schema version");
   if (!routeIds.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
+  validateBackupMetadata(state.backup);
   validateCurrentMembersAndIncome(state);
   uniqueIds(state.nisaPlans, "NISA plan");
   uniqueIds(state.investmentScenarios, "investment scenario");
@@ -736,6 +763,24 @@ export function validateAppState(state: AppState): void {
       throw new Error("personal expense must inherit without custom share");
     }
   }
+}
+
+function assertIsoTimestamp(value: string | null, field: string): void {
+  if (value === null) return;
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value)))
+    throw new Error(`${field} must be an ISO timestamp or null`);
+}
+
+function validateBackupMetadata(metadata: BackupMetadata): void {
+  assertIsoTimestamp(metadata.lastSuccessfulSaveAt, "lastSuccessfulSaveAt");
+  assertIsoTimestamp(metadata.lastExportedAt, "lastExportedAt");
+  assertIsoTimestamp(metadata.reminderDismissedUntil, "reminderDismissedUntil");
+  if (
+    !Number.isSafeInteger(metadata.reminderIntervalDays) ||
+    metadata.reminderIntervalDays < 1 ||
+    metadata.reminderIntervalDays > 365
+  )
+    throw new Error("reminderIntervalDays must be 1..365");
 }
 
 export function validateLegacyAppState(state: LegacyAppState): void {
@@ -988,7 +1033,7 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
@@ -1022,15 +1067,55 @@ export function parseAppState(value: unknown): AppState {
       parseInvestmentScenario,
     ),
     idecoPlans: requireArray(value, "idecoPlans").map(parseIdecoPlan),
+    backup: parseBackupMetadata(value.backup),
   };
   validateAppState(state);
   return state;
 }
 
+function parseBackupMetadata(value: unknown): BackupMetadata {
+  if (!isRecord(value)) throw new Error("backup metadata is required");
+  const nullableTimestamp = (key: string): string | null => {
+    const item = value[key];
+    if (item !== null && typeof item !== "string")
+      throw new Error(`${key} must be a string or null`);
+    return item;
+  };
+  const result: BackupMetadata = {
+    lastSuccessfulSaveAt: nullableTimestamp("lastSuccessfulSaveAt"),
+    lastExportedAt: nullableTimestamp("lastExportedAt"),
+    reminderIntervalDays: value.reminderIntervalDays as number,
+    reminderDismissedUntil: nullableTimestamp("reminderDismissedUntil"),
+  };
+  validateBackupMetadata(result);
+  return result;
+}
+
+export function parseSchemaVersion5AppState(
+  value: unknown,
+): SchemaVersion5AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  const currentLike = {
+    ...value,
+    schemaVersion: 6,
+    backup: {
+      lastSuccessfulSaveAt: null,
+      lastExportedAt: null,
+      reminderIntervalDays: 30,
+      reminderDismissedUntil: null,
+    },
+  };
+  const parsed = parseAppState(currentLike);
+  const previous = structuredClone(parsed) as Partial<AppState>;
+  Reflect.deleteProperty(previous, "backup");
+  return { ...previous, schemaVersion: 5 } as SchemaVersion5AppState;
+}
+
 export function parseSchemaVersion4AppState(
   value: unknown,
 ): SchemaVersion4AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_4)
     throw new Error("unsupported schema version");
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
@@ -1063,8 +1148,9 @@ export function parseSchemaVersion4AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 5,
+    schemaVersion: 6,
     idecoPlans: [],
+    backup: defaultBackupMetadata(),
   });
   return state;
 }
@@ -1101,10 +1187,11 @@ export function parseSchemaVersion3AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 5,
+    schemaVersion: 6,
     nisaPlans: [],
     investmentScenarios: [],
     idecoPlans: [],
+    backup: defaultBackupMetadata(),
   });
   return state;
 }
@@ -1126,6 +1213,7 @@ export function parseSchemaVersion2AppState(
 export function cloneState<
   T extends
     | AppState
+    | SchemaVersion5AppState
     | SchemaVersion4AppState
     | SchemaVersion3AppState
     | SchemaVersion2AppState
@@ -1193,6 +1281,16 @@ export function reduceState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "navigate":
       next.activeRoute = action.route;
+      break;
+    case "record-export-success":
+      next.backup.lastExportedAt = action.at;
+      next.backup.reminderDismissedUntil = null;
+      break;
+    case "set-backup-reminder-interval":
+      next.backup.reminderIntervalDays = action.days;
+      break;
+    case "dismiss-backup-reminder":
+      next.backup.reminderDismissedUntil = action.until;
       break;
     case "rename-member":
       requirePresent(
@@ -1979,7 +2077,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },
@@ -2007,5 +2105,15 @@ export function createInitialState(): AppState {
     nisaPlans: [],
     investmentScenarios: [],
     idecoPlans: [],
+    backup: defaultBackupMetadata(),
+  };
+}
+
+export function defaultBackupMetadata(): BackupMetadata {
+  return {
+    lastSuccessfulSaveAt: null,
+    lastExportedAt: null,
+    reminderIntervalDays: 30,
+    reminderDismissedUntil: null,
   };
 }

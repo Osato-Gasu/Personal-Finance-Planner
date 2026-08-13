@@ -20,10 +20,17 @@ export class Store {
   readonly #listeners = new Set<StoreListener>();
   #state: Readonly<AppState>;
 
-  constructor(initialState: AppState, writer?: StateWriter) {
+  readonly #now: () => string;
+
+  constructor(
+    initialState: AppState,
+    writer?: StateWriter,
+    now = () => new Date().toISOString(),
+  ) {
     validateAppState(initialState);
     this.#state = deepFreeze(cloneState(initialState));
     this.#writer = writer;
+    this.#now = now;
   }
 
   getState(): Readonly<AppState> {
@@ -32,6 +39,7 @@ export class Store {
 
   dispatch(action: AppAction): void {
     const next = reduceState(cloneState(this.#state), action);
+    next.backup.lastSuccessfulSaveAt = this.#now();
     validateAppState(next);
     if (
       action.type !== "navigate" &&

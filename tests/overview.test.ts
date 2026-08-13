@@ -114,7 +114,7 @@ function completeState(): AppState {
 }
 
 describe("integrated overview selector", () => {
-  it("requires an explicit real ISO reference date and schema version 5", () => {
+  it("requires an explicit real ISO reference date and schema version 6", () => {
     const state = createInitialState();
     expect(() => selectOverview(state, "2026-02-30")).toThrow("real calendar");
     expect(() => selectOverview(state, "2026-8-13")).toThrow("YYYY-MM-DD");
@@ -123,7 +123,7 @@ describe("integrated overview selector", () => {
         { ...state, schemaVersion: 4 } as unknown as AppState,
         referenceDate,
       ),
-    ).toThrow("schemaVersion 5");
+    ).toThrow("schemaVersion 6");
   });
 
   it("reports empty sources as not-configured without converting them to zero", () => {
@@ -720,10 +720,8 @@ describe("integrated overview selector", () => {
         .map((entry) => entry.memberId),
     ).toEqual(["member-partner", "member-self"]);
     expect(
-      result.warnings.some((entry) =>
-        /backup|バックアップ/iu.test(entry.message),
-      ),
-    ).toBe(false);
+      result.warnings.some((entry) => /バックアップ/u.test(entry.message)),
+    ).toBe(true);
   });
 
   it("propagates a null projection component to member and household assets", () => {

@@ -27,11 +27,11 @@ npm install
 npm run dev
 ```
 
-配布用HTMLは`npm run build`で生成する。end userは生成済みの`dist/index.html`をダブルクリックするだけで起動でき、利用時にHTTP server、Node.js、npmは不要である。JavaScriptとCSSはHTMLへinlineされるため、`index.html`だけを別folderへコピーしても利用でき、runtimeの外部通信も行わない。
+配布用HTMLは`npm run build`でrepository rootの`Personal-Finance-Planner.html`へ生成・同期する。end userはこのHTMLをダブルクリックするだけで起動でき、利用時にHTTP server、Node.js、npmは不要である。JavaScriptとCSSはHTMLへinlineされるため、このHTMLだけを別folderへコピーしても利用でき、runtimeの外部通信も行わない。
 
 `npm run test:portable`はbuild後のHTMLだけを別folderへコピーし、system EdgeまたはChromeの`file://`でroute、browser history、reload、保存、runtime通信なしを検証する。
 
-Stateは同じfile pathのlocalStorageへ保存される。HTMLの移動・folder名変更・file名変更によりbrowser上の保存領域が変わり、以前のStateが見えなくなる可能性があるため、移動前にJSON backupを取得する。
+Stateは同じfile pathのlocalStorageへ保存される。HTMLの移動・folder名変更・file名変更によりbrowser上の保存領域が変わり、以前のStateが見えなくなる可能性があるため、移動前に設定画面の「JSONバックアップを保存」を実行する。復元時は設定画面でJSONを選び、検証結果を確認してから「確認して復元」を押す。取消または検証失敗では既存データを変更しない。
 
 ## 技術方針
 

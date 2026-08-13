@@ -53,6 +53,14 @@ jobs:
       - name: Validate integrated overview source selection and state safety
         run: npm run test:overview
       - name: Build
-        run: npm run build
+        run: npm run build:app
+      - name: Verify committed root launcher freshness
+        run: node tools/sync-root-launcher.mjs --check
+      - name: Test completion automation (PowerShell 7)
+        shell: pwsh
+        run: ./tools/test-complete-task-local.ps1
+      - name: Test completion automation (PowerShell 5.1)
+        shell: powershell
+        run: ./tools/test-complete-task-local.ps1
       - name: Test standalone file build
         run: npm run test:portable

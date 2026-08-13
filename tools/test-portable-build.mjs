@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { copyFile, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -6,8 +7,9 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright-core";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
-const builtHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v5";
+const builtHtml = path.join(projectRoot, "Personal-Finance-Planner.html");
+const distHtml = path.join(projectRoot, "dist", "index.html");
+const storageKey = "personal-finance-planner:state:v6";
 const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
   ["overview", "総合サマリー"],
@@ -90,6 +92,7 @@ const temporaryDirectory = await mkdtemp(
 );
 let browser;
 try {
+  assert.deepEqual(await readFile(builtHtml), await readFile(distHtml));
   const html = await readFile(builtHtml, "utf8");
   assertStandaloneMarkup(html);
 
@@ -153,6 +156,85 @@ try {
   for (const [route, label] of routes) {
     await expectRoute(page, standaloneUrl, route, label);
   }
+
+  await assertContains(
+    page.locator("main"),
+    "バックアップをまだ保存していません",
+  );
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "JSONバックアップを保存" }).click(),
+  ]);
+  assert.match(
+    download.suggestedFilename(),
+    /^personal-finance-planner-\d{4}-\d{2}-\d{2}\.json$/u,
+  );
+  await page.getByText("JSONバックアップを保存しました。").waitFor();
+  const exportedBytes = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  assert.equal(
+    JSON.parse(exportedBytes).backup.lastExportedAt,
+    "2026-08-13T03:00:00.000Z",
+  );
+  await page.getByLabel("通知間隔（日）").fill("14");
+  await page.getByRole("button", { name: "通知間隔を保存" }).click();
+  await page.reload({ waitUntil: "load" });
+  assert.equal(await page.getByLabel("通知間隔（日）").inputValue(), "14");
+
+  const beforeInvalidImport = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  await page.locator('input[name="backup-import"]').setInputFiles({
+    name: "broken.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{broken", "utf8"),
+  });
+  await page.getByRole("alert").waitFor();
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    beforeInvalidImport,
+  );
+
+  const importedState = JSON.parse(beforeInvalidImport);
+  importedState.members.find((member) => member.role === "self").displayName =
+    "本人\r\n旧版";
+  const importBuffer = Buffer.from(JSON.stringify(importedState), "utf8");
+  await page.locator('input[name="backup-import"]').setInputFiles({
+    name: "valid.json",
+    mimeType: "application/json",
+    buffer: importBuffer,
+  });
+  await page.getByText(/復元候補を検証しました/u).waitFor();
+  await page.getByRole("button", { name: "復元をキャンセル" }).click();
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    beforeInvalidImport,
+  );
+  await page.locator('input[name="backup-import"]').setInputFiles({
+    name: "valid.json",
+    mimeType: "application/json",
+    buffer: importBuffer,
+  });
+  await page.getByRole("button", { name: "確認して復元" }).click();
+  await page.getByText("バックアップを復元しました。").waitFor();
+  assert.equal(
+    JSON.parse(
+      await page.evaluate(
+        (key) => globalThis.localStorage.getItem(key),
+        storageKey,
+      ),
+    ).members.find((member) => member.role === "self").displayName,
+    "本人\r\n旧版",
+  );
 
   await page.goto(`${standaloneUrl}#/unknown`, { waitUntil: "load" });
   await page.waitForURL(`${standaloneUrl}#/overview`);
@@ -883,7 +965,7 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 5);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 6);
   await page.reload({ waitUntil: "load" });
   await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -1231,7 +1313,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=262, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=276, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=preserved, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

@@ -485,12 +485,22 @@ export function createBudgetRenderer(options: {
     const submit = node(options.document, "button", "世帯設定を保存");
     submit.type = "submit";
     form.append(submit);
+    let selfNameTouched = false;
+    let partnerNameTouched = false;
+    selfName.input.addEventListener("input", () => {
+      selfNameTouched = true;
+    });
+    partnerName.input.addEventListener("input", () => {
+      partnerNameTouched = true;
+    });
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       performAction({
         type: "update-household",
-        selfName: selfName.input.value,
-        partnerName: partnerName.input.value,
+        selfName: selfNameTouched ? selfName.input.value : self.displayName,
+        partnerName: partnerNameTouched
+          ? partnerName.input.value
+          : partner.displayName,
         partnerActive: partnerCheckbox.checked,
         selfManualYen: selfLinked
           ? undefined

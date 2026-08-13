@@ -11,14 +11,15 @@ import { createFixtureState, createLegacyFixtureState } from "./fixtures/state";
 
 class MemoryStorage implements StorageLike {
   readonly values = new Map<string, string>();
-  failWrites = false;
+  failWrites: false | "before" | "after" = false;
 
   getItem(key: string): string | null {
     return this.values.get(key) ?? null;
   }
   setItem(key: string, value: string): void {
-    if (this.failWrites) throw new Error("write failed");
+    if (this.failWrites === "before") throw new Error("write failed");
     this.values.set(key, value);
+    if (this.failWrites === "after") throw new Error("write failed");
   }
   removeItem(key: string): void {
     this.values.delete(key);
@@ -31,7 +32,7 @@ describe("StorageRepository export/import transaction", () => {
     const repository = new StorageRepository(storage);
     const state = createFixtureState();
     repository.save(state);
-    expect(STORAGE_KEY).toContain(":v5");
+    expect(STORAGE_KEY).toContain(":v6");
     expect(repository.load()).toEqual(state);
     expect(JSON.parse(repository.export(state))).toEqual(state);
   });
@@ -84,7 +85,7 @@ describe("StorageRepository export/import transaction", () => {
     const state = { ...createLegacyFixtureState(), schemaVersion: 0 };
     expect(
       repository.prepareImport(JSON.stringify(state)).preview.schemaVersion,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it("rejects invariant violations", () => {
@@ -158,11 +159,29 @@ describe("StorageRepository export/import transaction", () => {
     const incoming = createFixtureState();
     incoming.activeRoute = "investments";
     const prepared = repository.prepareImport(JSON.stringify(incoming));
-    storage.failWrites = true;
+    storage.failWrites = "before";
     expect(() => commitPreparedImport(repository, store, prepared)).toThrow(
       "write failed",
     );
     expect(store.getState().activeRoute).toBe("overview");
     expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("restores exact bytes when import storage throws after mutation", () => {
+    const storage = new MemoryStorage();
+    const repository = new StorageRepository(storage);
+    const current = createFixtureState();
+    repository.save(current);
+    const before = storage.getItem(STORAGE_KEY);
+    const store = new Store(current, repository);
+    const incoming = createFixtureState();
+    incoming.activeRoute = "settings";
+    const prepared = repository.prepareImport(JSON.stringify(incoming));
+    storage.failWrites = "after";
+    expect(() => commitPreparedImport(repository, store, prepared)).toThrow(
+      "write failed",
+    );
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    expect(store.getState()).toEqual(current);
   });
 });

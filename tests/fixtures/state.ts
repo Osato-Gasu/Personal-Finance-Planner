@@ -169,5 +169,11 @@ export function createFixtureState(): AppState {
     nisaPlans: [],
     investmentScenarios: [],
     idecoPlans: [],
+    backup: {
+      lastSuccessfulSaveAt: null,
+      lastExportedAt: null,
+      reminderIntervalDays: 30,
+      reminderDismissedUntil: null,
+    },
   };
 }

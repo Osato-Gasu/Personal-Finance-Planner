@@ -6,6 +6,8 @@ import {
   type NisaResultStatus,
 } from "./nisa";
 import type { AppState, HouseholdMember } from "./state";
+import { SCHEMA_VERSION } from "./state";
+import { selectBackupReminder } from "./backup";
 import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
 import type { AppliedRule, CalculatedTakeHomePlan } from "./take-home-plan";
 
@@ -705,7 +707,10 @@ export function selectOverview(
   const schemaVersion: unknown = (state as unknown as Record<string, unknown>)[
     "schemaVersion"
   ];
-  if (schemaVersion !== 5) throw new Error("overview requires schemaVersion 5");
+  if (schemaVersion !== SCHEMA_VERSION)
+    throw new Error(
+      `overview requires schemaVersion ${String(SCHEMA_VERSION)}`,
+    );
   const roleOrder: Record<HouseholdMember["role"], number> = {
     self: 0,
     partner: 1,
@@ -726,6 +731,18 @@ export function selectOverview(
     })),
   };
   const warnings: OverviewWarning[] = [];
+  const backupReminder = selectBackupReminder(state.backup, referenceDate);
+  if (backupReminder.due)
+    warnings.push(
+      warning(
+        "household",
+        "overview",
+        "backup",
+        "backup-reminder",
+        "assumption",
+        backupReminder.message,
+      ),
+    );
   const rules: OverviewRule[] = [];
   const budget = tryCalculateBudgetSummary(budgetState, null);
   if (budget.status === "out-of-range") {

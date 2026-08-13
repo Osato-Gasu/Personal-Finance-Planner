@@ -10,6 +10,7 @@ import {
 } from "../src/data/storage-repository";
 import {
   validateAppState,
+  reduceState,
   type AppState,
   type LegacyAppState,
 } from "../src/domain/state";
@@ -55,7 +56,7 @@ describe("schema version 1 to 2 migration", () => {
   it("preserves legacy entities and migrates living expenses traceably", () => {
     const legacy = createLegacyFixtureState();
     const migrated = migrateToCurrentState(legacy);
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.members).toEqual(legacy.members);
     expect(migrated.takeHomePlans).toEqual(
       legacy.takeHomeInputs.map((input) => ({
@@ -103,6 +104,9 @@ describe("schema version 1 to 2 migration", () => {
   it.each([
     ["surrounding whitespace", " 本人 "],
     ["more than 50 characters", "長".repeat(51)],
+    ["CR", "本人\r旧版"],
+    ["LF", "本人\n旧版"],
+    ["CRLF", "本人\r\n旧版"],
   ])(
     "preserves a baseline-valid legacy display name with %s",
     (_label, displayName) => {
@@ -121,6 +125,40 @@ describe("schema version 1 to 2 migration", () => {
       ).toBe(displayName);
       expect(JSON.stringify(legacy)).toBe(legacyBefore);
       validateAppState(migrated);
+    },
+  );
+
+  it.each(["\r", "\n", "\r\n"])(
+    "preserves a legacy newline through unrelated household save: %j",
+    (newline) => {
+      const legacy = createLegacyFixtureState();
+      const self = required(
+        legacy.members.find((member) => member.role === "self"),
+        "legacy self",
+      );
+      self.displayName = `本人${newline}旧版`;
+      const migrated = migrateToCurrentState(legacy);
+      const currentSelf = required(
+        migrated.members.find((member) => member.role === "self"),
+        "current self",
+      );
+      const partner = required(
+        migrated.members.find((member) => member.role === "partner"),
+        "partner",
+      );
+      const updated = reduceState(migrated, {
+        type: "update-household",
+        selfName: currentSelf.displayName,
+        partnerName: partner.displayName,
+        partnerActive: partner.active,
+        globalSelfShareBasisPoints: migrated.budget.globalSelfShareBasisPoints,
+      });
+      expect(
+        required(
+          updated.members.find((member) => member.role === "self"),
+          "updated self",
+        ).displayName,
+      ).toBe(self.displayName);
     },
   );
 
@@ -179,13 +217,13 @@ describe("versioned repository migration and active link integrity", () => {
     const legacyBytes = JSON.stringify(createLegacyFixtureState());
     storage.values.set(LEGACY_STORAGE_KEY, legacyBytes);
     const loaded = new StorageRepository(storage).load();
-    expect(loaded?.schemaVersion).toBe(5);
+    expect(loaded?.schemaVersion).toBe(6);
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBe(legacyBytes);
     expect(
       migrateToCurrentState(
         JSON.parse(required(storage.getItem(STORAGE_KEY), "v2 bytes")),
       ).schemaVersion,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it("does not fall back to valid v1 when v2 is corrupt", () => {
@@ -220,7 +258,7 @@ describe("versioned repository migration and active link integrity", () => {
     const v2Before = storage.getItem(STORAGE_KEY);
     const legacyBytes = JSON.stringify(createLegacyFixtureState());
     const prepared = new StorageRepository(storage).prepareImport(legacyBytes);
-    expect(prepared.preview.schemaVersion).toBe(5);
+    expect(prepared.preview.schemaVersion).toBe(6);
     expect(storage.getItem(STORAGE_KEY)).toBe(v2Before);
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
   });

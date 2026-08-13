@@ -14,6 +14,10 @@ import {
 import { createTakeHomeRenderer } from "../modules/take-home/take-home-view";
 import { createInvestmentsRenderer } from "../modules/investments/investments-view";
 import { createOverviewRenderer } from "../modules/overview/overview-view";
+import {
+  createSettingsRenderer,
+  type BackupDownload,
+} from "../modules/settings/settings-view";
 
 const routeLabels: Record<RouteId, string> = {
   overview: "総合サマリー",
@@ -44,12 +48,30 @@ function localIsoDate(): string {
   ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+function browserDownload(
+  _browserWindow: Window,
+  document: Document,
+): BackupDownload {
+  return (contents, filename) => {
+    const url = URL.createObjectURL(
+      new Blob([contents], { type: "application/json" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+}
+
 export function startApp(
   browserWindow: Window,
   document: Document,
   options: {
     createId?: EntityIdFactory;
     getReferenceDate?: () => string;
+    getNow?: () => string;
+    downloadBackup?: BackupDownload;
   } = {},
 ): () => void {
   const root = document.querySelector<HTMLElement>("#app");
@@ -74,7 +96,8 @@ export function startApp(
     root.replaceChildren(shell);
     return () => undefined;
   }
-  const store = new Store(initialState, repository);
+  const getNow = options.getNow ?? (() => new Date().toISOString());
+  const store = new Store(initialState, repository, getNow);
   const router = new HashRouter(createBrowserHashEnvironment(browserWindow));
   const getReferenceDate = options.getReferenceDate ?? localIsoDate;
   let currentRoute = initialState.activeRoute;
@@ -108,6 +131,16 @@ export function startApp(
     store,
     getReferenceDate,
   });
+  const settingsRenderer = createSettingsRenderer({
+    document,
+    store,
+    repository,
+    download:
+      options.downloadBackup ?? browserDownload(browserWindow, document),
+    now: getNow,
+    getReferenceDate,
+    requestRender: () => render(currentRoute),
+  });
 
   render = (route: RouteId): void => {
     currentRoute = route;
@@ -138,9 +171,7 @@ export function startApp(
       takeHomeRenderer(main);
     } else if (route === "investments") {
       investmentsRenderer(main);
-    } else {
-      main.append(element(document, "p", "この画面は後続TASKで実装します。"));
-    }
+    } else settingsRenderer(main);
     shell.append(main);
     root.append(shell);
   };

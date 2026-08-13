@@ -8,7 +8,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build:app": "vite build",
+    "build": "npm run build:app && node tools/sync-root-launcher.mjs",
+    "verify:launcher": "npm run build:app && node tools/sync-root-launcher.mjs --check",
+    "test:completion": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/test-complete-task-local.ps1",
     "preview": "vite preview",
     "test": "vitest run",
     "test:rules": "vitest run tests/take-home-rules.test.ts",
@@ -17,8 +20,8 @@
     "test:overview": "vitest run tests/overview.test.ts",
     "test:portable": "npm run build && node tools/test-portable-build.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests tools/test-portable-build.mjs vite.config.ts",
-    "format:check": "prettier --check index.html src tests tools/test-portable-build.mjs package.json package-lock.json tsconfig.json vite.config.ts eslint.config.js .github/workflows/ci.yml"
+    "lint": "eslint src tests tools/*.mjs vite.config.ts",
+    "format:check": "prettier --check index.html src tests tools/*.mjs package.json package-lock.json tsconfig.json vite.config.ts eslint.config.js .github/workflows/ci.yml"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
