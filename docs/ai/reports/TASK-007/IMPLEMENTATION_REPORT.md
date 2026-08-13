@@ -1,0 +1,74 @@
+# IMPLEMENTATION REPORT — TASK-007
+
+- task_id: TASK-007
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- branch: codex/task-007-integrated-summary
+- baseline_commit: 02e223ad04574ee7a8772eaf7a9833f80935f3a8
+- baseline_tree: 4b7fda5d05c5c1ca43ee3a1576aaca83d75bb489
+- baseline_workflow_run_id: 31652700195
+- activation_commit: 8cdded91875bbfea82b47b2443515fc76e27d08f
+- activation_tree: 8964c26a61edcc82db43045a027004bc736e1b5c
+- activation_workflow_run_id: 31678071179
+- implementation_candidate: 4f8d0898e62a8efa1bf463c48030d46e8c1e204d
+- candidate_tree: 8f42ef4d3dc290d8c1844aad0bb6ef8c17f78e4b
+- candidate_workflow_run_id: 31681374641
+- candidate_workflow_conclusion: success
+- shared_version: 0.12.20
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
+- product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
+- product_requirements_sha256: E78C27CECFB360161B918F3990804B41137CE71A7B7FD1CD385EF117BE2A1A29
+- changed_files: .github/workflows/ci.yml; package.json; src/app/app.ts; src/domain/overview.ts; src/modules/overview/overview-view.ts; src/styles.css; tests/overview.test.ts; tools/test-portable-build.mjs
+- validation_result: PowerShell 7/5.1 governance、product identity smoke、audit validator、normalization test PASS。npm ci/typecheck/lint/format/test/test:rules/test:nisa/test:ideco/test:overview/build/test:portable PASS
+- tests_passed: 424 Vitest tests; 69 focused take-home tests; 68 focused NISA tests; 86 focused iDeCo tests; 23 focused overview tests; 236 portable browser checks
+- tests_failed: none
+- browser_evidence: Edge file:// standalone suite passed 236 checks at 1280px and 360px
+- network: runtime_requests_0; console_errors_0; page_errors_0
+- audit_checks: 21 normalization checks PASS on PowerShell 7 and 5.1
+- source_selection: unique active calculated take-home for reference year; existing budget allocation; active per-member NISA/iDeCo plans and scenarios
+- excluded_sources: legacy manual take-home, budget manual income, fixture contributionSources, cached/copied overview values
+- status_safety: not-configured、complete、invalid、incomplete、unsupported、missing-rule、out-of-range are distinct; null is not converted to complete zero
+- arithmetic_safety: signed after-living/after-investment values preserve negatives; required nulls propagate to household totals; unsafe sums become null with stable warnings
+- evidence_safety: upstream rule metadata only; absolute HTTPS sources only; no runtime fetch or duplicated statutory values
+- data_preservation: schemaVersion 5、migration、storage bytes、docs/product/**、generated shared、PRODUCT_IDENTITIES、AUDIT_IDENTITIES unchanged
+- ci_history: runs 31680033598 and 31680850976 exposed pre-existing portable legacy-fixture startup races; final fixture installs schema-v1 bytes before app startup and candidate run 31681374641 passed
+- unresolved: none
+- worktree: clean_candidate
+- main_state: origin/main remains 02e223ad04574ee7a8772eaf7a9833f80935f3a8 / tree 4b7fda5d05c5c1ca43ee3a1576aaca83d75bb489
+- release_state: no_main_merge; no_tag; no_release
+- actual_executor: Codex
+- provider_substitution: none
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: 4f8d0898e62a8efa1bf463c48030d46e8c1e204d
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- review_stage: implementation
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- attempt_4_forbidden: false
+- execution_started_at: 2026-08-13 16:26:05 JST
+- execution_finished_at: 2026-08-13 17:25:56 JST
+
+## Implementation evidence
+
+- `src/domain/overview.ts` is a pure selector over `Readonly<AppState>` and an explicit real ISO reference date. It has no DOM, storage, network, or current-clock dependency.
+- Take-home reuses `calculateTakeHomeFromState`; budget reuses the existing allocation result; NISA and iDeCo reuse their existing calculation and projection results.
+- Current-month NISA includes fixed contributions and same-month additional purchases. Current-month iDeCo respects plan period, receipt-age resolution, null, and annual-unit unsupported state.
+- Person and household cash flow, asset projections, stable warning keys/order, applied rule identity/effective period/status/verifiedAt/source, inactive-partner exclusion, and read-only behavior are covered by focused tests.
+- `#/overview` renders semantic household/person cash flow, person assets, statuses, warnings, evidence, and hash remediation links. Unexpected errors use `role=alert`; user-controlled text uses `textContent`.
