@@ -92,10 +92,48 @@ function Publish-Completion {
 }
 
 function Invoke-Completion {
-    param($Fixture, [string]$TaskPath = '', [string]$ExpectedBranch = '', [switch]$WhatIf)
+    param($Fixture, [string]$RepositoryPath = '', [string]$TaskPath = '', [string]$ExpectedBranch = '', [switch]$WhatIf)
+    if ([string]::IsNullOrEmpty($RepositoryPath)) { $RepositoryPath = $Fixture.Main }
     if ([string]::IsNullOrEmpty($TaskPath)) { $TaskPath = $Fixture.Task }
     if ([string]::IsNullOrEmpty($ExpectedBranch)) { $ExpectedBranch = $Fixture.Branch }
-    & $tool -RepositoryPath $Fixture.Main -TaskWorktree $TaskPath -TaskId 'TASK-008' -ExpectedTaskBranch $ExpectedBranch -CompletionCommit $Fixture.Commit -WorkflowRunId 1 -WhatIf:$WhatIf
+    & $tool -RepositoryPath $RepositoryPath -TaskWorktree $TaskPath -TaskId 'TASK-008' -ExpectedTaskBranch $ExpectedBranch -CompletionCommit $Fixture.Commit -WorkflowRunId 1 -WhatIf:$WhatIf
+}
+
+function Add-ExcludedSameNameWorktree {
+    param($Fixture)
+    $other = Join-Path (Join-Path $Fixture.Root 'other') 'Personal-Finance-Planner'
+    Invoke-External git @('-C', $Fixture.Main, 'worktree', 'add', '-b', 'codex/unrelated-same-name', $other, 'HEAD') | Out-Null
+    Write-Utf8NoBom (Join-Path $other 'tracked.txt') 'unrelated-dirty-tracked'
+    Write-Utf8NoBom (Join-Path $other 'manifest.yml') 'unrelated-untracked-manifest'
+    $marker = [string](@(Invoke-External git @('-C', $other, 'rev-parse', '--git-path', 'MERGE_HEAD'))[0])
+    if (-not [IO.Path]::IsPathRooted($marker)) { $marker = Join-Path $other $marker }
+    Write-Utf8NoBom $marker $Fixture.Commit
+    return [pscustomobject]@{ Path = $other; Marker = $marker }
+}
+
+function Get-ExcludedWorktreeSnapshot {
+    param($Fixture, $Excluded)
+    $records = (@(Invoke-External git @('-C', $Fixture.Main, 'worktree', 'list', '--porcelain')) -join "`n") -split "`n`n"
+    $excludedRecord = ([string](@($records | Where-Object { $_ -match '(?m)^branch refs/heads/codex/unrelated-same-name$' } | Select-Object -First 1)[0])).Trim()
+    if ([string]::IsNullOrWhiteSpace($excludedRecord)) { throw 'excluded same-name worktree registration is missing' }
+    return [ordered]@{
+        Tracked = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $Excluded.Path 'tracked.txt')))
+        Manifest = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $Excluded.Path 'manifest.yml')))
+        Marker = [Convert]::ToBase64String([IO.File]::ReadAllBytes($Excluded.Marker))
+        Status = (@(Invoke-External git @('-C', $Excluded.Path, 'status', '--porcelain=v2', '--branch', '--untracked-files=all')) -join "`n")
+        Head = [string](@(Invoke-External git @('-C', $Excluded.Path, 'rev-parse', 'HEAD'))[0])
+        Branch = [string](@(Invoke-External git @('-C', $Excluded.Path, 'symbolic-ref', 'HEAD'))[0])
+        WorktreeRecord = $excludedRecord
+    }
+}
+
+function Assert-ExcludedWorktreePreserved {
+    param($Fixture, $Excluded, $Snapshot)
+    if (-not (Test-Path -LiteralPath $Excluded.Path -PathType Container)) { throw 'excluded same-name worktree was removed' }
+    $actual = Get-ExcludedWorktreeSnapshot $Fixture $Excluded
+    foreach ($key in $Snapshot.Keys) {
+        if ([string]$actual[$key] -cne [string]$Snapshot[$key]) { throw "excluded same-name worktree changed: $key" }
+    }
 }
 
 function Get-PreservationSnapshot {
@@ -173,9 +211,27 @@ try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $
 $fixture = New-Fixture
 try {
     Publish-Completion $fixture
-    $ambiguous = Join-Path (Join-Path $fixture.Root 'other') 'Personal-Finance-Planner'
-    Invoke-External git @('-C', $fixture.Main, 'worktree', 'add', '--detach', $ambiguous, 'HEAD') | Out-Null
-    Expect-Failure $fixture { Invoke-Completion $fixture } 'ambiguous named main worktree'
+    Invoke-External git @('-C', $fixture.Main, 'checkout', '--detach') | Out-Null
+    Expect-Failure $fixture { Invoke-Completion $fixture } 'missing main branch worktree'
+} finally { Remove-Fixture $fixture }
+
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    $duplicate = Join-Path $fixture.Root 'duplicate-main'
+    Invoke-External git @('-C', $fixture.Main, 'worktree', 'add', '--detach', $duplicate, 'HEAD') | Out-Null
+    Invoke-External git @('-C', $duplicate, 'checkout', '--ignore-other-worktrees', 'main') | Out-Null
+    Expect-Failure $fixture { Invoke-Completion $fixture } 'multiple main branch worktrees'
+} finally { Remove-Fixture $fixture }
+
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    $excluded = Add-ExcludedSameNameWorktree $fixture
+    $snapshot = Get-ExcludedWorktreeSnapshot $fixture $excluded
+    Invoke-Completion $fixture | Out-Null
+    Assert-ExcludedWorktreePreserved $fixture $excluded $snapshot
+    $caseNames.Add('same-name non-main worktree excluded and preserved')
 } finally { Remove-Fixture $fixture }
 
 $fixture = New-Fixture
@@ -207,9 +263,19 @@ try {
 $fixture = New-Fixture
 try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture -TaskPath $fixture.Main } 'main worktree removal' } finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
+try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture -RepositoryPath $fixture.Task } 'RepositoryPath mismatch' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
 try { Expect-Failure $fixture { Invoke-Completion $fixture } 'unreachable completion commit' } finally { Remove-Fixture $fixture }
 $fixture = New-Fixture
 try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture -ExpectedBranch 'codex/task-008-wrong' } 'wrong TASK branch' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture
+try {
+    Publish-Completion $fixture
+    Write-Utf8NoBom (Join-Path $fixture.Task 'head-mismatch.txt') 'different HEAD'
+    Invoke-External git @('-C', $fixture.Task, 'add', 'head-mismatch.txt') | Out-Null
+    Invoke-External git @('-C', $fixture.Task, 'commit', '-m', 'different HEAD') | Out-Null
+    Expect-Failure $fixture { Invoke-Completion $fixture } 'TASK HEAD identity mismatch'
+} finally { Remove-Fixture $fixture }
 
 $fixture = New-Fixture
 try {
@@ -258,9 +324,11 @@ try {
 
 $expectedCases = @(
     'production mandatory gates have no public bypass', 'unique main worktree', 'wrong main folder',
-    'ambiguous named main worktree', 'tracked dirty main', 'untracked main', 'tracked dirty TASK',
+    'missing main branch worktree', 'multiple main branch worktrees',
+    'same-name non-main worktree excluded and preserved', 'tracked dirty main', 'untracked main', 'tracked dirty TASK',
     'untracked TASK', 'unfinished MERGE_HEAD', 'unfinished CHERRY_PICK_HEAD', 'unfinished rebase',
-    'main worktree removal', 'unreachable completion commit', 'wrong TASK branch', 'non-fast-forward main',
+    'main worktree removal', 'RepositoryPath mismatch', 'unreachable completion commit', 'wrong TASK branch',
+    'TASK HEAD identity mismatch', 'non-fast-forward main',
     'exact CI wrong SHA', 'exact CI unsuccessful conclusion', 'exact CI wrong branch',
     'exact CI wrong event', 'exact CI wrong workflow', 'exact main push Governance CI success', 'launcher freshness failure',
     'launcher portable failure', 'ff-only synchronization success', 'safe TASK worktree remove',

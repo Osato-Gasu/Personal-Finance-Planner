@@ -72,14 +72,12 @@ foreach ($line in (Invoke-Git $repository @('worktree', 'list', '--porcelain')))
 if ($null -ne $current) { $records += [pscustomobject]$current }
 
 $mainBranchRecords = @($records | Where-Object { $_.Branch -eq 'refs/heads/main' })
-$namedMainRecords = @($records | Where-Object { (Split-Path -Leaf $_.Path) -eq 'Personal-Finance-Planner' })
-if ($mainBranchRecords.Count -ne 1 -or $namedMainRecords.Count -ne 1) {
-    throw 'exactly one main worktree named Personal-Finance-Planner is required'
+if ($mainBranchRecords.Count -ne 1) { throw 'exactly one main branch worktree is required' }
+$mainRecord = $mainBranchRecords[0]
+if ((Split-Path -Leaf $mainRecord.Path) -ne 'Personal-Finance-Planner') {
+    throw 'main branch worktree must be named Personal-Finance-Planner'
 }
-if (-not (Same-Path $mainBranchRecords[0].Path $namedMainRecords[0].Path)) {
-    throw 'main branch worktree must be the unique Personal-Finance-Planner folder'
-}
-$main = (Resolve-Path -LiteralPath $mainBranchRecords[0].Path).Path
+$main = (Resolve-Path -LiteralPath $mainRecord.Path).Path
 if (-not (Same-Path $repository $main)) { throw 'RepositoryPath must identify the unique main worktree' }
 if (Same-Path $task $main) { throw 'main worktree must never be removed' }
 $taskRecords = @($records | Where-Object { Same-Path $_.Path $task })
