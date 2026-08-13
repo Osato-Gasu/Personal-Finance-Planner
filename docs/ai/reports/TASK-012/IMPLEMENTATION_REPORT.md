@@ -1,0 +1,81 @@
+# IMPLEMENTATION REPORT — TASK-012
+
+- task_id: TASK-012
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- origin_main_baseline: 74b6f47b2e11dfe622f956de2fb3ba2640413552
+- origin_main_baseline_tree: 0ea6a788d90c5d66d68e1d15981b033399866cfc
+- origin_main_workflow_run_id: 31734131847
+- origin_main_workflow_attempt: 2
+- origin_main_workflow_identity: Governance CI / main / push / success
+- transition_commit: d46c87a5e97484c4621065967faca579452fda1e
+- transition_tree: c467caa363ea22716ba3a3ea1eee4f5c41f2bd39
+- activation_commit: 13b3c3ccf34551874b9be18eed6ca8c30b905dc4
+- activation_tree: 13091a987018a92943d378188b4f91885ee50216
+- implementation_candidate: 19054c64de2d09daee625e4e0489468ef5af5d97
+- candidate_commit: 19054c64de2d09daee625e4e0489468ef5af5d97
+- candidate_tree: fc7e521b148faa8cf30c0aae36d880b0580c52c4
+- candidate_workflow_run_id: 31744563399
+- candidate_workflow_attempt: 1
+- candidate_workflow_conclusion: success
+- candidate_workflow_identity: Governance CI / codex/task-012-main-worktree-selection / push / 19054c64de2d09daee625e4e0489468ef5af5d97
+- shared_version: 0.12.20
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- shared_manifest_sha256: 94A0527669659CDBEB263773C25F85E48CED696DCC1F0F35DD62473A4FB200FE
+- changed_files: tools/complete-task-local.ps1; tools/test-complete-task-local.ps1
+- selection_contract: Branch == refs/heads/main records exactly one; unique main basename Personal-Finance-Planner; RepositoryPath canonical Same-Path match
+- excluded_worktree_contract: non-main same-name worktrees are not selected, cleaned, inspected for unfinished operations, synchronized, changed, removed, or targeted for prune
+- task_identity_contract: absolute TaskWorktree, TaskId prefix, ExpectedTaskBranch, registered record, resolved CompletionCommit, and record HEAD remain exact
+- completion_cases_ps7: 30 PASS
+- completion_cases_ps51: 30 PASS
+- completion_added_boundaries: missing main branch worktree; multiple main branch worktrees; same-name non-main dirty/untracked/unfinished worktree excluded and preserved; RepositoryPath mismatch; TASK HEAD identity mismatch
+- existing_completion_boundaries: retained without skip or assertion weakening
+- governance_ps7: validate-ai-governance; REQUIREMENTS_DEFINED smoke; audit identity validator; 21-check audit normalization; project overlay PASS
+- governance_ps51: validate-ai-governance; REQUIREMENTS_DEFINED smoke; audit identity validator; 21-check audit normalization; project overlay PASS
+- github_ci_tests: 462 Vitest; 69 take-home; 68 NISA; 86 iDeCo; 28 overview; 284 portable; completion 30 cases on PowerShell 7 and 5.1
+- forbidden_path_diff_count: 0
+- user_owned_root: C:\Users\owner\Development\personal\Personal-Finance-Planner
+- user_owned_manifest: manifest.yml / 0 bytes / SHA-256 E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
+- user_owned_manifest_mtime_utc: 2026-08-10T22:01:03.9364887Z
+- user_owned_worktree_identity: branch refs/heads/codex/task-001-shared-governance-adoption / HEAD 9398c158f96e6c5b7cc1c38e31eedd0d87460ac5
+- user_owned_preservation: bytes/status/branch/HEAD/worktree registration unchanged; no write or metadata mutation performed
+- task_008_worktree: retained; no completion execution, removal, or prune performed
+- tests_failed: none
+- browser_evidence: not required; candidate CI portable suite passed 284 checks
+- network: runtime_requests_0; console_errors_0; page_errors_0
+- unresolved: none
+- worktree: clean_candidate
+- actual_executor: Codex
+- provider_substitution: none
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: 19054c64de2d09daee625e4e0489468ef5af5d97
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- review_stage: implementation
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- attempt_4_forbidden: false
+- execution_started_at: 2026-08-14 05:53:41 JST
+- execution_finished_at: 2026-08-14 06:22:59 JST
+
+## Implementation evidence
+
+- Production selection filters worktree records by exact main branch ref before applying the basename contract; unrelated same-name paths no longer create ambiguity.
+- The isolated preservation fixture makes the unrelated same-name worktree tracked-dirty, creates untracked manifest.yml, and writes MERGE_HEAD, then verifies bytes, status, HEAD, branch, and its own worktree record remain exact after successful completion.
+- Main zero/multiple, wrong basename, RepositoryPath mismatch, and TASK branch/HEAD mismatch remain explicit negative cases.
+- Candidate-to-baseline forbidden product/package/workflow/launcher/product-doc/generated/identity path diff is zero.

@@ -2,9 +2,9 @@
 updated_at: 2026-08-14
 active_tasks:
   - TASK-012
-next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-012
+next_action: ChatGPT performs TASK-012 implementation review attempt 1 with the standard profile
 ---
 
 # Current state
 
-TASK-012 spec revision 1「completion main worktree選択修正」をtransition base `d46c87a5e97484c4621065967faca579452fda1e`（tree `c467caa363ea22716ba3a3ea1eee4f5c41f2bd39`）からREQUIREMENTS_DEFINEDでactive化した。branchはorigin/main exact baseline `74b6f47b2e11dfe622f956de2fb3ba2640413552`から開始し、別branchの同名worktreeをmain選択・clean・同期・変更・削除対象から除外する。TASK-008 local completion toolは実行せず、TASK-008およびuser-owned worktreeを変更・削除しない。
+TASK-012 candidate `19054c64de2d09daee625e4e0489468ef5af5d97`（tree `fc7e521b148faa8cf30c0aae36d880b0580c52c4`）はmain worktreeをbranch refs/heads/mainの一意recordから選択し、別branchの同名dirty／untracked／unfinished worktreeを非対象化する。PowerShell 7／5.1 completion 30 casesと全governance gate、exact workflow `31744563399` attempt 1がSUCCESS。implementation review attempt 1／standardを依頼する。
