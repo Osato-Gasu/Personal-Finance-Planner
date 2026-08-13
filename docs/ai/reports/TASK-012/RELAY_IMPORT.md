@@ -1,0 +1,27 @@
+# RELAY IMPORT — TASK-012
+
+- source bundle: TASK-012_REQUIREMENTS_DEFINED_RELAY_BUNDLE.json
+- source SHA-256: 490F61BCF371A72CC1B957FAB0F90DE936241888845FE2BDE8907386B46B4C87
+- source bytes: 12448
+- identity verified: true
+- canonical bundle: docs/ai/reports/TASK-012/RELAY_BUNDLE.json
+- canonical SHA-256: 490F61BCF371A72CC1B957FAB0F90DE936241888845FE2BDE8907386B46B4C87
+- canonical bytes: 12448
+- semantic round-trip: verified
+- decision: REQUIREMENTS_DEFINED
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- candidate: none
+- handoff HEAD: none
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-012-main-worktree-selection
+- resolved_commit: d46c87a5e97484c4621065967faca579452fda1e
+- next_action_blob: 3d418ad5b082c4963ddcf2f5bfafa8f95fc9a5ff
+- handoff_blob: cebbcbdc179e874c4364bb20b7c67d5cc9e637f3
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- review_stage: implementation
+- imported findings: 0
+- accepted findings: 0
+- finding dispositions: 0

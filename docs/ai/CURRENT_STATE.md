@@ -1,9 +1,10 @@
 ---
 updated_at: 2026-08-14
-active_tasks: []
-next_action: ChatGPT defines formal TASK-012 requirements for completion main worktree selection
+active_tasks:
+  - TASK-012
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-012
 ---
 
 # Current state
 
-TASK-008 attempt 3／relaxed／finalはAPPROVEDとなり、release head `74b6f47b2e11dfe622f956de2fb3ba2640413552`（tree `0ea6a788d90c5d66d68e1d15981b033399866cfc`）をorigin/mainへfast-forward統合済み、exact Governance CI `31734131847` attempt 2はSUCCESSである。TASK-008 packetはgit_only履歴へ移すが、TASK-008 local completion toolは実行せず、worktreeを変更・削除しない。ユーザー承認済みの独立TASK-012をreadyにし、別branchの同名user-owned worktreeをmain選択から除外する正式要件を定義する。
+TASK-012 spec revision 1「completion main worktree選択修正」をtransition base `d46c87a5e97484c4621065967faca579452fda1e`（tree `c467caa363ea22716ba3a3ea1eee4f5c41f2bd39`）からREQUIREMENTS_DEFINEDでactive化した。branchはorigin/main exact baseline `74b6f47b2e11dfe622f956de2fb3ba2640413552`から開始し、別branchの同名worktreeをmain選択・clean・同期・変更・削除対象から除外する。TASK-008 local completion toolは実行せず、TASK-008およびuser-owned worktreeを変更・削除しない。
