@@ -2,7 +2,7 @@
 updated_at: 2026-08-13
 active_tasks:
   - TASK-008
-next_action: ChatGPT performs TASK-008 implementation review attempt 1 with the standard profile
+next_action: Codex processes CHANGES_REQUESTED relay for TASK-008
 ---
 
 # Current state
