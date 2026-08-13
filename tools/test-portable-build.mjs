@@ -991,13 +991,18 @@ try {
     ],
     contributionSources: [],
   };
-  await page.evaluate(
-    ({ currentKey, legacyKey, state }) => {
-      globalThis.localStorage.removeItem(currentKey);
+  const installedLegacyBytes = await page.evaluate(
+    ({ legacyKey, state }) => {
+      for (const key of Object.keys(globalThis.localStorage)) {
+        if (key.startsWith("personal-finance-planner:state:v"))
+          globalThis.localStorage.removeItem(key);
+      }
       globalThis.localStorage.setItem(legacyKey, JSON.stringify(state));
+      return globalThis.localStorage.getItem(legacyKey);
     },
-    { currentKey: storageKey, legacyKey: legacyStorageKey, state: legacyState },
+    { legacyKey: legacyStorageKey, state: legacyState },
   );
+  assert.equal(installedLegacyBytes, JSON.stringify(legacyState));
   await page.reload({ waitUntil: "load" });
   const legacySelfName = page.getByLabel("本人表示名");
   const legacyPartnerName = page.getByLabel("相手表示名");
