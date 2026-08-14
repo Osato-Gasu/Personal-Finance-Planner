@@ -1347,6 +1347,7 @@ try {
   );
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
+  await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
 
   const overflowBytes = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
