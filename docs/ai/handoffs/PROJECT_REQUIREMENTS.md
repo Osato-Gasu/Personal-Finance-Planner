@@ -7,7 +7,7 @@
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011はユーザー承認済みcarry-forwardのためtransition exact commitをbaseとする
 - product_source: docs/product/
-- next_candidate: TASK-012
+- next_candidate: TASK-009
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
@@ -44,8 +44,13 @@
 - completion_flow: remote main統合だけで完了とせず、origin/main exact CI、cleanな常設mainのfetch+ff-only同期、root launcher freshness/portable smoke、完成commit reachability、cleanなTASK worktreeの安全remove/prune、git_only completion syncまでを恒久条件とする
 - completion_blocked_conditions: dirty/untracked/ambiguous worktree、non-fast-forward、unreachable commit、CIまたはlauncher gate失敗では破壊的回避を行わずBLOCKEDとする
 - approved_predecessor_TASK_008: TASK-008 attempt 3／relaxed／finalはAPPROVED。release head 74b6f47b2e11dfe622f956de2fb3ba2640413552／tree 0ea6a788d90c5d66d68e1d15981b033399866cfcをorigin/mainへFF統合済みで、Governance CI 31734131847 attempt 2はmain／push／SUCCESS
-- deferred_local_completion_TASK_008: TASK-008 local completion toolはTASK-012で実行せず、C:\Users\owner\Development\personal\Personal-Finance-Planner-task-008 worktreeを変更・削除しない
-- next_requirements_TASK_012: completion toolのmain選択をbranch refs/heads/mainのexactly one recordへ限定し、別branchの同名worktreeをclean／untracked／unfinished operation／同期／変更／削除／pruneの対象から除外する
+- completed_local_completion_TASK_008: TASK-008 local completionはexact main CI `31756479657`、completion commit `74b6f47b2e11dfe622f956de2fb3ba2640413552`、fresh launcher、portable 284 checksを通過し、指定worktreeを安全にremove/pruneした
+- completed_TASK_012: TASK-012 spec revision 1はimplementation review attempt 2／standard、cycles 1、findings 0でAPPROVEDとなり、release head `4e217b8d47cc955f3b3e3da54d97ead811346381`（tree `d10df82e04b3c634849e19c70ce471af2be75eb8`）をmainへfast-forward統合済み
+- completed_candidate_TASK_012: approved candidate `c70cfabee1c1909660e9ed242d93ecd953f4f709`（tree `251ed1c33de68e64116059d1b07025ea08452e7f`）／candidate workflow `31751171064`、review handoff `ddae5547f211a9f16b0b81c43fe01a68dbc4a12b`／workflow `31752066301` attempt 2、release workflow `31755772429`、main integration workflow `31756479657` attempt 2はすべてSUCCESS
+- resolved_findings_TASK_012: FINDING-012-R1-01、FINDING-012-R1-02は解消済み。attempt 3とattempt 4は作成せず、tag、GitHub Release、distributionも行っていない
+- completion_evidence_TASK_012: PowerShell 7／5.1 completion各34 cases、462 Vitest、69 take-home、68 NISA、86 iDeCo、28 overview、284 portable checks、runtime requests 0、console errors 0、page errors 0をPASS
+- task_history_TASK_012: active TASK/handoff/report packetはrelease head `4e217b8d47cc955f3b3e3da54d97ead811346381`のGit履歴で完全に追跡可能で、git_only completion sync後のcurrent treeには残さない
+- next_requirements_TASK_009: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-009「配布」の正式要件を定義する
 
 ## TASK-011 requirements draft (lossless user-decision carry-forward)
 
