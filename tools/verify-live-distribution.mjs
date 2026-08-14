@@ -1,7 +1,8 @@
-import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { DISTRIBUTION_ALLOWLIST } from "./distribution-lib.mjs";
+import { fileURLToPath } from "node:url";
+import assert from "node:assert/strict";
+import { DISTRIBUTION_ALLOWLIST, sha256 } from "./distribution-lib.mjs";
 import { runDistributionBrowserSmoke } from "./distribution-browser-smoke.mjs";
 
 function option(name) {
@@ -11,25 +12,58 @@ function option(name) {
   return process.argv[index + 1];
 }
 
-const suppliedBaseUrl = option("--base-url");
-const baseUrl = new URL(
-  suppliedBaseUrl.endsWith("/") ? suppliedBaseUrl : `${suppliedBaseUrl}/`,
-);
-const staging = resolve(option("--staging"));
-for (const path of DISTRIBUTION_ALLOWLIST.filter(
-  (candidate) => candidate !== ".nojekyll",
-)) {
-  const response = await fetch(new URL(path, baseUrl));
-  if (!response.ok) throw new Error(`live file is unavailable: ${path}`);
-  assert.deepEqual(
-    Buffer.from(await response.arrayBuffer()),
-    await readFile(resolve(staging, path)),
-    `live bytes differ: ${path}`,
+export async function verifyLiveRawBytes({
+  baseUrl,
+  staging,
+  fetchImpl = globalThis.fetch,
+  readFileImpl = readFile,
+}) {
+  const normalizedBase = new URL(
+    baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`,
+  );
+  const verified = [];
+  for (const path of DISTRIBUTION_ALLOWLIST) {
+    const response = await fetchImpl(new URL(path, normalizedBase));
+    if (!response.ok) throw new Error(`live file is unavailable: ${path}`);
+    const liveBytes = Buffer.from(await response.arrayBuffer());
+    const stagedBytes = await readFileImpl(resolve(staging, path));
+    if (path === ".nojekyll" && liveBytes.byteLength !== 0)
+      throw new Error("live .nojekyll must be an empty file");
+    assert.deepEqual(liveBytes, stagedBytes, `live bytes differ: ${path}`);
+    verified.push({
+      path,
+      bytes: liveBytes.byteLength,
+      sha256: sha256(liveBytes),
+    });
+  }
+  return verified;
+}
+
+async function main() {
+  const suppliedBaseUrl = option("--base-url");
+  const baseUrl = new URL(
+    suppliedBaseUrl.endsWith("/") ? suppliedBaseUrl : `${suppliedBaseUrl}/`,
+  );
+  const staging = resolve(option("--staging"));
+  const rawFiles = await verifyLiveRawBytes({
+    baseUrl: baseUrl.href,
+    staging,
+  });
+  const evidence = await runDistributionBrowserSmoke(
+    new URL("index.html", baseUrl).href,
+  );
+  console.log(
+    JSON.stringify({
+      ok: true,
+      raw_bytes: "exact",
+      raw_files: rawFiles,
+      browser: evidence,
+    }),
   );
 }
-const evidence = await runDistributionBrowserSmoke(
-  new URL("index.html", baseUrl).href,
-);
-console.log(
-  JSON.stringify({ ok: true, raw_bytes: "exact", browser: evidence }),
-);
+
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+)
+  await main();

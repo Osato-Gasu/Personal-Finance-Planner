@@ -1,5 +1,6 @@
 import { configurePages } from "./configure-pages-lib.mjs";
 import { GitHubDistributionApi } from "./github-distribution-api.mjs";
+import { readCanonicalApprovalAtCommit } from "./distribution-approval.mjs";
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -14,6 +15,10 @@ const result = await configurePages({
   targetSha: option("--target-sha"),
   mainCiRunId: Number(option("--main-ci-run-id")),
   approvedReleaseHead: option("--approved-release-head"),
+  canonicalApproval: await readCanonicalApprovalAtCommit({
+    cwd: process.cwd(),
+    targetSha: option("--target-sha"),
+  }),
   apply: process.argv.includes("--apply"),
 });
 console.log(JSON.stringify(result));

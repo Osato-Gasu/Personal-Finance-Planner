@@ -1,4 +1,5 @@
 import { GitHubApiError, optionalGet } from "./github-distribution-api.mjs";
+import { evaluateCanonicalApproval } from "./distribution-approval.mjs";
 
 export async function configurePages({
   api,
@@ -6,6 +7,7 @@ export async function configurePages({
   targetSha,
   mainCiRunId,
   approvedReleaseHead,
+  canonicalApproval,
   apply = false,
 }) {
   if (!/^[0-9a-f]{40}$/.test(targetSha))
@@ -19,6 +21,14 @@ export async function configurePages({
   const main = await api.get(`${base}/branches/main`);
   const ci = await api.get(`${base}/actions/runs/${String(mainCiRunId)}`);
   const errors = [];
+  const approval = evaluateCanonicalApproval({
+    ...(canonicalApproval ?? {}),
+    targetSha,
+  });
+  if (!approval.ok)
+    errors.push(
+      `canonical TASK-009 APPROVED release proof is invalid: ${approval.errors.join("; ")}`,
+    );
   if (repo.private !== true) errors.push("repository must remain private");
   if (main.commit?.sha !== targetSha)
     errors.push("APPROVED release head is not current origin/main");

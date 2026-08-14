@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import {
@@ -13,11 +14,17 @@ function option(name) {
   return process.argv[index + 1];
 }
 
-async function uploadAsset({ token, uploadUrl, path }) {
-  const bytes = await readFile(path);
+async function uploadAsset({
+  token,
+  uploadUrl,
+  path,
+  fetchImpl = globalThis.fetch,
+  readFileImpl = readFile,
+}) {
+  const bytes = await readFileImpl(path);
   const name = basename(path);
   const url = `${uploadUrl.replace("{?name,label}", "")}?name=${encodeURIComponent(name)}`;
-  const response = await fetch(url, {
+  const response = await fetchImpl(url, {
     method: "POST",
     headers: {
       Accept: "application/vnd.github+json",
@@ -41,27 +48,90 @@ async function uploadAsset({ token, uploadUrl, path }) {
     throw new Error(`uploaded release asset identity mismatch: ${name}`);
 }
 
-const command = process.argv[2];
-if (command !== "stage" && command !== "publish")
-  throw new Error("command must be stage or publish");
-const token = process.env.GITHUB_TOKEN;
-if (!token) throw new Error("GITHUB_TOKEN is required");
-const api = new GitHubDistributionApi({ token });
-const repository = option("--repository");
-const version = option("--version");
-const target = option("--target-sha");
-const tag = `v${version}`;
-const base = `https://api.github.com/repos/${repository}`;
-const audit = JSON.parse(await readFile(resolve(option("--audit")), "utf8"));
-const expected = audit.expected_state;
-if (
-  expected.tag.name !== tag ||
-  expected.tag.targetCommit !== target ||
-  expected.release.targetCommit !== target
-)
-  throw new Error("audit expected identity mismatch");
+function assetIdentity(asset) {
+  if (
+    typeof asset?.name !== "string" ||
+    !Number.isSafeInteger(asset.size) ||
+    typeof asset.digest !== "string" ||
+    !asset.digest.startsWith("sha256:")
+  )
+    throw new Error(
+      `release asset identity is unavailable: ${asset?.name ?? "unknown"}`,
+    );
+  return {
+    path: asset.name,
+    sha256: asset.digest.slice("sha256:".length),
+    bytes: asset.size,
+  };
+}
 
-if (command === "stage") {
+function canonical(value) {
+  return JSON.stringify(value);
+}
+
+function expectedAssetIdentity(release) {
+  return release.assets
+    .map(assetIdentity)
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+async function verifyPublishedNoOp({ api, base, tag, expected, target }) {
+  const tagRef = await optionalGet(
+    api,
+    `${base}/git/ref/tags/${encodeURIComponent(tag)}`,
+  );
+  if (tagRef?.object?.type !== "commit" || tagRef.object.sha !== target)
+    throw new Error("published tag target mismatch; no-op was not exact");
+  const release = await api.get(
+    `${base}/releases/tags/${encodeURIComponent(tag)}`,
+  );
+  if (
+    release.tag_name !== tag ||
+    release.name !== expected.release.title ||
+    release.draft !== false ||
+    release.prerelease !== true
+  )
+    throw new Error("published release identity is not exact; no-op stopped");
+  if (
+    canonical(expectedAssetIdentity(release)) !==
+    canonical(expected.release.assets)
+  )
+    throw new Error("published release assets are not exact; no-op stopped");
+  return {
+    ok: true,
+    state: "exact_published",
+    side_effects: 0,
+    no_op: true,
+  };
+}
+
+/**
+ * Stage the tag, draft prerelease, and missing assets. The exact_published
+ * state is a complete, side-effect-free verification path for safe reruns.
+ */
+export async function stageRelease({
+  api,
+  token,
+  repository,
+  version,
+  target,
+  audit,
+  staging,
+  releaseNotesPath,
+  readFileImpl = readFile,
+  uploadAssetImpl = uploadAsset,
+}) {
+  const tag = `v${version}`;
+  const base = `https://api.github.com/repos/${repository}`;
+  const expected = audit.expected_state;
+  if (
+    expected.tag.name !== tag ||
+    expected.tag.targetCommit !== target ||
+    expected.release.targetCommit !== target
+  )
+    throw new Error("audit expected identity mismatch");
+
+  const state = audit.preflight.classification.state;
   const allowed = new Set([
     "fresh",
     "exact_tag_only",
@@ -70,8 +140,11 @@ if (command === "stage") {
     "exact_pages_deployed",
     "exact_published",
   ]);
-  if (!allowed.has(audit.preflight.classification.state))
+  if (!allowed.has(state))
     throw new Error("preflight state does not permit release staging");
+  if (state === "exact_published")
+    return verifyPublishedNoOp({ api, base, tag, expected, target });
+
   let tagRef = await optionalGet(
     api,
     `${base}/git/ref/tags/${encodeURIComponent(tag)}`,
@@ -91,10 +164,7 @@ if (command === "stage") {
     `${base}/releases/tags/${encodeURIComponent(tag)}`,
   );
   if (release === null) {
-    const notesTemplate = await readFile(
-      resolve(option("--release-notes")),
-      "utf8",
-    );
+    const notesTemplate = await readFileImpl(resolve(releaseNotesPath), "utf8");
     const notes = notesTemplate
       .replaceAll("{{TARGET_COMMIT}}", target)
       .replaceAll("{{PRIMARY_SHA256}}", expected.pages.primaryAssetSha256)
@@ -124,7 +194,7 @@ if (command === "stage") {
   )
     throw new Error("draft prerelease identity mismatch");
   const existing = new Map(release.assets.map((asset) => [asset.name, asset]));
-  const staging = resolve(option("--staging"));
+  const stagingPath = resolve(staging);
   for (const expectedAsset of expected.release.assets) {
     const current = existing.get(expectedAsset.path);
     if (current) {
@@ -137,14 +207,25 @@ if (command === "stage") {
         );
       continue;
     }
-    await uploadAsset({
+    await uploadAssetImpl({
       token,
       uploadUrl: release.upload_url,
-      path: resolve(staging, expectedAsset.path),
+      path: resolve(stagingPath, expectedAsset.path),
     });
   }
-  console.log(JSON.stringify({ ok: true, state: "exact_release_assets" }));
-} else {
+  return { ok: true, state: "exact_release_assets", side_effects: 0 };
+}
+
+export async function publishRelease({
+  api,
+  repository,
+  version,
+  target,
+  audit,
+}) {
+  const tag = `v${version}`;
+  const base = `https://api.github.com/repos/${repository}`;
+  const expected = audit.expected_state;
   if (audit.preflight.classification.state !== "exact_pages_deployed")
     throw new Error("Release publication requires exact_pages_deployed state");
   const tagRef = await api.get(
@@ -168,5 +249,38 @@ if (command === "stage") {
   });
   if (published.draft !== false || published.prerelease !== true)
     throw new Error("Release publication identity mismatch");
-  console.log(JSON.stringify({ ok: true, state: "exact_published" }));
+  return { ok: true, state: "exact_published", side_effects: 1 };
 }
+
+async function main() {
+  const command = process.argv[2];
+  if (command !== "stage" && command !== "publish")
+    throw new Error("command must be stage or publish");
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN is required");
+  const repository = option("--repository");
+  const version = option("--version");
+  const target = option("--target-sha");
+  const audit = JSON.parse(await readFile(resolve(option("--audit")), "utf8"));
+  const api = new GitHubDistributionApi({ token });
+  const result =
+    command === "stage"
+      ? await stageRelease({
+          api,
+          token,
+          repository,
+          version,
+          target,
+          audit,
+          staging: option("--staging"),
+          releaseNotesPath: option("--release-notes"),
+        })
+      : await publishRelease({ api, repository, version, target, audit });
+  console.log(JSON.stringify(result));
+}
+
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+)
+  await main();

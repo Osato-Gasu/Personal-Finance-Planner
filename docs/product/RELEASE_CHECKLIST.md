@@ -15,6 +15,7 @@
 ## 承認・main・CI preflight
 
 - [ ] implementation reviewがAPPROVEDで、reviewed candidateとrelease headをexact確認した
+- [ ] target commit自身の`RELAY_BUNDLE.json`、TASK-009 release state、`RELEASE_HANDOFF.md`からdecision=APPROVED／reviewed candidate／handoff／release phaseを検証した（callerのSHA自己一致だけでは通過しない）
 - [ ] approved release headがcurrent `origin/main`へ統合済みである
 - [ ] supplied main CI runはtarget SHA／branch `main`／event `push`／name `Governance CI`／conclusion `success`がexact一致する
 - [ ] repository visibilityはprivateである
@@ -27,7 +28,7 @@
 ## Pages setup
 
 1. `GITHUB_TOKEN`をprocess環境だけへ渡し、repository／fileへ保存しない。
-2. `node tools/configure-pages.mjs --repository Osato-Gasu/Personal-Finance-Planner --target-sha <TARGET_FULL_SHA> --main-ci-run-id <EXACT_RUN_ID> --approved-release-head <TARGET_FULL_SHA>`を実行し、既定dry-runの`create_actions_pages_site`または`already_exact`を確認する。
+2. `node tools/configure-pages.mjs --repository Osato-Gasu/Personal-Finance-Planner --target-sha <TARGET_FULL_SHA> --main-ci-run-id <EXACT_RUN_ID> --approved-release-head <TARGET_FULL_SHA>`を実行する。Pages setupはtarget SHAのgit treeに保存されたcanonical APPROVED proofも読み、既定dry-runの`create_actions_pages_site`または`already_exact`だけを確認する。
 3. 未構成の場合だけ同じexact引数へ`--apply`を追加する。sourceはGitHub Actions、custom domainなし、repository private維持とする。
 4. 403、admin権限不足、main/CI/approval mismatchでは設定を変更せず停止する。visibility変更や別hostで迂回しない。
 
@@ -44,7 +45,7 @@ workflow triggerは`workflow_dispatch`だけである。順序はtag → draft p
 
 ## Live evidence
 
-- [ ] Pagesの`index.html`、download HTML、manifest、checksums、`.nojekyll`がstaging bytesとexact一致する
+- [ ] Pagesの`index.html`、download HTML、manifest、checksums、`.nojekyll`（0 bytes）がstaging bytesとexact一致する。live auditには5 pathすべてのbytes／SHA-256が残る
 - [ ] overview／budget／take-home／investments／settings、hash navigation、reloadがPASSする
 - [ ] 360px、keyboard-only主要操作、visible focus、label、既存error stateがPASSする
 - [ ] versionと3制度確認日が表示される

@@ -1,4 +1,5 @@
 import { classifyDistributionState } from "./distribution-state.mjs";
+import { evaluateCanonicalApproval } from "./distribution-approval.mjs";
 
 export function evaluateDistributionPreflight(input) {
   const errors = [];
@@ -48,6 +49,15 @@ export function evaluateDistributionPreflight(input) {
   );
   requireValue(input.pagesInputValid === true, "Pages input identity mismatch");
 
+  const canonicalApproval = evaluateCanonicalApproval({
+    ...(input.canonicalApproval ?? {}),
+    targetSha: input.targetCommit,
+  });
+  requireValue(
+    canonicalApproval.ok,
+    `canonical TASK-009 APPROVED release proof is invalid: ${canonicalApproval.errors.join("; ")}`,
+  );
+
   const classification = classifyDistributionState(
     input.actualState,
     input.expectedState,
@@ -60,6 +70,7 @@ export function evaluateDistributionPreflight(input) {
     ok: errors.length === 0,
     errors,
     classification,
+    canonical_approval: canonicalApproval,
     side_effects: 0,
   };
 }

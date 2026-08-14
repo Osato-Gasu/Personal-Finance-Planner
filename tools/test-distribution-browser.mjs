@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { runDistributionBrowserSmoke } from "./distribution-browser-smoke.mjs";
+import { verifyLiveRawBytes } from "./verify-live-distribution.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
@@ -64,10 +65,16 @@ try {
   const address = server.address();
   if (!address || typeof address === "string")
     throw new Error("HTTP server address is unavailable");
+  const rawFiles = await verifyLiveRawBytes({
+    baseUrl: `http://127.0.0.1:${String(address.port)}/`,
+    staging,
+  });
   const evidence = await runDistributionBrowserSmoke(
     `http://127.0.0.1:${String(address.port)}/`,
   );
-  console.log(`Staged HTTP browser test passed: ${JSON.stringify(evidence)}`);
+  console.log(
+    `Staged HTTP browser test passed: ${JSON.stringify({ rawFiles, browser: evidence })}`,
+  );
 } finally {
   if (server)
     await new Promise((resolvePromise) => server.close(resolvePromise));

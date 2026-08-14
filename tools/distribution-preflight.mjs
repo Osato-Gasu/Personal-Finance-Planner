@@ -4,6 +4,7 @@ import packageMetadata from "../package.json" with { type: "json" };
 import { verifyDistribution, sha256 } from "./distribution-lib.mjs";
 import { evaluateDistributionPreflight } from "./distribution-preflight-lib.mjs";
 import { expectedDistributionIdentity } from "./distribution-state.mjs";
+import { readCanonicalApprovalAtCommit } from "./distribution-approval.mjs";
 import {
   GitHubDistributionApi,
   optionalGet,
@@ -125,6 +126,10 @@ const artifacts = await verifyDistribution({
   rootLauncherPath: launcher,
   outputDirectory: staging,
 });
+const canonicalApproval = await readCanonicalApprovalAtCommit({
+  cwd: process.cwd(),
+  targetSha: targetCommit,
+});
 const expectedState = expectedDistributionIdentity({
   version,
   targetCommit,
@@ -191,6 +196,7 @@ const result = evaluateDistributionPreflight({
   pagesConfigured: pages !== null,
   pagesSource: pages?.build_type,
   pagesInputValid: true,
+  canonicalApproval,
   actualState,
   expectedState,
 });
@@ -201,6 +207,7 @@ const audit = {
   actual_state: actualState,
   pages_url: pagesState.url,
   pages_deployments: pagesState.audit,
+  canonical_approval_source: canonicalApproval.sourceCommit,
 };
 await mkdir(dirname(auditOutput), { recursive: true });
 await writeFile(auditOutput, `${JSON.stringify(audit, null, 2)}\n`, {

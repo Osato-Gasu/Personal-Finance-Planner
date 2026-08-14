@@ -97,4 +97,25 @@ describe("manual distribution workflow", () => {
     ])
       expect(workflow.toLowerCase()).not.toContain(forbidden);
   });
+
+  it("keeps exact published reruns on the successful no-op stage path", () => {
+    expect(workflow).toContain("node tools/distribution-release.mjs stage");
+    expect(workflow).toContain("exact_published");
+    expect(workflow).toMatch(
+      /live_verification:[\s\S]*?needs: \[preflight, draft_release, pages\][\s\S]*?needs\.pages\.result == 'skipped'/u,
+    );
+    expect(workflow).toMatch(
+      /publish_release:[\s\S]*?needs\.live_verification\.outputs\.state == 'exact_pages_deployed'/u,
+    );
+  });
+
+  it("requires canonical target-tree approval evidence before publication jobs", () => {
+    expect(workflow).toContain("tools/distribution-preflight.mjs");
+    expect(workflow).toContain("Exact side-effect-free preflight");
+    expect(workflow.indexOf("Exact side-effect-free preflight")).toBeLessThan(
+      workflow.indexOf(
+        "Create exact tag, draft prerelease, and missing assets",
+      ),
+    );
+  });
 });

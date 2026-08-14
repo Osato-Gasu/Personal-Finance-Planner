@@ -21,6 +21,9 @@ import {
 } from "../tools/distribution-state.mjs";
 import { evaluateDistributionPreflight } from "../tools/distribution-preflight-lib.mjs";
 import { configurePages } from "../tools/configure-pages-lib.mjs";
+import { evaluateCanonicalApproval } from "../tools/distribution-approval.mjs";
+import { stageRelease } from "../tools/distribution-release.mjs";
+import { verifyLiveRawBytes } from "../tools/verify-live-distribution.mjs";
 
 const targetCommit = "a".repeat(40);
 const ruleVerifiedAt = {
@@ -28,6 +31,33 @@ const ruleVerifiedAt = {
   nisa: "2026-08-12",
   ideco: "2026-08-13",
 };
+
+const approvedCandidate = "b".repeat(40);
+const approvedHandoff = "c".repeat(40);
+
+function approvedCanonicalProof(target = targetCommit) {
+  return {
+    sourceCommit: target,
+    relayBundle: {
+      schema_version: 2,
+      task_id: "TASK-009",
+      branch: "codex/task-009-distribution",
+      decision: "APPROVED",
+      review_stage: "implementation",
+      reviewed_candidate: approvedCandidate,
+      reviewed_handoff_head: approvedHandoff,
+      next_phase: "release",
+      next_actor: "Codex",
+      next_role: "IMPLEMENTER",
+      route_result: {
+        requested_ref: "refs/heads/codex/task-009-distribution",
+        resolved_commit: approvedHandoff,
+      },
+    },
+    taskText: `---\ntask_id: TASK-009\nstatus: approved\ncurrent_phase: release\ncurrent_role_id: IMPLEMENTER\nnext_actor: Codex\nnext_role: IMPLEMENTER\nhandoff_file: docs/ai/handoffs/TASK-009/RELEASE_HANDOFF.md\nimplementation_candidate: ${approvedCandidate}\nreviewed_candidate: ${approvedCandidate}\n---\n`,
+    releaseHandoffText: `# RELAY HANDOFF — TASK-009\n\n- relay_schema: 2\n- task_id: TASK-009\n- decision: APPROVED\n- reviewed_candidate: ${approvedCandidate}\n- candidate_commit: ${approvedCandidate}\n- reviewed_handoff_head: ${approvedHandoff}\n- resolved_commit: ${approvedHandoff}\n- next_phase: release\n- next_actor: Codex\n- next_role: IMPLEMENTER\n`,
+  };
+}
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "配布 contract space "));
@@ -300,6 +330,7 @@ function validPreflight() {
     pagesConfigured: true,
     pagesSource: "workflow",
     pagesInputValid: true,
+    canonicalApproval: approvedCanonicalProof(),
     actualState: {
       tag: null,
       release: null,
@@ -357,6 +388,209 @@ describe("side-effect-free preflight", () => {
   });
 });
 
+describe("canonical APPROVED release proof", () => {
+  it("requires target-tree proof instead of caller SHA self-attestation", () => {
+    const proof = approvedCanonicalProof();
+    expect(evaluateCanonicalApproval(proof)).toMatchObject({ ok: true });
+
+    const forged = {
+      ...proof,
+      sourceCommit: undefined,
+    };
+    expect(evaluateCanonicalApproval(forged)).toMatchObject({ ok: false });
+
+    const wrongCandidate = approvedCanonicalProof();
+    wrongCandidate.taskText = wrongCandidate.taskText.replace(
+      approvedCandidate,
+      "d".repeat(40),
+    );
+    expect(evaluateCanonicalApproval(wrongCandidate)).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it.each([
+    ["missing relay", { relayBundle: null }],
+    [
+      "changes requested decision",
+      { relayBundle: { decision: "CHANGES_REQUESTED" } },
+    ],
+    [
+      "wrong phase",
+      {
+        taskText:
+          "---\ntask_id: TASK-009\nstatus: approved\ncurrent_phase: implementation\n---\n",
+      },
+    ],
+    ["missing release handoff", { releaseHandoffText: null }],
+  ])("rejects %s with no publication allowance", (_label, override) => {
+    const proof = { ...approvedCanonicalProof(), ...override };
+    expect(
+      evaluateDistributionPreflight({
+        ...validPreflight(),
+        canonicalApproval: proof,
+      }),
+    ).toMatchObject({ ok: false, side_effects: 0 });
+  });
+});
+
+describe("release staging reruns", () => {
+  function stageAudit(state) {
+    const expectedState = identities();
+    return {
+      expected_state: expectedState,
+      preflight: { classification: { state } },
+    };
+  }
+
+  function releaseWithAssets({ draft = true } = {}) {
+    const expected = identities();
+    return {
+      tag_name: expected.release.tag,
+      name: expected.release.title,
+      draft,
+      prerelease: true,
+      id: 10,
+      upload_url: "https://uploads.invalid/releases/10/assets{?name,label}",
+      assets: expected.release.assets.map((asset) => ({
+        name: asset.path,
+        size: asset.bytes,
+        digest: `sha256:${asset.sha256}`,
+      })),
+    };
+  }
+
+  it.each([
+    "fresh",
+    "exact_tag_only",
+    "exact_draft_release",
+    "exact_release_assets",
+    "exact_pages_deployed",
+  ])("stages %s through the existing resumable path", async (state) => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ object: { type: "commit", sha: targetCommit } })
+      .mockResolvedValueOnce(releaseWithAssets());
+    const api = {
+      get,
+      post: vi.fn().mockResolvedValue({
+        object: { type: "commit", sha: targetCommit },
+        ...releaseWithAssets(),
+      }),
+    };
+    const result = await stageRelease({
+      api,
+      token: "test",
+      repository: "owner/repo",
+      version: "0.1.0",
+      target: targetCommit,
+      audit: stageAudit(state),
+      staging: ".",
+      releaseNotesPath: "package.json",
+      uploadAssetImpl: vi.fn(),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("makes exact_published a fully revalidated side-effect-free no-op", async () => {
+    const api = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          object: { type: "commit", sha: targetCommit },
+        })
+        .mockResolvedValueOnce(releaseWithAssets({ draft: false })),
+      post: vi.fn(),
+      patch: vi.fn(),
+    };
+    const result = await stageRelease({
+      api,
+      token: "test",
+      repository: "owner/repo",
+      version: "0.1.0",
+      target: targetCommit,
+      audit: stageAudit("exact_published"),
+      staging: ".",
+      releaseNotesPath: "package.json",
+    });
+    expect(result).toEqual({
+      ok: true,
+      state: "exact_published",
+      side_effects: 0,
+      no_op: true,
+    });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+});
+
+describe("live raw distribution evidence", () => {
+  function liveFixture() {
+    const files = new Map(
+      DISTRIBUTION_ALLOWLIST.map((path) => [
+        path,
+        path === ".nojekyll" ? Buffer.alloc(0) : Buffer.from(`${path}\n`),
+      ]),
+    );
+    const fetchImpl = vi.fn(async (url) => {
+      const path = new URL(url).pathname.split("/").pop();
+      const bytes = files.get(path);
+      return {
+        ok: bytes !== undefined,
+        arrayBuffer: async () =>
+          bytes.buffer.slice(
+            bytes.byteOffset,
+            bytes.byteOffset + bytes.byteLength,
+          ),
+      };
+    });
+    const readFileImpl = vi.fn(async (path) => {
+      const name = String(path).split(/[\\/]/u).pop();
+      return files.get(name);
+    });
+    return { files, fetchImpl, readFileImpl };
+  }
+
+  it("verifies all five allowlisted paths including empty .nojekyll", async () => {
+    const fixture = liveFixture();
+    const evidence = await verifyLiveRawBytes({
+      baseUrl: "https://pages.invalid/site",
+      staging: "staging",
+      fetchImpl: fixture.fetchImpl,
+      readFileImpl: fixture.readFileImpl,
+    });
+    expect(evidence.map((entry) => entry.path)).toEqual(DISTRIBUTION_ALLOWLIST);
+    expect(evidence.find((entry) => entry.path === ".nojekyll")).toMatchObject({
+      bytes: 0,
+    });
+    expect(fixture.fetchImpl).toHaveBeenCalledTimes(5);
+  });
+
+  it("rejects missing or non-empty .nojekyll", async () => {
+    const missing = liveFixture();
+    missing.files.delete(".nojekyll");
+    await expect(
+      verifyLiveRawBytes({
+        baseUrl: "https://pages.invalid/site",
+        staging: "staging",
+        fetchImpl: missing.fetchImpl,
+        readFileImpl: missing.readFileImpl,
+      }),
+    ).rejects.toThrow("live file is unavailable: .nojekyll");
+
+    const nonEmpty = liveFixture();
+    nonEmpty.files.set(".nojekyll", Buffer.from("jekyll"));
+    await expect(
+      verifyLiveRawBytes({
+        baseUrl: "https://pages.invalid/site",
+        staging: "staging",
+        fetchImpl: nonEmpty.fetchImpl,
+        readFileImpl: nonEmpty.readFileImpl,
+      }),
+    ).rejects.toThrow("live .nojekyll must be an empty file");
+  });
+});
+
 describe("guarded Pages setup", () => {
   it("is dry-run by default and applies only after all exact reads", async () => {
     const get = vi
@@ -378,6 +612,7 @@ describe("guarded Pages setup", () => {
       targetSha: targetCommit,
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
+      canonicalApproval: approvedCanonicalProof(),
     });
     expect(dryRun).toMatchObject({ ok: true, applied: false, side_effects: 0 });
     expect(post).not.toHaveBeenCalled();
@@ -401,6 +636,7 @@ describe("guarded Pages setup", () => {
       targetSha: targetCommit,
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
+      canonicalApproval: approvedCanonicalProof(),
       apply: true,
     });
     expect(applied).toMatchObject({ ok: true, applied: true, side_effects: 1 });
@@ -421,6 +657,7 @@ describe("guarded Pages setup", () => {
       targetSha: targetCommit,
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
+      canonicalApproval: approvedCanonicalProof(),
       apply: true,
     });
     expect(result.ok).toBe(false);
