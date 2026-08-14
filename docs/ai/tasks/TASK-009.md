@@ -1,23 +1,23 @@
 ---
 task_id: TASK-009
 title: 配布
-status: changes_requested
+status: review_requested
 route: TWO_SESSION_FAST
 priority: low
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-009/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -31,12 +31,12 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#delivery_pla
 accepted_product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
 review_stage: implementation
 changes_requested_cycles: 1
-implementation_review_attempt: 1
+implementation_review_attempt: 2
 implementation_review_profile: standard
 implementation_review_final: false
 implementation_review_terminated: false
 attempt_4_forbidden: false
-implementation_candidate: a50635882ccd48b91a79234977b1bb436f826877
+implementation_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
@@ -45,7 +45,7 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: a50635882ccd48b91a79234977b1bb436f826877
+reviewed_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
