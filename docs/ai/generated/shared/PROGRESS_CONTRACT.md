@@ -1,6 +1,6 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 # Progress contract
@@ -18,3 +18,7 @@ active TASKは0件または1件です。0件なら次を日本語で表示しま
 - 現在着手中の機能はありません
 - 次の作業
 - BACKLOG
+
+completion syncでは、履歴TASKを1件ずつ `docs/ai/COMPLETED_TASKS.md` へ確定します。
+記録する時刻は、そのcompletion syncで固定した`execution_finished_at`のみとし、`YYYY-MM-DD HH:mm:ss JST`で保存します。
+同一TASK-IDは同一台帳内で一意です。既存履歴を無関係に書き換える修正は許可されず、履歴訂正は証跡と意図説明を付けて明示的に行います。

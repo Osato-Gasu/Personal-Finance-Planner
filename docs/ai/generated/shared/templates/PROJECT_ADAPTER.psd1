@@ -1,6 +1,6 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 @{
@@ -37,9 +37,21 @@
         NewWorkSelection = 'lowest_adequate'
         LunaToSolCostRatio = '1/25'
         TerraToSolCostRatio = '1/2.5'
-        UltraRequiresUserApproval = $true
+        UltraRequiresUserApproval = $false
     }
     ProductIdentity = @{ Mode='none'; Display=$false }
+    ImplementationReview = @{
+        MaxAttempts = 3
+        RelaxationAfterFailures = 2
+        RelaxableOnlyOnAttempt = 3
+        StandardActionableFindingLimit = 2
+        Profiles = @('standard','narrowed','terminal')
+        NarrowedAfterFailures = 1
+        TerminalAfterFailures = 2
+        RelaxableCategories = @('non_required_ui','minor_wording','optional_optimization','question','scope_expansion','ideal_design')
+        NonRelaxableCategories = @('requirement_violation','major_functionality','calculation_accuracy','decision_accuracy','data_preservation','data_integrity','rollback','raw_byte_portability','validator','required_test','release_gate','security','backward_compatibility')
+        FailureAfterFinalAttempt = 'NEEDS_USER_DECISION'
+    }
     Relay = @{
         Repository = '<owner/repository>'
         CandidateIdentity = @{
@@ -55,13 +67,14 @@
         Assignments = @(
             'Codex|IMPLEMENTER|codex-model|high'
             'ChatGPT|ORCHESTRATOR_AND_REVIEWER|chatgpt-model|high'
+            'ChatGPT|ORCHESTRATOR_AND_REVIEWER|none|none'
             'USER|USER|none|none'
         )
         NextActionTemplates = @{
             APPROVED = 'Codex processes APPROVED relay for {task_id}'
             CHANGES_REQUESTED = 'Codex processes CHANGES_REQUESTED relay for {task_id}'
             BLOCKED = '{actor} resolves BLOCKED relay for {task_id}'
-            NEEDS_USER_DECISION = 'USER decides NEEDS_USER_DECISION relay for {task_id}'
+            NEEDS_USER_DECISION = 'ChatGPT reviews NEEDS_USER_DECISION relay for {task_id} with user confirmation'
             REQUIREMENTS_DEFINED = 'Codex implements REQUIREMENTS_DEFINED relay for {task_id}'
             INDEPENDENT_REVIEW_REQUESTED = '{actor} performs independent review for {task_id}'
             INDEPENDENT_REVIEW_COMPLETED = 'ChatGPT evaluates completed independent review for {task_id}'

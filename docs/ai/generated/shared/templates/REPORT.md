@@ -1,6 +1,6 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 # REPORT
@@ -41,6 +41,15 @@
 - review_result:
 - review_findings_count:
 - review_finding_ids:
+- spec_revision_reset:
+- review_stage:
+- changes_requested_cycles:
+- implementation_review_attempt:
+- implementation_review_profile:
+- implementation_review_terminated:
+- user_confirmation_required: true / false
+- user_confirmation_prompt:
+- review_termination_reason:
 - repository_write_access: available / unavailable / not_applicable
 - write_probe_method:
 - user_relay_required: true / false

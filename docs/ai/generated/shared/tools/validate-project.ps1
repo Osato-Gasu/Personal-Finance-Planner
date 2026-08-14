@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -59,6 +59,53 @@ function Read-RetainedTaskFrontmatter([string]$Path) {
     }
     $values
 }
+function Validate-CompletedTasksLedger([string]$Text,[string]$Source){
+    $startMarker='<!-- COMPLETED_TASKS:START -->'
+    $endMarker='<!-- COMPLETED_TASKS:END -->'
+    $startCount=[regex]::Matches($Text,$startMarker).Count
+    $endCount=[regex]::Matches($Text,$endMarker).Count
+    if($startCount -ne 1){throw "COMPLETED_TASKS must contain exactly one START marker in $Source"}
+    if($endCount -ne 1){throw "COMPLETED_TASKS must contain exactly one END marker in $Source"}
+
+    $startIndex=$Text.IndexOf($startMarker)
+    if($startIndex -lt 0){throw "COMPLETED_TASKS markers are missing in $Source"}
+    $endIndex=$Text.IndexOf($endMarker,$startIndex+$startMarker.Length)
+    if($endIndex -lt 0){throw "COMPLETED_TASKS END marker is missing in $Source"}
+    if($endIndex -lt $startIndex){throw 'COMPLETED_TASKS END marker appears before START marker'}
+
+    $beforeText=$Text.Substring(0,$startIndex)
+    $afterText=$Text.Substring($endIndex+$endMarker.Length)
+    if($beforeText -match '(?m)^\s*\|'){throw "COMPLETED_TASKS markers must wrap only the ledger section in $Source"}
+    if($afterText -match '(?m)^\s*\|'){throw "COMPLETED_TASKS markers must wrap only the ledger section in $Source"}
+
+    $contentText=$Text.Substring($startIndex+$startMarker.Length, $endIndex-$startIndex-$startMarker.Length)
+    $lines=@($contentText -split '\r?\n'|Where-Object{-not[string]::IsNullOrWhiteSpace($_)})
+    if($lines.Count -lt 2){throw "COMPLETED_TASKS table is incomplete in $Source"}
+
+    $headerExpected=@('TASK-ID','機能','完了日時')
+    $headers=@($lines[0].Trim('|').Split('|')|ForEach-Object{$_.Trim()})
+    if($headers.Count -ne $headerExpected.Count){throw "COMPLETED_TASKS header column count mismatch in $Source"}
+    for($i=0;$i-lt$headerExpected.Count;$i++){if($headers[$i]-cne$headerExpected[$i]){throw "COMPLETED_TASKS header mismatch in ${Source} at index ${i}"}}
+
+    $separator=@($lines[1].Trim('|').Split('|')|ForEach-Object{$_.Trim()})
+    if($separator.Count -ne 3-or@($separator|Where-Object{$_-notmatch'^:?-{3,}:?$'}).Count){throw "COMPLETED_TASKS separator row is invalid in $Source"}
+
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    for($lineIndex=2;$lineIndex-lt$lines.Count;$lineIndex++){
+        $line=$lines[$lineIndex]
+        if($line -notmatch '^\|'){throw "Malformed COMPLETED_TASKS line in ${Source}: ${line}"}
+        $cells=@($line.Trim('|').Split('|')|ForEach-Object{$_.Trim()})
+        if($cells.Count -ne 3){throw "COMPLETED_TASKS row must have 3 cells in ${Source}: ${line}"}
+        if($cells[0]-notmatch'^TASK-[0-9]+$'){throw "Invalid COMPLETED_TASKS TASK-ID in ${Source}: $($cells[0])"}
+        if(-not $seen.Add($cells[0])){throw "Duplicate COMPLETED_TASKS TASK-ID in ${Source}: $($cells[0])"}
+        if([string]::IsNullOrWhiteSpace($cells[1])){throw "COMPLETED_TASKS feature is empty in ${Source}: $($cells[0])"}
+        if($cells[2]-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'){throw "COMPLETED_TASKS completion datetime is invalid in ${Source}: $($cells[0])"}
+        $timestamp=$cells[2].Substring(0,19)
+        $parsed=[DateTime]::MinValue
+        if(-not [DateTime]::TryParseExact($timestamp,'yyyy-MM-dd HH:mm:ss',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$parsed)){throw "COMPLETED_TASKS completion datetime is invalid in ${Source}: $($cells[0])"}
+    }
+    return $true
+}
 
 $required = @(
     'AGENTS.md',
@@ -66,6 +113,7 @@ $required = @(
     'docs/ai/PROJECT_RULES.md',
     'docs/ai/CURRENT_STATE.md',
     'docs/ai/BACKLOG.md',
+    'docs/ai/COMPLETED_TASKS.md',
     'docs/ai/NEXT_ACTION.yml',
     'docs/ai/SESSION_START.md',
     'docs/ai/SHARED_RULES.lock.yml',
@@ -103,6 +151,7 @@ try {
         if($core.Count-eq0-or$review.Count-eq0-or$core.Count-ne@($core|Select-Object -Unique).Count-or$review.Count-ne@($review|Select-Object -Unique).Count-or$deprecated.Count-ne@($deprecated|Select-Object -Unique).Count){Add-Failure 'project adapter model routing routes are incomplete or duplicated'}
         if([string]::IsNullOrWhiteSpace([string]$routing.DocumentDefault)-or[string]::IsNullOrWhiteSpace([string]$routing.CodeDefault)-or$declared-cnotcontains[string]$routing.DocumentDefault-or$declared-cnotcontains[string]$routing.CodeDefault){Add-Failure 'project adapter model routing defaults must be declared routes'}
         if([string]::IsNullOrWhiteSpace([string]$routing.NewWorkSelection)-or[string]$routing.LunaToSolCostRatio-notmatch'^\d+(?:\.\d+)?/\d+(?:\.\d+)?$'-or[string]$routing.TerraToSolCostRatio-notmatch'^\d+(?:\.\d+)?/\d+(?:\.\d+)?$'-or$null-eq$routing.UltraRequiresUserApproval-or$routing.UltraRequiresUserApproval.GetType()-ne[bool]){Add-Failure 'project adapter model routing policy values are invalid'}
+        if($routing.UltraRequiresUserApproval){Add-Failure 'project adapter model routing must disable explicit Ultra approval (UltraRequiresUserApproval must be false)'}
     }
     if (-not $adapter.Relay -or [string]::IsNullOrWhiteSpace([string]$adapter.Relay.Repository)) { Add-Failure 'project adapter relay repository is missing' }
     if (@($adapter.Relay.Assignments).Count -eq 0) { Add-Failure 'project adapter relay assignments are missing' }
@@ -166,6 +215,11 @@ try {
     if ($updatedAt -notmatch '^\d{4}-\d{2}-\d{2}$') { Add-Failure "CURRENT_STATE updated_at is invalid: $updatedAt" }
     $nextActionMatches = [regex]::Matches($state, '(?m)^next_action:\s*(.*?)\s*$')
     if ($nextActionMatches.Count -ne 1 -or [string]::IsNullOrWhiteSpace($nextActionMatches[0].Groups[1].Value) -or $nextActionMatches[0].Groups[1].Value.Trim() -in @('|','>')) { Add-Failure 'CURRENT_STATE next_action must be exactly one non-empty line' }
+    try {
+        Validate-CompletedTasksLedger (Read-ProjectFile 'docs/ai/COMPLETED_TASKS.md') 'docs/ai/COMPLETED_TASKS.md'
+    } catch {
+        Add-Failure $_.Exception.Message
+    }
 } catch { Add-Failure $_.Exception.Message }
 
 $taskFiles = @(Get-ChildItem -LiteralPath (Project-Path 'docs/ai/tasks') -Filter 'TASK-*.md' -File -ErrorAction SilentlyContinue)
@@ -236,6 +290,11 @@ try {
     $reviewResult = Read-Value $next 'review_result' 'NEXT_ACTION'
     $reviewFindingsCount = Read-Value $next 'review_findings_count' 'NEXT_ACTION'
     $reviewFindingIds = Read-Value $next 'review_finding_ids' 'NEXT_ACTION'
+    $nextReviewStage = Read-Value $next 'review_stage' 'NEXT_ACTION'
+    $nextChangesRequestedCycles = Read-Value $next 'changes_requested_cycles' 'NEXT_ACTION'
+    $nextImplementationReviewAttempt = Read-Value $next 'implementation_review_attempt' 'NEXT_ACTION'
+    $nextImplementationReviewProfile = Read-Value $next 'implementation_review_profile' 'NEXT_ACTION'
+    $nextImplementationReviewTerminated = Read-Value $next 'implementation_review_terminated' 'NEXT_ACTION'
     foreach ($field in @('write_bridge', 'write_probe', 'relay_status')) { [void](Read-Value $next $field 'NEXT_ACTION') }
 
     $actorRoles = @{ ChatGPT=@('ORCHESTRATOR_AND_REVIEWER','INDEPENDENT_REVIEWER'); Codex=@('IMPLEMENTER'); Claude=@('INDEPENDENT_REVIEWER'); USER=@('USER'); NONE=@('NONE') }
@@ -302,7 +361,7 @@ try {
         'RELEASE_HANDOFF.md'=@{Decision='APPROVED';Status='approved';Phase='release';Actor='Codex';Role='IMPLEMENTER'}
         'RELAY_HANDOFF.md'=@{Decision='CHANGES_REQUESTED';Status='changes_requested';Phase='implementation';Actor='Codex';Role='IMPLEMENTER'}
         'BLOCKED_HANDOFF.md'=@{Decision='BLOCKED';Status='blocked';Phase='blocked';Actor='dynamic';Role='dynamic'}
-        'USER_DECISION_HANDOFF.md'=@{Decision='NEEDS_USER_DECISION';Status='needs_user_decision';Phase='user_decision';Actor='USER';Role='USER'}
+        'USER_DECISION_HANDOFF.md'=@{Decision='NEEDS_USER_DECISION';Status='needs_user_decision';Phase='user_decision';Actor='ChatGPT';Role='ORCHESTRATOR_AND_REVIEWER'}
         'CODEX_HANDOFF.md'=@{Decision='REQUIREMENTS_DEFINED';Status='ready';Phase='implementation';Actor='Codex';Role='IMPLEMENTER'}
         'INDEPENDENT_REVIEW_HANDOFF.md'=@{Decision='INDEPENDENT_REVIEW_REQUESTED';Status='review_requested';Phase='dynamic';Actor='dynamic';Role='INDEPENDENT_REVIEWER'}
         'INDEPENDENT_REVIEW_RESULT_HANDOFF.md'=@{Decision='INDEPENDENT_REVIEW_COMPLETED';Status='review_completed';Phase='dynamic';Actor='ChatGPT';Role='ORCHESTRATOR_AND_REVIEWER'}
@@ -327,9 +386,50 @@ try {
                     if(-not$?){throw 'canonical relay semantic validation failed'}
                     $relay=Read-ProjectFile $canonical|ConvertFrom-Json
                     $sourceDecisionMatch=[regex]::Match($relayHandoffText,'(?m)^- source_decision:\s*(.*?)\s*$')
-                    $twoCycleGate=$expected.Decision-ceq'NEEDS_USER_DECISION'-and$sourceDecisionMatch.Success-and$sourceDecisionMatch.Groups[1].Value.Trim()-ceq'CHANGES_REQUESTED'-and[string]$relay.decision-ceq'CHANGES_REQUESTED'-and[string]$relay.relay_recipient-ceq'Codex'-and[string]$relay.relay_recipient_role-ceq'IMPLEMENTER'
-                    if([int]$relay.schema_version-ne2-or(-not$twoCycleGate-and[string]$relay.decision-cne$expected.Decision)-or[string]$relay.task_id-cne$taskId-or(-not$twoCycleGate-and([string]$relay.relay_recipient-cne'Codex'-or[string]$relay.relay_recipient_role-cne'IMPLEMENTER'))){
+                    $handoffCyclesMatch=[regex]::Match($relayHandoffText,'(?m)^-\s*changes_requested_cycles:\s*(\d+)\s*$');$handoffAttemptMatch=[regex]::Match($relayHandoffText,'(?m)^-\s*implementation_review_attempt:\s*(\d+)\s*$');$handoffProfileMatch=[regex]::Match($relayHandoffText,'(?m)^-\s*implementation_review_profile:\s*(\S+)\s*$');$handoffTerminatedMatch=[regex]::Match($relayHandoffText,'(?m)^-\s*implementation_review_terminated:\s*(\S+)\s*$')
+                    $confirmationMatch=[regex]::Match($next,'(?m)^user_confirmation_required:\s*(\S+)\s*$');$promptMatch=[regex]::Match($next,'(?m)^user_confirmation_prompt:\s*(.*?)\s*$')
+                    $terminalReviewGate=$expected.Decision-ceq'NEEDS_USER_DECISION'-and$sourceDecisionMatch.Success-and$sourceDecisionMatch.Groups[1].Value.Trim()-ceq'CHANGES_REQUESTED'-and[string]$relay.decision-ceq'CHANGES_REQUESTED'-and[string]$relay.review_stage-ceq'implementation'-and$handoffCyclesMatch.Success-and[int]$handoffCyclesMatch.Groups[1].Value-eq3-and$handoffAttemptMatch.Success-and[int]$handoffAttemptMatch.Groups[1].Value-eq3-and$handoffProfileMatch.Success-and$handoffProfileMatch.Groups[1].Value-ceq'terminal'-and$handoffTerminatedMatch.Success-and$handoffTerminatedMatch.Groups[1].Value-ceq'true'-and$actor-ceq'ChatGPT'-and$role-ceq'ORCHESTRATOR_AND_REVIEWER'-and$confirmationMatch.Success-and$confirmationMatch.Groups[1].Value-ceq'true'-and$promptMatch.Success-and$promptMatch.Groups[1].Value.Trim()-cne'none'-and[string]$relay.relay_recipient-ceq'Codex'-and[string]$relay.relay_recipient_role-ceq'IMPLEMENTER'
+                    if([int]$relay.schema_version-ne2-or(-not$terminalReviewGate-and[string]$relay.decision-cne$expected.Decision)-or[string]$relay.task_id-cne$taskId-or(-not$terminalReviewGate-and([string]$relay.relay_recipient-cne'Codex'-or[string]$relay.relay_recipient_role-cne'IMPLEMENTER'))){
                         Add-Failure 'canonical relay bundle does not match TASK transition'
+                    }
+                    $reportRelative="docs/ai/reports/$taskId/RELAY_IMPORT.md"
+                    if(-not(Test-Path -LiteralPath (Project-Path $reportRelative)-PathType Leaf)){Add-Failure "relay import report missing: $reportRelative"}else{
+                        $reportText=Read-ProjectFile $reportRelative
+                        $convergenceExpected=[ordered]@{
+                            review_stage=$nextReviewStage
+                            changes_requested_cycles=$nextChangesRequestedCycles
+                            implementation_review_attempt=$nextImplementationReviewAttempt
+                            implementation_review_profile=$nextImplementationReviewProfile
+                            implementation_review_terminated=$nextImplementationReviewTerminated
+                        }
+                        foreach($field in $convergenceExpected.Keys){
+                            $expectedValue=[string]$convergenceExpected[$field]
+                            foreach($source in @(
+                                [pscustomobject]@{Text=$taskText;Name="TASK $taskId"},
+                                [pscustomobject]@{Text=$state;Name='CURRENT_STATE'},
+                                [pscustomobject]@{Text=$relayHandoffText;Name=$handoff},
+                                [pscustomobject]@{Text=$reportText;Name=$reportRelative}
+                            )){if((Read-Value $source.Text $field $source.Name)-cne$expectedValue){Add-Failure "implementation review convergence mismatch: $field in $($source.Name)"}}
+                        }
+                        if($nextChangesRequestedCycles-notmatch'^[0-3]$'-or$nextImplementationReviewAttempt-notmatch'^[1-3]$'-or$nextImplementationReviewTerminated-notin@('true','false')){Add-Failure 'implementation review convergence state contains an invalid scalar'}else{
+                            $cycles=[int]$nextChangesRequestedCycles
+                            $expectedAttempt=if($cycles-eq0){'1'}elseif($cycles-eq1){'2'}else{'3'}
+                            $expectedProfile=if($cycles-eq0){'standard'}elseif($cycles-eq1){'narrowed'}else{'terminal'}
+                            $expectedTerminated=if($cycles-eq3){'true'}else{'false'}
+                            if($nextImplementationReviewAttempt-cne$expectedAttempt-or$nextImplementationReviewProfile-cne$expectedProfile-or$nextImplementationReviewTerminated-cne$expectedTerminated){Add-Failure 'implementation review convergence state combination is invalid'}
+                            if($cycles-eq3-and($handoffName-cne'USER_DECISION_HANDOFF.md'-or$actor-cne'ChatGPT'-or$role-cne'ORCHESTRATOR_AND_REVIEWER'-or-not$confirmationMatch.Success-or$confirmationMatch.Groups[1].Value-cne'true'-or-not$promptMatch.Success-or$promptMatch.Groups[1].Value.Trim()-ceq'none')){Add-Failure 'terminated implementation review must route to ChatGPT with user confirmation'}
+                        }
+                    }
+                    if([string]$relay.review_stage-ceq'implementation'-and[string]$relay.decision-in@('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')){
+                        $actionableIds=if($null-eq$relay.finding_dispositions){@($relay.findings|ForEach-Object{[string]$_.id})}else{@($relay.finding_dispositions|Where-Object{[string]$_.status-in@('accepted','needs_user_decision')}|ForEach-Object{[string]$_.finding_id})}
+                        $actionable=@($relay.findings|Where-Object{$actionableIds-ccontains[string]$_.id})
+                        $reviewCycles=[int]$nextChangesRequestedCycles
+                        if([string]$relay.decision-ceq'CHANGES_REQUESTED'){$reviewCycles--}
+                        if($reviewCycles-le1-and$actionable.Count-gt2){Add-Failure 'standard implementation review exceeds actionable finding limit'}
+                        if($reviewCycles-eq2){
+                            $nonRelaxable=@('calculation_accuracy','decision_accuracy','data_preservation','rollback','raw_byte_portability','validator','required_test','release_gate','security','backward_compatibility')
+                            foreach($finding in $actionable){if($nonRelaxable-cnotcontains[string]$finding.review_scope-or[string]$finding.severity-notin@('BLOCKER','MAJOR')){Add-Failure "terminal review contains a prohibited finding: $($finding.id)"}}
+                        }
                     }
                     if($null-ne$relay.finding_dispositions){
                         $requiredMatch=[regex]::Match($relayHandoffText,'(?s)## Required changes\s*(?<body>.*?)\s*## User decisions required')

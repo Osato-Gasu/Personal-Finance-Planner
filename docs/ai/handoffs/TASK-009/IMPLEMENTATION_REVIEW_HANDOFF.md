@@ -31,24 +31,34 @@
 - candidate_workflow_run_id: 31789154016
 - candidate_workflow_attempt: 1
 - candidate_workflow_conclusion: success
-- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- original_handoff_commit: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
+- original_handoff_workflow_run_id: 31790374136
+- original_handoff_workflow_attempt: 1
+- original_handoff_workflow_conclusion: success
+- shared_candidate: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
 - product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
 - spec_revision: 1
 - review_stage: implementation
 - changes_requested_cycles: 1
 - implementation_review_attempt: 2
-- implementation_review_profile: standard
+- implementation_review_profile: narrowed
 - implementation_review_final: false
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
 - review_attempt: 2
-- review_profile: standard
+- review_profile: narrowed
+- original_review_profile: standard under shared v0.12.20
+- canonical_migrated_profile: narrowed under shared v0.12.24
+- review_reexecuted: false
+- review_decision_changed: false
+- findings_changed: false
 - final_review: false
 
 ## Assignment / result
 
-- purpose: TASK-009 implementation review attempt 2／standardとして、CHANGES_REQUESTED attempt 1の3件の非緩和MAJOR findingを解消したexact candidateをreviewする。
+- purpose: implementation review attempt 2を再実施せず、既決CHANGES_REQUESTED判定を新shared／新routing identityで再生成するためのgovernance recovery handoffとする。
+- next_purpose: GPT regenerates the already-decided attempt 2 CHANGES_REQUESTED relay against the governance recovery head.
 - scope: candidateのcanonical approval validator、distribution preflight／Pages guard、exact published stage rerun、5-file live raw verification、workflow／contract／browser evidence、および既存配布要件の非退行。
 - out_of_scope: implementation修正、review判定のimport、release head作成、main統合、tag、GitHub Release、Pages、deployment、distribution dispatch、local completion、canonical completion sync。
 - acceptance_criteria: docs/ai/tasks/TASK-009.mdのR01～R15、AC01～AC10、T01～T08、F01～F08全件。AC10の実配布／completion結果は実行しない。
@@ -71,7 +81,7 @@
 
 ## Review policy
 
-- attempt 2 uses the standard profile; no requirement, acceptance criterion, test, or forbidden-change boundary is relaxed.
+- attempt 2 is canonically migrated from standard under shared v0.12.20 to narrowed under shared v0.12.24; the prior review is not reexecuted and its decision and findings are unchanged.
 - Review only candidate bdf59b25e1f32866a9539af4c1918210440b0d8e and tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c.
 - Do not dispatch distribution.yml or create/move/delete tag, Release, Pages, deployment, asset, or repository visibility state during review.
 - Do not create attempt 3 or attempt 4. Return an APPROVED or CHANGES_REQUESTED relay to Codex; do not perform release, main integration, distribution, completion, or canonical sync.

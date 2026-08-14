@@ -13,9 +13,12 @@
 
 ## Implementation review
 
-- An implementation review has at most three attempts for the same TASK and implementation purpose.
-- After two failed attempts, only the third attempt may relax non-required UI, wording, or optional optimization findings.
-- A failed third attempt ends review and routes the TASK to `NEEDS_USER_DECISION`; it must not start a fourth review.
+- An implementation review has at most three attempts for the same TASK and implementation purpose: attempt 1 is `standard`, attempt 2 is `narrowed`, and attempt 3 is `terminal` and final.
+- Attempt 2 may treat only accepted prior findings, regressions caused by their repairs, requirement violations, major functionality, security, data integrity, required tests, backward compatibility, and explicit release gates as blocking.
+- Attempt 3 may treat only BLOCKER or MAJOR findings in non-relaxable categories as blocking.
+- Non-required UI, minor wording, optional optimization, questions, scope expansion, and ideal-design findings are not reasons to request changes in narrowed or terminal review.
+- Calculation and decision accuracy, data preservation and integrity, rollback, raw-byte portability, validators, required tests, release gates, security, and backward compatibility are never relaxable.
+- Only a failed third attempt ends review and routes the TASK to `NEEDS_USER_DECISION`; attempt 4 is forbidden.
 - Any relaxation is recorded as deferred and never represented as approved.
 
 ## TASK-001 boundary

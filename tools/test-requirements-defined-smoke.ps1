@@ -61,6 +61,14 @@ function Get-Snapshot([string]$Project) {
     [pscustomobject]@{ Files=$files; Directories=$directories }
 }
 function Test-Snapshot($Before,$After) { (ConvertTo-Json $Before -Depth 6 -Compress) -ceq (ConvertTo-Json $After -Depth 6 -Compress) }
+function Read-SharedCandidate([string]$Project) {
+    $lockPath = Join-Path $Project 'docs/ai/SHARED_RULES.lock.yml'
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) { throw 'fixture shared lock is missing' }
+    $lockText = [IO.File]::ReadAllText($lockPath)
+    $matches = [regex]::Matches($lockText,'(?m)^commit:\s*([0-9a-f]{40})\s*$')
+    if ($matches.Count -ne 1) { throw 'fixture shared lock commit must occur exactly once' }
+    $matches[0].Groups[1].Value
+}
 function New-RequirementsBundle([string]$Project,[string]$Branch,[string]$Reference) {
     $head = (@(Invoke-Git $Project @('rev-parse','HEAD') 'fixture HEAD'))[-1].Trim()
     $tree = (@(Invoke-Git $Project @('rev-parse','HEAD^{tree}') 'fixture tree'))[-1].Trim()
@@ -76,7 +84,7 @@ function New-RequirementsBundle([string]$Project,[string]$Branch,[string]$Refere
         result_return_to = 'ChatGPT'
         reviewed_candidate = 'none'
         reviewed_handoff_head = 'none'
-        shared_candidate = '10cd1466b10f814f1bd2aab2c5f6ba6465c5899e'
+        shared_candidate = (Read-SharedCandidate $Project)
         decision = 'REQUIREMENTS_DEFINED'
         review_stage = 'implementation'
         next_phase = 'implementation'
@@ -150,7 +158,10 @@ try {
     $successBranch = 'codex/task-002-product-identity-smoke'
     $success = New-Fixture 'success' $successBranch
     $successBundlePath = Join-Path $temporaryRoot 'success.json'
-    Write-Bundle $successBundlePath (New-RequirementsBundle $success $successBranch 'docs/ai/PRODUCT_IDENTITIES.yml#requirements_*')
+    $successBundle = New-RequirementsBundle $success $successBranch 'docs/ai/PRODUCT_IDENTITIES.yml#requirements_*'
+    $expectedSharedCandidate = Read-SharedCandidate $success
+    if ([string]$successBundle.shared_candidate -cne $expectedSharedCandidate) { throw 'generated bundle shared candidate does not match fixture shared lock' }
+    Write-Bundle $successBundlePath $successBundle
     $successResult = Invoke-Relay $success $successBundlePath
     if ($successResult.ExitCode -ne 0) { throw "valid REQUIREMENTS_DEFINED import failed: $($successResult.Output)" }
     $taskPath = Join-Path $success 'docs/ai/tasks/TASK-002.md'

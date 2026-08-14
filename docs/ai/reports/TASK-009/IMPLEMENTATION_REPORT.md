@@ -30,6 +30,26 @@
 - candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / bdf59b25e1f32866a9539af4c1918210440b0d8e
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- candidate_shared_version: 0.12.20
+- candidate_shared_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- governance_recovery_shared_version: 0.12.24
+- governance_recovery_shared_commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
+- governance_recovery_shared_tree: 1cbd973d590896d57aa0eb4777ecd0aef775132a
+- governance_recovery_manifest_sha256: 2B7CF6EE56A5BBDBBE674E5E42A4F04D24FFEEFD57B66A66667A4913A6061DB9
+- governance_recovery_manifest_bytes: 4367
+- original_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
+- original_profile: standard
+- canonical_migrated_profile: narrowed
+- review_reexecuted: false
+- review_decision_changed: false
+- findings_changed: false
+- product_diff: 0
+- public_side_effects: 0
+- stale_import_rollback_patch: B2005DB27A9286BC8D689012138FE74D873877963E7A296A21588C10E711D7C6 / 36365 bytes
+- stale_user_decision_handoff_evidence: EC8EEF5FBCE658CF5D201B2018CABB1CE913488D476BED03A6EB170510BE1CF1 / 13496 bytes
+- old_v0_12_21_validation_evidence: A83D28FA695B274D7AFAFBC984A1612C3372FB1B4BF7BFB83385724832226532 / 941 bytes
+- new_v0_12_24_validation_audit: C:\Users\owner\Development\personal\audit\TASK-009-shared-0.12.24-validation-20260814-205034604 / validation-summary.json SHA-256 C2C334D32F7F65EE532FB3CA75A85EC4D024A648F2DF83BC69D76DF786FF6B48 / 1210 bytes
+- destructive_recovery_commands_used: 0
 - changed_files_count_from_baseline: 43
 - version_identity: package.json/package-lock 0.1.0; tag v0.1.0; title Personal Finance Planner v0.1.0; prerelease
 - metadata_identity: take_home 2026-08-12; nisa 2026-08-12; ideco 2026-08-13; UI read-only and state-free
@@ -94,7 +114,7 @@
 - review_stage: implementation
 - changes_requested_cycles: 1
 - implementation_review_attempt: 2
-- implementation_review_profile: standard
+- implementation_review_profile: narrowed
 - implementation_review_final: false
 - implementation_review_terminated: false
 - attempt_4_forbidden: false

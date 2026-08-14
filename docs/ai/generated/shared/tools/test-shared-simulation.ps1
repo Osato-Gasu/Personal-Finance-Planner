@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -254,6 +254,7 @@ function Initialize-TaskHistoryProject([string]$ProjectRoot,[bool]$RetainPolicy=
     [IO.File]::WriteAllText((Join-Path $ProjectRoot 'docs/ai/PROJECT_RULES.md'),"# fixture rules`n",$utf8NoBom)
     [IO.File]::WriteAllText((Join-Path $ProjectRoot 'docs/ai/CURRENT_STATE.md'),"---`nupdated_at: 2026-08-09`nactive_tasks: []`nnext_action: Define the next fixture task`n---`n",$utf8NoBom)
     [IO.File]::WriteAllText((Join-Path $ProjectRoot 'docs/ai/BACKLOG.md'),"# BACKLOG`n`n<!-- PROGRESS:START -->`n| ID | status | title |`n| --- | --- | --- |`n| ITEM-001 | ready | Fixture item |`n<!-- PROGRESS:END -->`n",$utf8NoBom)
+    [IO.File]::WriteAllText((Join-Path $ProjectRoot 'docs/ai/COMPLETED_TASKS.md'),[IO.File]::ReadAllText((Join-Path $root 'templates/COMPLETED_TASKS.md')),$utf8NoBom)
     $sessionText=[IO.File]::ReadAllText((Join-Path $root 'templates/SESSION_START.md'))+"`nrepository path:`nentrypoint graph`n";[IO.File]::WriteAllText((Join-Path $ProjectRoot 'docs/ai/SESSION_START.md'),$sessionText,$utf8NoBom)
     Copy-Item -LiteralPath (Join-Path $root 'templates/PROJECT_REQUIREMENTS_HANDOFF.md') -Destination (Join-Path $ProjectRoot 'docs/ai/handoffs/PROJECT_REQUIREMENTS.md')
     $adapterText=([IO.File]::ReadAllText((Join-Path $root 'templates/PROJECT_ADAPTER.psd1'))).Replace('<project name>','task history fixture').Replace('<owner/repository>','owner/fixture').Replace("ZeroActive = @{ Model='none'; Effort='none' }","ZeroActive = @{ Model='chatgpt-model'; Effort='high' }").Replace('PhaseLabels = @{',"PhaseLabels = @{`n        complete='Complete'")
@@ -273,6 +274,9 @@ function Get-ProjectByteSnapshot([string]$ProjectRoot) {
     [pscustomobject]@{Files=$files;Directories=$directories}
 }
 function Test-ProjectByteSnapshot($Before,$After) { (ConvertTo-Json $Before -Depth 5 -Compress)-ceq(ConvertTo-Json $After -Depth 5 -Compress) }
+function Set-CompletedTasksText([string]$ProjectRoot,[string]$Body){
+    [IO.File]::WriteAllText((Join-Path $ProjectRoot 'docs/ai/COMPLETED_TASKS.md'),$Body,$utf8NoBom)
+}
 
 $hostResolutionRoot = New-TestRoot 'powershell-host-resolution'
 try {
@@ -379,6 +383,108 @@ Write-Output 'CHILD_OK'
     Remove-TestRoot $hostResolutionRoot
 }
 
+$completedTasksRoot = New-TestRoot 'task156-completed-tasks'
+try {
+    $completedHeaderTask = 'TASK-ID'
+    $completedHeaderFeature = ([char]0x6A5F) + ([char]0x80FD)
+    $completedHeaderTime = (([char]0x5B8C) + ([char]0x4E86) + ([char]0x65E5) + ([char]0x6642))
+    $noCompletedTaskMessage = (([char]0x5B8C) + ([char]0x4E86) + 'TASK' + ([char]0x306F) + ([char]0x3042) + ([char]0x308A) + ([char]0x307E) + ([char]0x305B) + ([char]0x3093))
+    Initialize-TaskHistoryProject $completedTasksRoot | Out-Null
+    $baseCompleted = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n<!-- COMPLETED_TASKS:END -->`n"
+    $singleCompleted = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $multiCompleted = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n| TASK-156 | Progress ledger | 2026-08-12 10:01:00 JST |`n| TASK-200 | Regression lock | 2026-08-12 10:02:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidMarker = "# COMPLETED TASKS`n`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n"
+    $invalidHeader = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| TASKID | Name | Time |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidColumns = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTaskId = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| task-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTaskIdQ = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| Q-001 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTaskIdAfc = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| AFC-004 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTaskIdAbc = "# COMPLETED TASKS`n`n<!-- COMPLETED TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| ABC-1 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $emptyFeature = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 |  | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTimestamp = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026/08/12 10:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTimestampMonth = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-13-01 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTimestampDay = "# COMPLETED TASKS`n`n<!-- COMPLETED TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-02-30 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $invalidTimestampHour = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 25:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $duplicateTask = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n| TASK-155 | Duplicate fixture | 2026-08-12 10:01:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $badEscape = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-157 | <img src='x' onerror='alert(1)'> | 2026-08-12 11:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $doubleStart = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n<!-- COMPLETED_TASKS:START -->`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+    $doubleEnd = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n<!-- COMPLETED_TASKS:END -->`n"
+    $reversedMarkers = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:END -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:START -->`n"
+    $reversedMarkersWithTail = "# COMPLETED TASKS`n`n<!-- COMPLETED_TASKS:END -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:START -->`n<!-- COMPLETED_TASKS:END -->`n"
+    $outsideSection = "# COMPLETED TASKS`n`n| OUTSIDE | NO | TABLE |`n<!-- COMPLETED_TASKS:START -->`n| $completedHeaderTask | $completedHeaderFeature | $completedHeaderTime |`n| --- | --- | --- |`n| TASK-155 | Routing fixture | 2026-08-12 10:00:00 JST |`n<!-- COMPLETED_TASKS:END -->`n"
+
+    Set-CompletedTasksText $completedTasksRoot $baseCompleted
+    & (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') -ProjectRoot $completedTasksRoot|Out-Null
+    $boardText= [IO.File]::ReadAllText((Join-Path $completedTasksRoot 'board/PROGRESS.html'))
+    Assert ($boardText -match [regex]::Escape($noCompletedTaskMessage)) 'empty completed-task ledger renders no-completed-task message'
+
+    Set-CompletedTasksText $completedTasksRoot $singleCompleted
+    & (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') -ProjectRoot $completedTasksRoot|Out-Null
+    $boardText= [IO.File]::ReadAllText((Join-Path $completedTasksRoot 'board/PROGRESS.html'))
+    Assert (($boardText -match 'TASK-155') -and($boardText -match 'Routing fixture') -and($boardText -match '2026-08-12 10:00:00 JST')) 'single completed-task ledger entry renders exactly'
+
+    Set-CompletedTasksText $completedTasksRoot $multiCompleted
+    & (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') -ProjectRoot $completedTasksRoot|Out-Null
+    $boardText= [IO.File]::ReadAllText((Join-Path $completedTasksRoot 'board/PROGRESS.html'))
+    Assert (($boardText -match 'TASK-155') -and($boardText -match 'TASK-156') -and($boardText -match 'TASK-200')) 'multiple completed-task ledger entries render deterministic rows'
+
+    $staleProgress = Invoke-ScriptResult (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') @('-ProjectRoot',$completedTasksRoot,'-Check')
+    Assert ($staleProgress.ExitCode-eq0) 'generate-progress check succeeds after fresh generation'
+
+    $invalidMarkerRun = Invoke-ScriptResult (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') @('-ProjectRoot',$completedTasksRoot)
+    if($invalidMarkerRun.ExitCode-ne0){throw "unexpected baseline progress generation failure before mutations: $($invalidMarkerRun.Output)"}
+    Set-CompletedTasksText $completedTasksRoot $invalidMarker
+    $before = Get-ProjectByteSnapshot $completedTasksRoot
+    $invalidMarkerCheck = Invoke-ScriptResult (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') @('-ProjectRoot',$completedTasksRoot,'-Check')
+    $after = Get-ProjectByteSnapshot $completedTasksRoot
+    Assert ($invalidMarkerCheck.ExitCode-ne0 -and(Test-ProjectByteSnapshot $before $after)) 'missing COMPLETED_TASKS markers is rejected without mutation'
+
+    foreach($case in @(
+        @{Name='invalid header';Text=$invalidHeader},
+        @{Name='invalid row column';Text=$invalidColumns},
+        @{Name='invalid task id';Text=$invalidTaskId},
+        @{Name='invalid task id Q-001';Text=$invalidTaskIdQ},
+        @{Name='invalid task id AFC-004';Text=$invalidTaskIdAfc},
+        @{Name='invalid task id ABC-1';Text=$invalidTaskIdAbc},
+        @{Name='empty feature';Text=$emptyFeature},
+        @{Name='invalid timestamp';Text=$invalidTimestamp},
+        @{Name='invalid timestamp month';Text=$invalidTimestampMonth},
+        @{Name='invalid timestamp day';Text=$invalidTimestampDay},
+        @{Name='invalid timestamp hour';Text=$invalidTimestampHour},
+        @{Name='duplicate task';Text=$duplicateTask},
+        @{Name='double START marker';Text=$doubleStart},
+        @{Name='double END marker';Text=$doubleEnd},
+        @{Name='END before START marker';Text=$reversedMarkers},
+        @{Name='END before START and trailing END markers';Text=$reversedMarkersWithTail},
+        @{Name='outside ledger section';Text=$outsideSection}
+    )){
+        Set-CompletedTasksText $completedTasksRoot $case.Text
+        $before = Get-ProjectByteSnapshot $completedTasksRoot
+        $result = Invoke-ScriptResult (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') @('-ProjectRoot',$completedTasksRoot,'-Check')
+        $after = Get-ProjectByteSnapshot $completedTasksRoot
+        Assert ($result.ExitCode -ne 0 -and(Test-ProjectByteSnapshot $before $after)) "completed-tasks validation rejects $($case.Name) without mutation"
+    }
+
+    Set-CompletedTasksText $completedTasksRoot $baseCompleted
+    & (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') -ProjectRoot $completedTasksRoot|Out-Null
+    Set-CompletedTasksText $completedTasksRoot $badEscape
+    & (Join-Path $completedTasksRoot 'docs/ai/generated/shared/tools/generate-progress.ps1') -ProjectRoot $completedTasksRoot|Out-Null
+    $boardText = [IO.File]::ReadAllText((Join-Path $completedTasksRoot 'board/PROGRESS.html'))
+    Assert (
+        $boardText -notmatch "<img\s+src='x'\s+onerror='alert\(1\)'>" -and
+        $boardText -match '&lt;img\s+src=(?:&apos;|&#39;)x(?:&apos;|&#39;)\s+onerror=(?:&apos;|&#39;)alert\(1\)(?:&apos;|&#39;)&gt;'
+    ) 'completed-task HTML-sensitive content is escaped in generated progress'
+
+    $validationWithoutCompleted = Invoke-ProjectValidation $completedTasksRoot
+    Assert ($validationWithoutCompleted.ExitCode-eq0) 'project validation passes with default completed task ledger'
+
+    Remove-Item -LiteralPath (Join-Path $completedTasksRoot 'docs/ai/COMPLETED_TASKS.md') -Force
+    $missingCompleted = Invoke-ProjectValidation $completedTasksRoot
+    Assert ($missingCompleted.ExitCode-ne0 -and $missingCompleted.Output-match 'missing required file: docs/ai/COMPLETED_TASKS.md') 'project validation rejects missing completed-task ledger'
+} finally {
+    if(Test-Path -LiteralPath $completedTasksRoot){Remove-TestRoot $completedTasksRoot}
+}
+
 & (Join-Path $root 'tools/validate-shared.ps1')
 Assert $? 'shared validator'
 
@@ -447,7 +553,125 @@ $jpNoneNoWorkPrompt = "- {0}{1}{2}" -f (As-Jp 0x30B3,0x30D4,0x30DA,0x7528,0x30D7
 $jpPortableFallbackRequired = "bundle{0}" -f (As-Jp 0x306E,0x5B8C,0x5168,0x5185,0x5BB9)
 Assert ($reviewContract-match'(?s)Bounded review policy.*actual candidate diff.*no more than two findings.*subagent may not be created merely to enlarge review scope') 'bounded review scope, lifecycle, and delegation contract'
 Assert ($reviewContract-match'(?s)Only a new user-safety.*BLOCKER.*MAJOR.*MINOR.*QUESTION') 'observed regression severity and BACKLOG contract'
-Assert ((@($adapter.ModelRouting.CoreRoutes)-join'|')-ceq'Spark-high|Spark-xhigh|Terra-high|Terra-xhigh|Sol-medium|Sol-high|Sol-xhigh|Sol-Ultra'-and(@($adapter.ModelRouting.ReviewRoutes)-join'|')-ceq'Luna-high|Luna-xhigh|Terra-high|Terra-xhigh|Sol-medium|Sol-high|Sol-xhigh|Sol-Ultra'-and@($adapter.ModelRouting.DeprecatedRoutes).Count-eq0-and$adapter.ModelRouting.DocumentDefault-ceq'Luna-high'-and$adapter.ModelRouting.CodeDefault-ceq'Spark-high'-and$adapter.ModelRouting.NewWorkSelection-ceq'lowest_adequate'-and$adapter.ModelRouting.LunaToSolCostRatio-ceq'1/25'-and$adapter.ModelRouting.TerraToSolCostRatio-ceq'1/2.5'-and$adapter.ModelRouting.UltraRequiresUserApproval) 'canonical model routing allocation and Ultra gate'
+Assert ($adapter.ModelRouting.UltraRequiresUserApproval -eq $false) 'template model routing disables explicit Ultra user approval'
+Assert ((@($adapter.ModelRouting.CoreRoutes)-join'|')-ceq'Spark-high|Spark-xhigh|Terra-high|Terra-xhigh|Sol-medium|Sol-high|Sol-xhigh|Sol-Ultra'-and(@($adapter.ModelRouting.ReviewRoutes)-join'|')-ceq'Luna-high|Luna-xhigh|Terra-high|Terra-xhigh|Sol-medium|Sol-high|Sol-xhigh|Sol-Ultra'-and@($adapter.ModelRouting.DeprecatedRoutes).Count-eq0-and$adapter.ModelRouting.DocumentDefault-ceq'Luna-high'-and$adapter.ModelRouting.CodeDefault-ceq'Spark-high'-and$adapter.ModelRouting.NewWorkSelection-ceq'lowest_adequate'-and$adapter.ModelRouting.LunaToSolCostRatio-ceq'1/25'-and$adapter.ModelRouting.TerraToSolCostRatio-ceq'1/2.5') 'canonical model routing allocation and policy set'
+
+function Get-FixtureYamlValue([string]$Text,[string]$Key,[string]$Source){
+    $match = [regex]::Match($Text,"(?m)^$([regex]::Escape($Key)):\s*(.*?)\s*$")
+    if(-not $match.Success){ throw "Missing '$Key' in $Source" }
+    return $match.Groups[1].Value.Trim()
+}
+function Set-FixtureYamlValue([string]$Text,[string]$Key,[string]$Value){
+    $pattern = "(?m)^$([regex]::Escape($Key)):\s*.*$"
+    return [regex]::Replace($Text,$pattern,("$($Key): $Value"),1)
+}
+function Set-RouteFixture([string]$Project,[string]$Actor,[string]$Role,[string]$Model,[string]$Effort,[bool]$GenerateNext,[string]$SeedNextText){
+    $taskId='TASK-155'
+    $taskPath=Join-Path $Project "docs/ai/tasks/$taskId.md"
+    $handoffPath=Join-Path $Project "docs/ai/handoffs/$taskId/IMPLEMENTATION_HANDOFF.md"
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $handoffPath))|Out-Null
+    [IO.Directory]::CreateDirectory((Join-Path $Project "docs/ai/reports/$taskId"))|Out-Null
+    [IO.File]::WriteAllText((Join-Path $Project 'docs/ai/CURRENT_STATE.md'),"---`nupdated_at: 2026-08-09`nactive_tasks:`n  - $taskId`nnext_action: routing fixture`n---`n",$utf8NoBom)
+    [IO.File]::WriteAllText($taskPath,(
+        "---`n"+
+        "task_id: $taskId`n"+
+        "title: TASK-155 routing fixture`n"+
+        "status: ready`n"+
+        "current_phase: implementation`n"+
+        "current_role_id: IMPLEMENTER`n"+
+        "next_actor: $Actor`n"+
+        "next_role: $Role`n"+
+        "assigned_model: $Model`n"+
+        "assigned_effort: $Effort`n"+
+        "session_mode: existing`n"+
+        "handoff_file: docs/ai/handoffs/$taskId/IMPLEMENTATION_HANDOFF.md`n"+
+        "preferred_executor: Claude`n"+
+        "allowed_executors: Claude, ChatGPT`n"+
+        "executor_policy: preferred_fallback`n"+
+        "return_to: user`n"+
+        "---`n"),$utf8NoBom
+    )
+    $nextPath=Join-Path $Project 'docs/ai/NEXT_ACTION.yml'
+    if($GenerateNext){
+        $nextRun = Invoke-ScriptResult (Join-Path $Project 'docs/ai/generated/shared/tools/generate-next-action.ps1') @('-ProjectRoot',$Project)
+        if($nextRun.ExitCode -ne 0){ throw "generate-next-action failed in route fixture: $($nextRun.Output)"}
+        $nextText=[IO.File]::ReadAllText($nextPath)
+    }else{
+        if([string]::IsNullOrWhiteSpace($SeedNextText)){ throw 'Seed NEXT_ACTION is required when GenerateNext=false' }
+        $nextText = Set-FixtureYamlValue $SeedNextText 'task_id' $taskId
+        $nextText = Set-FixtureYamlValue $nextText 'next_actor' $Actor
+        $nextText = Set-FixtureYamlValue $nextText 'next_role' $Role
+        $nextText = Set-FixtureYamlValue $nextText 'model' $Model
+        $nextText = Set-FixtureYamlValue $nextText 'effort' $Effort
+        [IO.File]::WriteAllText($nextPath,$nextText,$utf8NoBom)
+    }
+    $progressRun = Invoke-ScriptResult (Join-Path $Project 'docs/ai/generated/shared/tools/generate-progress.ps1') @('-ProjectRoot',$Project)
+    if($progressRun.ExitCode -ne 0){ throw "generate-progress failed in route fixture: $($progressRun.Output)" }
+    $nextReviewed = Get-FixtureYamlValue $nextText 'reviewed_candidate' 'NEXT_ACTION'
+    $nextRules = Get-FixtureYamlValue $nextText 'rules_commit' 'NEXT_ACTION'
+    [IO.File]::WriteAllText($handoffPath,(
+        "- task_id: $taskId`n"+
+        "- phase: implementation`n"+
+        "- actor: $Actor`n"+
+        "- role: $Role`n"+
+        "- model: $Model`n"+
+        "- effort: $Effort`n"+
+        "- candidate_commit: $nextReviewed`n"+
+        "- shared_candidate: $nextRules`n"
+    ),$utf8NoBom)
+}
+
+$routingSeed = New-TestRoot 'task155-model-routing'
+try {
+    Initialize-TaskHistoryProject $routingSeed | Out-Null
+    $routingSeedAdapter = Join-Path $routingSeed 'docs/ai/PROJECT_ADAPTER.psd1'
+    $routingAdapterBaseline = [IO.File]::ReadAllText($routingSeedAdapter)
+
+    Set-RouteFixture $routingSeed 'Codex' 'IMPLEMENTER' '5.6 Sol' 'medium' $true $null
+    $routingNextSeed = [IO.File]::ReadAllText((Join-Path $routingSeed 'docs/ai/NEXT_ACTION.yml'))
+    $routingPass=Invoke-ProjectValidation $routingSeed
+    Assert ($routingPass.ExitCode -eq 0) 'project routing accepts declared core route pair (Codex / 5.6 Sol medium)'
+
+    Set-RouteFixture $routingSeed 'ChatGPT' 'ORCHESTRATOR_AND_REVIEWER' '5.6 Terra' 'high' $true $null
+    $routingPass2=Invoke-ProjectValidation $routingSeed
+    Assert ($routingPass2.ExitCode -eq 0) 'project routing accepts declared review route pair (ChatGPT / 5.6 Terra high)'
+
+    Set-RouteFixture $routingSeed 'Codex' 'IMPLEMENTER' '5.3 Codex Spark' 'medium' $true $null
+    $routingCoreReject=Invoke-ProjectValidation $routingSeed
+    Assert ($routingCoreReject.ExitCode -ne 0 -and $routingCoreReject.Output -match 'assignment is not allowed by project adapter') 'undeclared core pair is rejected'
+
+    Set-RouteFixture $routingSeed 'ChatGPT' 'ORCHESTRATOR_AND_REVIEWER' '5.6 Luna' 'medium' $true $null
+    $routingReviewReject=Invoke-ProjectValidation $routingSeed
+    Assert ($routingReviewReject.ExitCode -ne 0 -and $routingReviewReject.Output -match 'assignment is not allowed by project adapter') 'undeclared review effort is rejected (no cross-product)'
+
+    [IO.File]::WriteAllText($routingSeedAdapter, [regex]::Replace($routingAdapterBaseline,'DeprecatedRoutes\s*=\s*@\(\s*\)','DeprecatedRoutes = @(''Luna-high'')',1),$utf8Bom)
+    Set-RouteFixture $routingSeed 'ChatGPT' 'ORCHESTRATOR_AND_REVIEWER' '5.6 Luna' 'high' $true $null
+    $routingDeprecatedReject=Invoke-ProjectValidation $routingSeed
+    Assert ($routingDeprecatedReject.ExitCode -ne 0 -and $routingDeprecatedReject.Output -match 'assignment is not allowed by project adapter') 'deprecated route declaration is rejected'
+    [IO.File]::WriteAllText($routingSeedAdapter,$routingAdapterBaseline,$utf8Bom)
+    Set-RouteFixture $routingSeed 'USER' 'USER' '5.6 Sol' 'medium' $false $routingNextSeed
+    $routingRoleReject=Invoke-ProjectValidation $routingSeed
+    Assert ($routingRoleReject.ExitCode -ne 0 -and $routingRoleReject.Output -match 'is not allowed|assignment is not allowed by project adapter') 'actor-role mismatch is rejected by project validation'
+} finally {
+    Remove-TestRoot $routingSeed
+}
+
+$routingSeed = New-TestRoot 'task155-model-routing'
+try {
+    $seedAdapter = Join-Path $routingSeed 'docs/ai/PROJECT_ADAPTER.psd1'
+    Initialize-TaskHistoryProject $routingSeed | Out-Null
+    $adapterTemplate = Get-Content -Path $seedAdapter -Raw
+    $trueAdapterText = $adapterTemplate.Replace("UltraRequiresUserApproval = `$false","UltraRequiresUserApproval = `$true")
+    $falseAdapterText = $adapterTemplate.Replace("UltraRequiresUserApproval = `$true","UltraRequiresUserApproval = `$false")
+    [IO.File]::WriteAllText($seedAdapter,$trueAdapterText,$utf8Bom)
+    $ultraRequired = Invoke-ProjectValidation $routingSeed
+    Assert ($ultraRequired.ExitCode -ne 0 -and $ultraRequired.Output -match 'UltraRequiresUserApproval must be false') 'template UltraRequiresUserApproval=true is rejected by validate-project'
+    [IO.File]::WriteAllText($seedAdapter,$falseAdapterText,$utf8Bom)
+    $ultraAllowed = Invoke-ProjectValidation $routingSeed
+    Assert ($ultraAllowed.ExitCode -eq 0) 'template UltraRequiresUserApproval=false remains valid in project validation'
+} finally {
+    Remove-TestRoot $routingSeed
+}
 Assert ($adapter.DefaultLabelLocale-ceq'ja-JP'-and$adapter.RoleLabels.ContainsKey('ORCHESTRATOR_AND_REVIEWER') -and $adapter.RoleLabels.ContainsKey('IMPLEMENTER') -and $adapter.RoleLabels.ContainsKey('INDEPENDENT_REVIEWER') -and $adapter.DisplayLabels.Effort.ContainsKey('medium') -and $adapter.DisplayLabels.Effort.ContainsKey('high') -and $adapter.DisplayLabels.Effort.ContainsKey('xhigh') -and $adapter.DisplayLabels.Effort.ContainsKey('Ultra')) 'generic Japanese locale and human labels'
 function Source-AdapterLabel([string]$Section,[string]$Key) {
     $sectionMatch=[regex]::Match($adapterText,"(?s)$Section\s*=\s*@\{(?<body>.*?)\}")
@@ -624,11 +848,17 @@ Assert ($relayTool-match'finding_dispositions'-and$relayTool-match'accepted BLOC
 Assert ($relayTool-match'StringComparer.*Ordinal'-and$relayTool-match'Collections\.IEnumerable'-and$relayTool.Contains("GetType().FullName-ceq'System.Management.Automation.PSCustomObject'")-and$relayTool-match'Json-Value @\(\$resultCanonical\.findings\)') 'canonical JSON scalar values, object sorting, and array order preservation'
 Assert ($relayTool-match'ConvertTo-CanonicalJsonText'-and$relayTool-match'WriteAllBytes\(\$out,\$normalizedBytes\)'-and$relayTool-match'canonical relay bundle byte readback mismatch'-and$relayTool-match'Normalize-OptionalCollection'-and$relayTool-match'finding dispositions: \$\(\$findingDispositions\.Count\)') 'durable canonical JSON and nullable disposition implementation'
 Assert ($relayTool-match'relay import requires a clean worktree'-and$relayTool-match'relay bundle spec_revision mismatch'-and$relayTool-match'relay bundle branch mismatch'-and$relayTool-match'relay bundle shared candidate mismatch'-and$relayTool-match'base commit/tree mismatch'-and$relayTool-match'base commit must equal current HEAD') 'relay import preflight'
+Assert ($relayTool-match'Assert-ExistingImplementationReviewPreflight'-and$relayTool-match'Read-ImplementationReviewConvergenceState'-and$relayTool-match'current relay import report is missing'-and$relayTool-match'preflight state combination is invalid'-and$relayTool-match'preflight terminated route is invalid') 'five-source convergence preflight occurs before relay writes'
 Assert ($relayTool-match'Resolve-CandidateField'-and$relayTool-match'CandidateIdentity'-and$relayTool-match'Duplicate.*Key'-and$relayTool-match'candidate does not match canonical review candidate'-and$relayTool-match'rev-parse --verify --quiet'-and$relayTool-match'merge-base --is-ancestor') 'kind-specific exact candidate identity preflight'
 Assert ($adapter.Relay.CandidateIdentity.IndependentReviewKinds.design-ceq'design_candidate'-and$adapter.Relay.CandidateIdentity.IndependentReviewKinds.implementation-ceq'implementation_candidate') 'design and implementation candidate mapping'
 Assert ($adapter.Relay.CandidateIdentity.Decisions.APPROVED.design-ceq'design_candidate'-and$adapter.Relay.CandidateIdentity.Decisions.APPROVED.implementation-ceq'implementation_candidate'-and$adapter.Relay.CandidateIdentity.Decisions.CHANGES_REQUESTED.design-ceq'design_candidate') 'stage-aware decision candidate mapping'
 Assert ($relayTool-match"stage-ceq'design'.*Phase='implementation'"-and$relayTool-match"stage-ceq'design'.*Phase='design'") 'stage-aware decision transitions'
-Assert ($relayTool-match'changes_requested_cycles'-and$relayTool-match'materializedFromChangesRequested'-and$relayTool-match"effectiveDecision='NEEDS_USER_DECISION'"-and$lifecycle-match'Bounded changes-requested gate') 'two-cycle changes-requested escalation gate'
+Assert ($relayTool-match'changes_requested_cycles'-and$relayTool-match'implementation_review_attempt'-and$relayTool-match'implementation_review_profile'-and$relayTool-match'implementation_review_terminated'-and$relayTool-match'no fourth implementation review') 'three-attempt implementation review state materialization'
+Assert ($lifecycle-match'first attempt is' -and $lifecycle-match'narrowed' -and $lifecycle-match'terminal' -and $lifecycle-match'NEEDS_USER_DECISION' -and $lifecycle-match'no fourth implementation review' -and $lifecycle-match'APPROVED' -and $lifecycle-match'user_confirmation_required') 'three-attempt lifecycle policy'
+Assert ($relayTool-match'changesRequestedCycles-eq2'-and$relayTool-match"effectiveDecision='NEEDS_USER_DECISION'"-and$relayTool-match"implementationReviewTerminated='true'"-and$relayTool-match"implementationReviewProfile='terminal'"-and$relayTool-match"Actor='ChatGPT'") 'third implementation review terminates without approval'
+Assert ($lifecycle-match'calculation_accuracy' -and $lifecycle-match'raw_byte_portability' -and $lifecycle-match'backward_compatibility' -and $lifecycle-match'BLOCKER' -and $lifecycle-match'MAJOR') 'terminal review preserves non-relaxable release gates'
+Assert ($relayTool-match'TASK implementation review state is inconsistent'-and$relayTool-match'no fourth implementation review is permitted') 'inconsistent review state rejection and terminal stop'
+Assert ($relayTool-match"decision-ceq'APPROVED'"-and$relayTool-match'changesRequestedCycles=0') 'approved review resets convergence state'
 Assert ($relayTool-match'injected relay failure after writes'-and$relayTool-match'WriteAllBytes\(\$path,\$backup.Bytes\)'-and$relayTool-match'Get-OverlayFailures'-and$relayTool-match'newOverlayFailures'-and$relayTool-match'overlay introduced new') 'relay transaction and overlay set-difference rollback'
 Assert ($relayTool-match'requirements.allowed_executors does not match executor_policy'-and@($adapter.Relay.Requirements.Executors)-notcontains'Codex') 'requirements reviewer executor policy'
 Assert ($relayTool-match'RELAY_BUNDLE.json'-and$relayTool-match'semantic round-trip mismatch'-and$relayTool-match'Validated full bundle: \$canonicalRelative') 'relay canonical round trip and exact path'
@@ -847,11 +1077,12 @@ try{
     foreach($kind in @('handoffs','reports')){$inactiveDir=Join-Path $seed "docs/ai/$kind/TASK-001";[IO.Directory]::CreateDirectory($inactiveDir)|Out-Null;[IO.File]::WriteAllText((Join-Path $inactiveDir 'history.md'),"history`n",$utf8NoBom);$inactiveResult=Invoke-ProjectValidation $seed;Assert ($inactiveResult.ExitCode-ne0-and$inactiveResult.Output-match'inactive TASK artifact remains') "inactive $kind directory rejection";Remove-Item -LiteralPath $inactiveDir -Recurse -Force}
 
     $baseCandidate=(Invoke-Git $seed @('rev-parse','HEAD') 'retained fixture base candidate')[-1].Trim();$sharedCandidate=(Invoke-Git $root @('rev-parse','HEAD') 'retained fixture shared candidate')[-1].Trim()
-    [IO.File]::WriteAllText((Join-Path $seed 'docs/ai/CURRENT_STATE.md'),"---`nupdated_at: 2026-08-09`nactive_tasks:`n  - TASK-004`nnext_action: Review TASK-004 fixture`n---`n",$utf8NoBom)
-    $activeTask="---`ntask_id: TASK-004`ntitle: Relay compatibility fixture`nstatus: review_requested`nspec_revision: 1`ncurrent_phase: implementation_review`ncurrent_role_id: ORCHESTRATOR_AND_REVIEWER`nnext_actor: ChatGPT`nnext_role: ORCHESTRATOR_AND_REVIEWER`nassigned_model: chatgpt-model`nassigned_effort: high`nsession_mode: existing`nhandoff_file: docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md`npreferred_executor: Claude`nallowed_executors: Claude, ChatGPT`nexecutor_policy: preferred_fallback`nreturn_to: user`nreviewed_candidate: $baseCandidate`nupdated_at: 2026-08-09`n---`n`n# TASK-004`n"
+    [IO.File]::WriteAllText((Join-Path $seed 'docs/ai/CURRENT_STATE.md'),"---`nupdated_at: 2026-08-09`nactive_tasks:`n  - TASK-004`nnext_action: Review TASK-004 fixture`nreview_stage: implementation`nchanges_requested_cycles: 0`nimplementation_review_attempt: 1`nimplementation_review_profile: standard`nimplementation_review_terminated: false`n---`n",$utf8NoBom)
+    $activeTask="---`ntask_id: TASK-004`ntitle: Relay compatibility fixture`nstatus: review_requested`nspec_revision: 1`ncurrent_phase: implementation_review`ncurrent_role_id: ORCHESTRATOR_AND_REVIEWER`nnext_actor: ChatGPT`nnext_role: ORCHESTRATOR_AND_REVIEWER`nassigned_model: chatgpt-model`nassigned_effort: high`nsession_mode: existing`nhandoff_file: docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md`npreferred_executor: Claude`nallowed_executors: Claude, ChatGPT`nexecutor_policy: preferred_fallback`nreturn_to: user`nreviewed_candidate: $baseCandidate`nreview_stage: implementation`nchanges_requested_cycles: 0`nimplementation_review_attempt: 1`nimplementation_review_profile: standard`nimplementation_review_terminated: false`nupdated_at: 2026-08-09`n---`n`n# TASK-004`n"
     [IO.File]::WriteAllText((Join-Path $seed 'docs/ai/tasks/TASK-004.md'),$activeTask,$utf8NoBom);[IO.Directory]::CreateDirectory((Join-Path $seed 'docs/ai/handoffs/TASK-004'))|Out-Null;[IO.Directory]::CreateDirectory((Join-Path $seed 'docs/ai/reports/TASK-004'))|Out-Null
-    $currentHandoff="- task_id: TASK-004`n- phase: implementation_review`n- actor: ChatGPT`n- role: ORCHESTRATOR_AND_REVIEWER`n- model: chatgpt-model`n- effort: high`n- candidate_commit: $baseCandidate`n- implementation_candidate: $baseCandidate`n- shared_candidate: $sharedCandidate`n"
-    [IO.File]::WriteAllText((Join-Path $seed 'docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md'),$currentHandoff,$utf8NoBom);[IO.File]::WriteAllText((Join-Path $seed 'docs/ai/reports/TASK-004/BASELINE.md'),"# baseline report`n",$utf8NoBom)
+    $currentHandoff="- task_id: TASK-004`n- phase: implementation_review`n- actor: ChatGPT`n- role: ORCHESTRATOR_AND_REVIEWER`n- model: chatgpt-model`n- effort: high`n- candidate_commit: $baseCandidate`n- implementation_candidate: $baseCandidate`n- shared_candidate: $sharedCandidate`n- review_stage: implementation`n- changes_requested_cycles: 0`n- implementation_review_attempt: 1`n- implementation_review_profile: standard`n- implementation_review_terminated: false`n"
+    $currentReport="# RELAY IMPORT — TASK-004`n`n- review_stage: implementation`n- changes_requested_cycles: 0`n- implementation_review_attempt: 1`n- implementation_review_profile: standard`n- implementation_review_terminated: false`n"
+    [IO.File]::WriteAllText((Join-Path $seed 'docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md'),$currentHandoff,$utf8NoBom);[IO.File]::WriteAllText((Join-Path $seed 'docs/ai/reports/TASK-004/BASELINE.md'),"# baseline report`n",$utf8NoBom);[IO.File]::WriteAllText((Join-Path $seed 'docs/ai/reports/TASK-004/RELAY_IMPORT.md'),$currentReport,$utf8NoBom)
     & (Join-Path $seed 'tools/generate-next-action.ps1')|Out-Null;& (Join-Path $seed 'tools/generate-progress.ps1')|Out-Null
     $null=Invoke-Git $seed @('add','-A') 'retained active fixture add';$null=Invoke-Git $seed @('commit','-q','-m','retained active fixture') 'retained active fixture commit';$handoffHead=(Invoke-Git $seed @('rev-parse','HEAD') 'retained handoff HEAD')[-1].Trim()
     $activeValidation=Invoke-ProjectValidation $seed;if($activeValidation.ExitCode-ne0){throw "active retained project validation failed:`n$($activeValidation.Output)"};Assert $true 'retain_validated active TASK with completed history'
@@ -859,11 +1090,145 @@ try{
     $bundle=[IO.File]::ReadAllText((Join-Path $root 'templates/RELAY_BUNDLE.json'))|ConvertFrom-Json
     $bundle.PSObject.Properties.Remove('routing_mode');$bundle.PSObject.Properties.Remove('route_result');$bundle.task_id='TASK-004';$bundle.repository='owner/fixture';$bundle.branch='codex/task-004';$bundle.reviewed_candidate=$baseCandidate;$bundle.reviewed_handoff_head=$handoffHead;$bundle.shared_candidate=$sharedCandidate;$bundle.decision='CHANGES_REQUESTED';$bundle.review_stage='implementation';$bundle.next_phase='implementation';$bundle.next_actor='Codex';$bundle.next_role='IMPLEMENTER';$bundle.model='codex-model';$bundle.effort='high';$bundle.created_at='2026-08-09 00:00:00 JST'
     $bundlePath=Join-Path $taskHistoryRoot 'changes-requested.json';[IO.File]::WriteAllText($bundlePath,($bundle|ConvertTo-Json -Depth 20),$utf8NoBom);$bundleSha=(Get-FileHash -Algorithm SHA256 -LiteralPath $bundlePath).Hash;$bundleBytes=(Get-Item -LiteralPath $bundlePath).Length
+    $preflightSources=@(
+        [pscustomobject]@{Name='TASK';Relative='docs/ai/tasks/TASK-004.md'},
+        [pscustomobject]@{Name='CURRENT_STATE';Relative='docs/ai/CURRENT_STATE.md'},
+        [pscustomobject]@{Name='NEXT_ACTION';Relative='docs/ai/NEXT_ACTION.yml'},
+        [pscustomobject]@{Name='handoff';Relative='docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md'},
+        [pscustomobject]@{Name='report';Relative='docs/ai/reports/TASK-004/RELAY_IMPORT.md'}
+    )
+    $preflightFields=@('review_stage','changes_requested_cycles','implementation_review_attempt','implementation_review_profile','implementation_review_terminated')
+    $preflightMismatchValues=@{review_stage='design';changes_requested_cycles='1';implementation_review_attempt='2';implementation_review_profile='terminal';implementation_review_terminated='true'}
+    function New-PreflightProject([string]$Name){
+        $project=Join-Path $taskHistoryRoot "preflight-$Name";$null=@(& git clone --no-checkout --quiet $seed $project 2>&1);if($LASTEXITCODE-ne0){throw "preflight fixture clone failed: $Name"}
+        $null=Invoke-Git $project @('config','core.autocrlf','false') "preflight autocrlf $Name";$null=Invoke-Git $project @('config','user.name','TASK-154 preflight simulation') "preflight user $Name";$null=Invoke-Git $project @('config','user.email','task154-preflight@example.invalid') "preflight email $Name";$null=Invoke-Git $project @('checkout','-q','codex/task-004') "preflight checkout $Name";$null=Invoke-Git $project @('remote','set-url','origin','https://github.com/owner/fixture.git') "preflight remote $Name"
+        $project
+    }
+    function Set-PreflightField([string]$Project,[string]$Relative,[string]$Field,[string]$Mode,[string]$Value=''){
+        $path=Join-Path $Project $Relative;$text=[IO.File]::ReadAllText($path);$pattern="(?m)^(\s*(?:-\s*)?$([regex]::Escape($Field)):\s*).*?$";$matches=[regex]::Matches($text,$pattern);if($matches.Count-ne1){throw "preflight mutation expected exactly one $Field in $Relative"};$match=$matches[0]
+        if($Mode-ceq'missing'){$start=$match.Index;$length=$match.Length;if($start+$length-lt$text.Length-and$text[$start+$length]-eq"`r"){$length++};if($start+$length-lt$text.Length-and$text[$start+$length]-eq"`n"){$length++};$text=$text.Remove($start,$length)}
+        elseif($Mode-ceq'mismatch'){$prefix=$match.Groups[1].Value;$text=$text.Remove($match.Index,$match.Length).Insert($match.Index,$prefix+$Value)}
+        elseif($Mode-ceq'duplicate'){$text=$text.Remove($match.Index,$match.Length).Insert($match.Index,$match.Value+"`n"+$match.Value)}
+        else{throw "unknown preflight mutation mode: $Mode"}
+        [IO.File]::WriteAllText($path,$text,$utf8NoBom)
+    }
+    function Write-PreflightBundle([string]$Path,[string]$Head){$copy=(($bundle|ConvertTo-Json -Depth 30)|ConvertFrom-Json);$copy.reviewed_handoff_head=$Head;[IO.File]::WriteAllText($Path,($copy|ConvertTo-Json -Depth 30),$utf8NoBom)}
+    function Assert-PreflightRejected([string]$Project,[string]$Path,[string]$Name){
+        $before=Get-ProjectByteSnapshot $Project;$sha=(Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash;$bytes=(Get-Item -LiteralPath $Path).Length;$result=Invoke-ScriptResult (Join-Path $Project 'docs/ai/generated/shared/tools/relay-bundle.ps1') @('-Action','Import','-ProjectRoot',$Project,'-BundlePath',$Path,'-ExpectedSha256',$sha,'-ExpectedBytes',[string]$bytes);$after=Get-ProjectByteSnapshot $Project;$status=@(& git -C $Project status --porcelain=v1 --untracked-files=all)
+        Assert ($result.ExitCode-ne0-and(Test-ProjectByteSnapshot $before $after)-and$status.Count-eq0) "$Name rejected pre-write with exact bytes, git status, and directories"
+    }
+    foreach($mode in @('missing','mismatch','duplicate')){
+        foreach($source in $preflightSources){
+            foreach($field in $preflightFields){
+                $name="$mode-$($source.Name)-$field";$project=New-PreflightProject $name;Set-PreflightField $project $source.Relative $field $mode ([string]$preflightMismatchValues[$field]);$null=Invoke-Git $project @('add','-A') "preflight add $name";$null=Invoke-Git $project @('commit','-q','-m',$name) "preflight commit $name";$head=(Invoke-Git $project @('rev-parse','HEAD') "preflight head $name")[-1].Trim();$caseBundle=Join-Path $taskHistoryRoot "$name.json";Write-PreflightBundle $caseBundle $head;Assert-PreflightRejected $project $caseBundle "preflight $mode $($source.Name) $field"
+            }
+        }
+    }
+    $invalidCombination=New-PreflightProject 'invalid-combination';foreach($source in $preflightSources){Set-PreflightField $invalidCombination $source.Relative 'changes_requested_cycles' 'mismatch' '1'};$null=Invoke-Git $invalidCombination @('add','-A') 'invalid combination add';$null=Invoke-Git $invalidCombination @('commit','-q','-m','invalid convergence combination') 'invalid combination commit';$invalidHead=(Invoke-Git $invalidCombination @('rev-parse','HEAD') 'invalid combination head')[-1].Trim();$invalidBundle=Join-Path $taskHistoryRoot 'invalid-combination.json';Write-PreflightBundle $invalidBundle $invalidHead;Assert-PreflightRejected $invalidCombination $invalidBundle 'preflight invalid state combination'
+    $invalidRoute=New-PreflightProject 'invalid-terminal-route';$terminalValues=@{review_stage='implementation';changes_requested_cycles='3';implementation_review_attempt='3';implementation_review_profile='terminal';implementation_review_terminated='true'};foreach($source in $preflightSources){foreach($field in $preflightFields){Set-PreflightField $invalidRoute $source.Relative $field 'mismatch' ([string]$terminalValues[$field])}};$invalidRouteHandoff=Join-Path $invalidRoute 'docs/ai/handoffs/TASK-004/IMPLEMENTATION_REVIEW_HANDOFF.md';[IO.File]::AppendAllText($invalidRouteHandoff,"- decision: NEEDS_USER_DECISION`n",$utf8NoBom);$null=Invoke-Git $invalidRoute @('add','-A') 'invalid route add';$null=Invoke-Git $invalidRoute @('commit','-q','-m','invalid terminated route') 'invalid route commit';$invalidRouteHead=(Invoke-Git $invalidRoute @('rev-parse','HEAD') 'invalid route head')[-1].Trim();$invalidRouteBundle=Join-Path $taskHistoryRoot 'invalid-terminal-route.json';Write-PreflightBundle $invalidRouteBundle $invalidRouteHead;Assert-PreflightRejected $invalidRoute $invalidRouteBundle 'preflight invalid terminal route combination'
     foreach($case in @('success','after_writes','after_next_action')){
         $project=Join-Path $taskHistoryRoot $case;$null=@(& git clone --no-checkout --quiet $seed $project 2>&1);if($LASTEXITCODE-ne0){throw "retained relay clone failed: $case"};$null=Invoke-Git $project @('config','core.autocrlf','false') "retained relay autocrlf $case";$null=Invoke-Git $project @('checkout','-q','codex/task-004') "retained relay checkout $case";$null=Invoke-Git $project @('remote','set-url','origin','https://github.com/owner/fixture.git') "retained relay remote $case"
         $before=Get-ProjectByteSnapshot $project;$retainedOne=[IO.File]::ReadAllBytes((Join-Path $project 'docs/ai/tasks/TASK-001.md'));$retainedTwo=[IO.File]::ReadAllBytes((Join-Path $project 'docs/ai/tasks/TASK-002.md'));$args=@('-Action','Import','-ProjectRoot',$project,'-BundlePath',$bundlePath,'-ExpectedSha256',$bundleSha,'-ExpectedBytes',[string]$bundleBytes);if($case-cne'success'){$args+=@('-FailureInjection',$case)};$import=Invoke-ScriptResult (Join-Path $project 'docs/ai/generated/shared/tools/relay-bundle.ps1') $args
         if($case-ceq'success'){$postValidation=Invoke-ProjectValidation $project;$retainedExact=([Convert]::ToBase64String($retainedOne)-ceq[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $project 'docs/ai/tasks/TASK-001.md'))))-and([Convert]::ToBase64String($retainedTwo)-ceq[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $project 'docs/ai/tasks/TASK-002.md'))));if($import.ExitCode-ne0-or$postValidation.ExitCode-ne0-or-not$retainedExact){throw "retained relay success failed: import=$($import.ExitCode) retained=$retainedExact`nIMPORT:`n$($import.Output)`nVALIDATION:`n$($postValidation.Output)"};Assert $true 'relay import preserves retained TASK history and validates synchronized state'}else{$after=Get-ProjectByteSnapshot $project;$status=@(& git -C $project status --porcelain=v1 --untracked-files=all);Assert ($import.ExitCode-ne0-and$import.Output-match'injected relay failure'-and(Test-ProjectByteSnapshot $before $after)-and$status.Count-eq0) "relay rollback $case is byte-exact with retained TASK history"}
     }
+
+    function New-ConvergenceBundle($Template,$Finding,[int]$SpecRevision,[string]$ReviewedHead,$Reset){
+        $copy=(($Template|ConvertTo-Json -Depth 30)|ConvertFrom-Json)
+        $copy.PSObject.Properties.Remove('routing_mode');$copy.PSObject.Properties.Remove('route_result')
+        $copy.task_id='TASK-004';$copy.repository='owner/fixture';$copy.branch='codex/task-004';$copy.reviewed_candidate=$baseCandidate;$copy.reviewed_handoff_head=$ReviewedHead;$copy.shared_candidate=$sharedCandidate
+        $copy.decision='CHANGES_REQUESTED';$copy.review_stage='implementation';$copy.next_phase='implementation';$copy.next_actor='Codex';$copy.next_role='IMPLEMENTER';$copy.model='codex-model';$copy.effort='high';$copy.spec_revision=$SpecRevision;$copy.created_at='2026-08-09 00:00:00 JST';$copy.findings=@($Finding);$copy.finding_dispositions=$null;$copy.independent_review=$null;$copy.independent_review_result=$null;$copy.requirements=$null
+        if($null-eq$Reset){$copy.spec_revision_reset=$null}else{$copy.spec_revision_reset=$Reset}
+        return $copy
+    }
+    function Write-ConvergenceBundle([string]$Path,$Template,$Finding,[int]$SpecRevision,[string]$ReviewedHead,$Reset){
+        $copy=New-ConvergenceBundle $Template $Finding $SpecRevision $ReviewedHead $Reset;[IO.File]::WriteAllText($Path,($copy|ConvertTo-Json -Depth 30),$utf8NoBom)
+    }
+    function Commit-Convergence([string]$Project,[string]$Message){$null=Invoke-Git $Project @('add','-A') "convergence add $Message";$null=Invoke-Git $Project @('commit','-q','-m',$Message) "convergence commit $Message"}
+    function Read-ConvergenceValue([string]$Text,[string]$Key,[string]$Source){
+        $matches=[regex]::Matches($Text,"(?m)^\s*(?:-\s*)?$([regex]::Escape($Key)):\s*(.*?)\s*$")
+        if($matches.Count-eq0){return $null}
+        if($matches.Count-ne1){throw "$Source must contain exactly one $Key"}
+        return $matches[0].Groups[1].Value.Trim()
+    }
+    function Set-ConvergenceContext([string]$Project,[string[]]$RequiredChanges,[string[]]$DispositionAudit){
+        $taskText=[IO.File]::ReadAllText((Join-Path $Project 'docs/ai/tasks/TASK-004.md'));$handoffMatch=[regex]::Match($taskText,'(?m)^handoff_file:\s*(.*?)\s*$');if(-not$handoffMatch.Success){throw 'convergence task handoff_file missing'};$handoffPath=Join-Path $Project $handoffMatch.Groups[1].Value.Trim()
+        if(-not(Test-Path -LiteralPath $handoffPath -PathType Leaf)){throw "convergence handoff missing: $handoffPath"}
+        $requiredLines=if($null-eq$RequiredChanges-or$RequiredChanges.Count-eq0){@('none')}else{@($RequiredChanges|ForEach-Object{([string]$_).Trim()})}
+        if($requiredLines.Count-eq0){$requiredLines=@('none')}
+        $dispositionLines=if($null-eq$DispositionAudit-or$DispositionAudit.Count-eq0){@('none')}else{@($DispositionAudit|ForEach-Object{([string]$_).Trim()})}
+        if($dispositionLines.Count-eq0){$dispositionLines=@('none')}
+        $text=[IO.File]::ReadAllText($handoffPath)
+        $requiredReplacement=(($requiredLines|ForEach-Object{"- $_"}) -join "`r`n")
+        $dispositionReplacement=(($dispositionLines|ForEach-Object{"- $_"}) -join "`r`n")
+        $replacementCount=0
+        $requiredPattern='(?ms)^(## Required changes\r?\n)(?<body>.*?)(^## User decisions required)'
+        $requiredMatchEvaluator=[System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            $replacementCount++
+            "$($match.Groups[1].Value)$requiredReplacement`r`n`r`n$($match.Groups[2].Value)"
+        }
+        $text=[regex]::Replace($text,$requiredPattern,$requiredMatchEvaluator)
+        $dispositionPattern='(?ms)^(## Independent review disposition audit\r?\n)(?<body>.*?)(^## Acceptance criteria)'
+        $dispositionMatchEvaluator=[System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            $replacementCount++
+            "$($match.Groups[1].Value)$dispositionReplacement`r`n`r`n$($match.Groups[2].Value)"
+        }
+        $text=[regex]::Replace($text,$dispositionPattern,$dispositionMatchEvaluator)
+        if($replacementCount -lt 2){
+            $insert='## Required changes`r`n`r`n' + $requiredReplacement + "`r`n`r`n## User decisions required`r`n`r`n- none`r`n`r`n## Independent review disposition audit`r`n`r`n" + $dispositionReplacement + "`r`n`r`n"
+            $anchor='(?m)^## Acceptance criteria\s*$'
+            if([regex]::IsMatch($text,$anchor)){$text=[regex]::Replace($text,$anchor,($insert+'## Acceptance criteria'),1)}else{$text=[regex]::Replace($text,'(?ms)^## Required changes\s*\r?\n.*?(?=^##\s+|\z)','');$text=[regex]::Replace($text,'(?ms)^## Independent review disposition audit\s*\r?\n.*?(?=^##\s+|\z)','');$text=$text.TrimEnd()+"`r`n`r`n"+$insert}
+        }
+        [IO.File]::WriteAllText($handoffPath,$text,$utf8NoBom)
+    }
+    function Invoke-ConvergenceImport([string]$Project,[string]$BundlePath,[string]$Name,[int]$ExpectedCycles,[int]$ExpectedAttempt,[string]$ExpectedProfile,[string]$ExpectedTerminated,[bool]$ShouldPass,[string]$ExpectedStage='implementation'){
+        $before=Get-ProjectByteSnapshot $Project;$sha=(Get-FileHash -Algorithm SHA256 -LiteralPath $BundlePath).Hash;$bytes=(Get-Item -LiteralPath $BundlePath).Length;$args=@('-Action','Import','-ProjectRoot',$Project,'-BundlePath',$BundlePath,'-ExpectedSha256',$sha,'-ExpectedBytes',[string]$bytes);$result=Invoke-ScriptResult (Join-Path $Project 'docs/ai/generated/shared/tools/relay-bundle.ps1') $args;$after=Get-ProjectByteSnapshot $Project;$status=@(& git -C $Project status --porcelain=v1 --untracked-files=all)
+        if($ShouldPass){
+            $taskText=[IO.File]::ReadAllText((Join-Path $Project 'docs/ai/tasks/TASK-004.md'));$stateText=[IO.File]::ReadAllText((Join-Path $Project 'docs/ai/CURRENT_STATE.md'));$nextText=[IO.File]::ReadAllText((Join-Path $Project 'docs/ai/NEXT_ACTION.yml'))
+            $handoffRelative=Read-ConvergenceValue $taskText 'handoff_file' 'TASK';$handoffText=[IO.File]::ReadAllText((Join-Path $Project $handoffRelative));$reportText=[IO.File]::ReadAllText((Join-Path $Project 'docs/ai/reports/TASK-004/RELAY_IMPORT.md'))
+            $expected=[ordered]@{review_stage=$ExpectedStage;changes_requested_cycles=[string]$ExpectedCycles;implementation_review_attempt=[string]$ExpectedAttempt;implementation_review_profile=$ExpectedProfile;implementation_review_terminated=$ExpectedTerminated}
+            $sources=[ordered]@{TASK=$taskText;CURRENT_STATE=$stateText;NEXT_ACTION=$nextText;handoff=$handoffText;report=$reportText};$synchronized=$true
+            foreach($field in $expected.Keys){
+                foreach($source in $sources.GetEnumerator()){
+                    $value=Read-ConvergenceValue $source.Value $field $source.Key
+                    if($null-eq$value-or$value-cne[string]$expected[$field]){$synchronized=$false}
+                }
+            }
+            if(-not($result.ExitCode-eq0-and$synchronized)){throw "$Name failed: exit=$($result.ExitCode) synchronized=$synchronized`n$($result.Output)"}
+            Assert $true "$Name; TASK/CURRENT_STATE/NEXT_ACTION/handoff/report exact and generated report populated"
+        }else{if(-not($result.ExitCode-ne0-and(Test-ProjectByteSnapshot $before $after)-and$status.Count-eq0)){throw "$Name failed: exit=$($result.ExitCode) status=$($status.Count)`n$($result.Output)"};Assert $true $Name}
+        return $result
+    }
+    $convergenceProject=Join-Path $taskHistoryRoot 'convergence';$null=@(& git clone --no-checkout --quiet $seed $convergenceProject 2>&1);if($LASTEXITCODE-ne0){throw 'convergence fixture clone failed'};$null=Invoke-Git $convergenceProject @('config','core.autocrlf','false') 'convergence autocrlf';$null=Invoke-Git $convergenceProject @('config','user.name','TASK-154 simulation') 'convergence user';$null=Invoke-Git $convergenceProject @('config','user.email','task154@example.invalid') 'convergence email';$null=Invoke-Git $convergenceProject @('checkout','-q','codex/task-004') 'convergence checkout';$null=Invoke-Git $convergenceProject @('remote','set-url','origin','https://github.com/owner/fixture.git') 'convergence remote'
+    $convergenceBundlePath=Join-Path $taskHistoryRoot 'convergence.json';$head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'convergence head one')[-1].Trim();$f1=[pscustomobject]@{id='FINDING-154-01';severity='MAJOR';target='validator';problem='first finding';evidence='first evidence';impact='first impact';required_change='first change';review_scope='required_test'};Write-ConvergenceBundle $convergenceBundlePath $bundle $f1 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 1 failure leaves attempt 2 narrowed' 1 2 'narrowed' 'false' $true|Out-Null;Commit-Convergence $convergenceProject 'convergence attempt one'
+    $head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'convergence head two')[-1].Trim()
+
+    $externalProject=Join-Path $taskHistoryRoot 'convergence-external-blocked';$null=@(& git clone --no-checkout --quiet $convergenceProject $externalProject 2>&1);if($LASTEXITCODE-ne0){throw 'external BLOCKED fixture clone failed'};$null=Invoke-Git $externalProject @('config','core.autocrlf','false') 'external blocked autocrlf';$null=Invoke-Git $externalProject @('checkout','-q','codex/task-004') 'external blocked checkout';$null=Invoke-Git $externalProject @('remote','set-url','origin','https://github.com/owner/fixture.git') 'external blocked remote';$externalHead=(Invoke-Git $externalProject @('rev-parse','HEAD') 'external blocked head')[-1].Trim();$external=New-ConvergenceBundle $bundle $f1 1 $externalHead $null;$external.decision='BLOCKED';$external.next_phase='blocked';[IO.File]::WriteAllText($convergenceBundlePath,($external|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $externalProject $convergenceBundlePath 'external BLOCKED does not consume a cycle' 1 2 'narrowed' 'false' $true|Out-Null
+
+    $designProject=Join-Path $taskHistoryRoot 'convergence-design';$null=@(& git clone --no-checkout --quiet $convergenceProject $designProject 2>&1);if($LASTEXITCODE-ne0){throw 'design convergence fixture clone failed'};$null=Invoke-Git $designProject @('config','core.autocrlf','false') 'design autocrlf';$null=Invoke-Git $designProject @('config','user.name','TASK-154 simulation') 'design user';$null=Invoke-Git $designProject @('config','user.email','task154@example.invalid') 'design email';$null=Invoke-Git $designProject @('checkout','-q','codex/task-004') 'design checkout';$null=Invoke-Git $designProject @('remote','set-url','origin','https://github.com/owner/fixture.git') 'design remote';$designHandoffRelative=Read-ConvergenceValue ([IO.File]::ReadAllText((Join-Path $designProject 'docs/ai/tasks/TASK-004.md')))'handoff_file' 'design TASK';$designHandoffPath=Join-Path $designProject $designHandoffRelative;$designText=[IO.File]::ReadAllText($designHandoffPath);$designText=$designText+"- design_candidate: $baseCandidate`n";[IO.File]::WriteAllText($designHandoffPath,$designText,$utf8NoBom);Commit-Convergence $designProject 'add design candidate identity';$designHead=(Invoke-Git $designProject @('rev-parse','HEAD') 'design head')[-1].Trim();$design=New-ConvergenceBundle $bundle $f1 1 $designHead $null;$design.review_stage='design';$design.next_phase='design';$design.next_actor='ChatGPT';$design.next_role='ORCHESTRATOR_AND_REVIEWER';$design.model='chatgpt-model';[IO.File]::WriteAllText($convergenceBundlePath,($design|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $designProject $convergenceBundlePath 'design CHANGES_REQUESTED does not consume a cycle' 1 2 'narrowed' 'false' $true 'design'|Out-Null
+
+    $limitFindings=@(1..3|ForEach-Object{[pscustomobject]@{id="FINDING-154-1$_";severity='MAJOR';target='validator';problem="standard finding $_";evidence="evidence $_";impact="impact $_";required_change="change $_";review_scope='validator'}});Write-ConvergenceBundle $convergenceBundlePath $bundle $limitFindings 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'standard profile rejects more than two actionable findings' 0 0 'none' 'none' $false|Out-Null
+    $invalidPrior=[pscustomobject]@{id='FINDING-154-02';severity='MAJOR';target='validator';problem='invalid prior';evidence='invalid prior evidence';impact='invalid prior impact';required_change='invalid prior change';review_scope='validator';prior_finding_id='FINDING-DOES-NOT-EXIST'};Write-ConvergenceBundle $convergenceBundlePath $bundle $invalidPrior 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 2 rejects unknown prior_finding_id' 0 0 'none' 'none' $false|Out-Null
+
+    $auditRejected=[pscustomobject]@{id='FINDING-154-06';severity='MAJOR';target='validator';problem='audit-only rejected prior';evidence='audit rejected evidence';impact='audit rejected impact';required_change='audit rejected change';review_scope='validator';prior_finding_id='FINDING-154-01'};Set-ConvergenceContext $convergenceProject @('none') @('FINDING-154-01 [MAJOR] disposition=rejected; reason=not accepted');Commit-Convergence $convergenceProject 'rejected prior audit context';$head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'rejected prior audit head')[-1].Trim();Write-ConvergenceBundle $convergenceBundlePath $bundle $auditRejected 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 2 rejects prior found only in rejected disposition audit' 0 0 'none' 'none' $false|Out-Null
+    $auditDeferred=[pscustomobject]@{id='FINDING-154-07';severity='MAJOR';target='validator';problem='audit-only deferred prior';evidence='audit deferred evidence';impact='audit deferred impact';required_change='audit deferred change';review_scope='validator';prior_finding_id='FINDING-154-01'};Set-ConvergenceContext $convergenceProject @('none') @('FINDING-154-01 [MAJOR] disposition=deferred; reason=not accepted');Commit-Convergence $convergenceProject 'deferred prior audit context';$head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'deferred prior audit head')[-1].Trim();Write-ConvergenceBundle $convergenceBundlePath $bundle $auditDeferred 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 2 rejects prior found only in deferred disposition audit' 0 0 'none' 'none' $false|Out-Null
+    Set-ConvergenceContext $convergenceProject @('FINDING-154-01 [MAJOR] first finding') @('none');Commit-Convergence $convergenceProject 'restore accepted required finding context';$head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'restored accepted prior head')[-1].Trim()
+
+    $resolvedProject=Join-Path $taskHistoryRoot 'convergence-resolved-prior';$null=@(& git clone --no-checkout --quiet $convergenceProject $resolvedProject 2>&1);if($LASTEXITCODE-ne0){throw 'resolved prior fixture clone failed'};$null=Invoke-Git $resolvedProject @('config','core.autocrlf','false') 'resolved prior autocrlf';$null=Invoke-Git $resolvedProject @('config','user.name','TASK-154 simulation') 'resolved prior user';$null=Invoke-Git $resolvedProject @('config','user.email','task154@example.invalid') 'resolved prior email';$null=Invoke-Git $resolvedProject @('checkout','-q','codex/task-004') 'resolved prior checkout';$null=Invoke-Git $resolvedProject @('remote','set-url','origin','https://github.com/owner/fixture.git') 'resolved prior remote';$resolvedTaskPath=Join-Path $resolvedProject 'docs/ai/tasks/TASK-004.md';$resolvedTask=[IO.File]::ReadAllText($resolvedTaskPath);$resolvedTask=[regex]::Replace($resolvedTask,'(?m)^implementation_review_open_finding_ids:.*$','implementation_review_open_finding_ids: none');[IO.File]::WriteAllText($resolvedTaskPath,$resolvedTask,$utf8NoBom);Commit-Convergence $resolvedProject 'mark prior finding resolved';$resolvedHead=(Invoke-Git $resolvedProject @('rev-parse','HEAD') 'resolved prior head')[-1].Trim();$resolvedPrior=[pscustomobject]@{id='FINDING-154-02';severity='MAJOR';target='validator';problem='resolved prior';evidence='resolved evidence';impact='resolved impact';required_change='resolved change';review_scope='validator';prior_finding_id='FINDING-154-01'};Write-ConvergenceBundle $convergenceBundlePath $bundle $resolvedPrior 1 $resolvedHead $null;Invoke-ConvergenceImport $resolvedProject $convergenceBundlePath 'attempt 2 rejects resolved prior_finding_id' 0 0 'none' 'none' $false|Out-Null
+
+    $f2=[pscustomobject]@{id='FINDING-154-02';severity='MAJOR';target='validator';problem='unresolved first finding';evidence='second evidence';impact='second impact';required_change='second change';review_scope='accepted_prior_finding';prior_finding_id='FINDING-154-01'};Write-ConvergenceBundle $convergenceBundlePath $bundle $f2 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 2 failure alone enables attempt 3 terminal' 2 3 'terminal' 'false' $true|Out-Null;Commit-Convergence $convergenceProject 'convergence attempt two'
+    $reportPath=Join-Path $convergenceProject 'docs/ai/reports/TASK-004/RELAY_IMPORT.md';$reportBytes=[IO.File]::ReadAllBytes($reportPath);$reportText=[IO.File]::ReadAllText($reportPath).Replace('implementation_review_profile: terminal','implementation_review_profile: standard');[IO.File]::WriteAllText($reportPath,$reportText,$utf8NoBom);$mismatchValidation=Invoke-ProjectValidation $convergenceProject;Assert ($mismatchValidation.ExitCode-ne0-and$mismatchValidation.Output-match'convergence mismatch') 'validator rejects five-source convergence mismatch';[IO.File]::WriteAllBytes($reportPath,$reportBytes)
+    $head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'convergence head three')[-1].Trim();$forbidden3=[pscustomobject]@{id='FINDING-154-03';severity='MINOR';target='non-required UI';problem='new nonblocking';evidence='third evidence';impact='low';required_change='optional change';review_scope='non_required_ui'};Write-ConvergenceBundle $convergenceBundlePath $bundle $forbidden3 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 3 rejects narrowed nonblocking finding' 0 0 'none' 'none' $false|Out-Null
+    $bypass=New-ConvergenceBundle $bundle $forbidden3 1 $head $null;$bypass.decision='BLOCKED';$bypass.next_phase='blocked';[IO.File]::WriteAllText($convergenceBundlePath,($bypass|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'decision kind cannot bypass final finding constraints' 0 0 'none' 'none' $false|Out-Null
+    $f3=[pscustomobject]@{id='FINDING-154-03';severity='MAJOR';target='release gate';problem='release blocker';evidence='third evidence';impact='release blocked';required_change='blocker change';review_scope='release_gate'};Write-ConvergenceBundle $convergenceBundlePath $bundle $f3 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'attempt 3 failure terminates in NEEDS_USER_DECISION' 3 3 'terminal' 'true' $true|Out-Null;Commit-Convergence $convergenceProject 'convergence terminal decision'
+    $head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'convergence head four')[-1].Trim();$f4=[pscustomobject]@{id='FINDING-154-04';severity='MAJOR';target='release gate';problem='fourth review';evidence='fourth evidence';impact='blocked';required_change='change';review_scope='release_gate'};Write-ConvergenceBundle $convergenceBundlePath $bundle $f4 1 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'terminated state rejects fourth CHANGES_REQUESTED' 0 0 'none' 'none' $false|Out-Null
+    $approved=(New-ConvergenceBundle $bundle $f4 1 $head $null);$approved.decision='APPROVED';$approved.next_phase='release';[IO.File]::WriteAllText($convergenceBundlePath,($approved|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'terminated state cannot directly release' 0 0 'none' 'none' $false|Out-Null
+
+    $reset=[pscustomobject]@{approved=$true;approved_by='USER';from_revision=1;to_revision=2;approval_id='USER-APPROVAL-154-01';approved_at='2026-08-09 00:00:00 JST'};$resetBundle=New-ConvergenceBundle $bundle $f3 2 $head $reset;$resetBundle.decision='BLOCKED';$resetBundle.next_phase='blocked';[IO.File]::WriteAllText($convergenceBundlePath,($resetBundle|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'approved spec revision resets terminated state to attempt 1 standard' 0 1 'standard' 'false' $true|Out-Null;Commit-Convergence $convergenceProject 'convergence approved spec reset'
+    $head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'post reset head')[-1].Trim();$f5=[pscustomobject]@{id='FINDING-154-05';severity='MAJOR';target='validator';problem='post reset first finding';evidence='reset evidence';impact='reset impact';required_change='reset change';review_scope='required_test'};Write-ConvergenceBundle $convergenceBundlePath $bundle $f5 2 $head $null;Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'first failure after reset leaves attempt 2 narrowed' 1 2 'narrowed' 'false' $true|Out-Null;Commit-Convergence $convergenceProject 'convergence post reset first failure'
+    $head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'approved reset head')[-1].Trim();$approvedReset=New-ConvergenceBundle $bundle $f5 2 $head $null;$approvedReset.decision='APPROVED';$approvedReset.next_phase='release';[IO.File]::WriteAllText($convergenceBundlePath,($approvedReset|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'APPROVED still resets convergence state' 0 1 'standard' 'false' $true|Out-Null;Commit-Convergence $convergenceProject 'convergence approved reset'
+    $head=(Invoke-Git $convergenceProject @('rev-parse','HEAD') 'convergence head unapproved')[-1].Trim();$unapproved=New-ConvergenceBundle $bundle $f5 3 $head $null;[IO.File]::WriteAllText($convergenceBundlePath,($unapproved|ConvertTo-Json -Depth 30),$utf8NoBom);Invoke-ConvergenceImport $convergenceProject $convergenceBundlePath 'unapproved spec revision change rejected' 0 0 'none' 'none' $false|Out-Null
 }finally{Remove-TestRoot $taskHistoryRoot}
 
 $canonicalRoot=New-TestRoot 'canonical'

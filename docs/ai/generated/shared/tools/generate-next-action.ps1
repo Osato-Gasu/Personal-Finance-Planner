@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -53,6 +53,9 @@ if($active.Count -eq 1){
         request_review_status=(OptionalValue $taskFm 'request_review_status' 'none');review_model=(OptionalValue $taskFm 'review_model' 'none');review_effort=(OptionalValue $taskFm 'review_effort' 'none')
         reviewed_candidate=(OptionalValue $taskFm 'reviewed_candidate' 'none');reviewed_spec_revision=(OptionalValue $taskFm 'reviewed_spec_revision' 'none');review_request_id=(OptionalValue $taskFm 'review_request_id' 'none')
         review_started_at=(OptionalValue $taskFm 'review_started_at' 'none');review_completed_at=(OptionalValue $taskFm 'review_completed_at' 'none');review_result=(OptionalValue $taskFm 'review_result' 'none');review_findings_count=(OptionalValue $taskFm 'review_findings_count' '0');review_finding_ids=(OptionalValue $taskFm 'review_finding_ids' 'none')
+        spec_revision_reset=(OptionalValue $taskFm 'spec_revision_reset' 'false');review_stage=(OptionalValue $taskFm 'review_stage' 'none');changes_requested_cycles=(OptionalValue $taskFm 'changes_requested_cycles' '0')
+        implementation_review_attempt=(OptionalValue $taskFm 'implementation_review_attempt' '1');implementation_review_profile=(OptionalValue $taskFm 'implementation_review_profile' 'standard');implementation_review_terminated=(OptionalValue $taskFm 'implementation_review_terminated' 'false')
+        user_confirmation_required=(OptionalValue $taskFm 'user_confirmation_required' 'false');user_confirmation_prompt=(OptionalValue $taskFm 'user_confirmation_prompt' 'none');review_termination_reason=(OptionalValue $taskFm 'review_termination_reason' 'none')
         write_bridge='required_for_state_transition';write_probe='required_for_chatgpt';relay_status='none';updated_at=$updatedAt
     }
 }else{
@@ -63,7 +66,7 @@ if($active.Count -eq 1){
         model=$zeroModel;effort=$zeroEffort;session_mode='existing_or_new';handoff_file=[string]$adapter.PermanentRequirementsHandoff
         rules_version=$rulesVersion;rules_commit=$rulesCommit;preferred_executor='Claude';allowed_executors='Claude, ChatGPT'
         executor_policy='preferred_fallback';return_to='user';write_bridge='required_for_state_transition';write_probe='required_for_chatgpt';relay_status='none';updated_at=$updatedAt
-        actual_executor='ChatGPT';provider_substitution='none';review_kind='none';review_role='none';execution_mode='existing_session';repository_access='true';review_status='not_requested';request_review_status='none';review_model='none';review_effort='none';reviewed_candidate='none';reviewed_spec_revision='none';review_request_id='none';review_started_at='none';review_completed_at='none';review_result='none';review_findings_count='0';review_finding_ids='none'
+        actual_executor='ChatGPT';provider_substitution='none';review_kind='none';review_role='none';execution_mode='existing_session';repository_access='true';review_status='not_requested';request_review_status='none';review_model='none';review_effort='none';reviewed_candidate='none';reviewed_spec_revision='none';review_request_id='none';review_started_at='none';review_completed_at='none';review_result='none';review_findings_count='0';review_finding_ids='none';spec_revision_reset='false';review_stage='none';changes_requested_cycles='0';implementation_review_attempt='1';implementation_review_profile='standard';implementation_review_terminated='false';user_confirmation_required='false';user_confirmation_prompt='none';review_termination_reason='none'
     }
 }
 $allowedPairs=@{'ChatGPT'=@('ORCHESTRATOR_AND_REVIEWER','INDEPENDENT_REVIEWER');'Codex'=@('IMPLEMENTER');'Claude'=@('INDEPENDENT_REVIEWER');'USER'=@('USER');'NONE'=@('NONE')}

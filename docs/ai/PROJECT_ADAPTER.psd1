@@ -37,15 +37,40 @@
         NewWorkSelection = 'lowest_adequate'
         LunaToSolCostRatio = '1/25'
         TerraToSolCostRatio = '1/2.5'
-        UltraRequiresUserApproval = $true
+        UltraRequiresUserApproval = $false
     }
     ProductIdentity = @{ Mode='none'; Display=$false }
     ImplementationReview = @{
         MaxAttempts = 3
         RelaxationAfterFailures = 2
         RelaxableOnlyOnAttempt = 3
-        RelaxableCategories = @('non_required_ui','wording','optional_optimization')
-        NonRelaxableCategories = @('money_calculation','rule_period','double_counting','data_preservation')
+        StandardActionableFindingLimit = 2
+        Profiles = @('standard','narrowed','terminal')
+        NarrowedAfterFailures = 1
+        TerminalAfterFailures = 2
+        RelaxableCategories = @(
+            'non_required_ui'
+            'minor_wording'
+            'optional_optimization'
+            'question'
+            'scope_expansion'
+            'ideal_design'
+        )
+        NonRelaxableCategories = @(
+            'requirement_violation'
+            'major_functionality'
+            'calculation_accuracy'
+            'decision_accuracy'
+            'data_preservation'
+            'data_integrity'
+            'rollback'
+            'raw_byte_portability'
+            'validator'
+            'required_test'
+            'release_gate'
+            'security'
+            'backward_compatibility'
+        )
         FailureAfterFinalAttempt = 'NEEDS_USER_DECISION'
     }
     Relay = @{
@@ -64,6 +89,7 @@
             'Codex|IMPLEMENTER|5.6 Sol|medium'
             'Codex|IMPLEMENTER|5.6 Sol|high'
             'ChatGPT|ORCHESTRATOR_AND_REVIEWER|5.6 Sol-Pro|Pro'
+            'ChatGPT|ORCHESTRATOR_AND_REVIEWER|none|none'
             'ChatGPT|INDEPENDENT_REVIEWER|5.6 Sol-Pro|Pro'
             'USER|USER|none|none'
         )
@@ -71,7 +97,7 @@
             APPROVED = 'Codex processes APPROVED relay for {task_id}'
             CHANGES_REQUESTED = 'Codex processes CHANGES_REQUESTED relay for {task_id}'
             BLOCKED = '{actor} resolves BLOCKED relay for {task_id}'
-            NEEDS_USER_DECISION = 'USER decides NEEDS_USER_DECISION relay for {task_id}'
+            NEEDS_USER_DECISION = 'ChatGPT reviews NEEDS_USER_DECISION relay for {task_id} with user confirmation'
             REQUIREMENTS_DEFINED = 'Codex implements REQUIREMENTS_DEFINED relay for {task_id}'
             INDEPENDENT_REVIEW_REQUESTED = '{actor} performs independent review for {task_id}'
             INDEPENDENT_REVIEW_COMPLETED = 'ChatGPT evaluates completed independent review for {task_id}'

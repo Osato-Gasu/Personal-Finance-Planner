@@ -2,9 +2,9 @@
 updated_at: 2026-08-14
 active_tasks:
   - TASK-009
-next_action: ChatGPT performs TASK-009 implementation review attempt 2 with the standard profile
+next_action: ChatGPT regenerates the already-decided TASK-009 attempt 2 CHANGES_REQUESTED relay against the v0.12.24 governance recovery head
 ---
 
 # Current state
 
-TASK-009 attempt 2 candidate `bdf59b25e1f32866a9539af4c1918210440b0d8e`（tree `8ab3ef5c71f156b2fcafa1aad4691be64e8c601c`）は、canonical APPROVED target-tree proofをPages setup／distribution preflightへ結合し、exact_published再実行をside-effect-free no-op化し、allowlist 5 file（空の`.nojekyll`を含む）をlive raw-byte検証する3件の非緩和MAJOR findingを修正した。PowerShell 7／5.1の全governance gate、Vitest 500 tests、distribution contract 38 tests、portable 284 checks、staged HTTP 5-file raw/browser evidenceとexact Governance CI `31789154016` attempt 1がSUCCESS。tag／Release／Pages／deployment／manual distribution runは0のまま、implementation review attempt 2／standardを依頼する。
+TASK-009 attempt 2 candidate `bdf59b25e1f32866a9539af4c1918210440b0d8e`（tree `8ab3ef5c71f156b2fcafa1aad4691be64e8c601c`）と既決CHANGES_REQUESTED判定は変更しない。review attempt 2を再実施せず、shared v0.12.24／`34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb`のgovernance recovery headに対してGPTが同じFINDING-009-R2-01／R2-02を保持する新relayを再生成する。両findingはまだ未Import・未着手で、旧FAD bundleは再利用禁止。tag／Release／Pages／deployment／manual distribution runを含むpublic side effectは0。

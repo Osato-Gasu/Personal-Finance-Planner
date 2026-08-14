@@ -1,6 +1,6 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 # Review contract
@@ -18,8 +18,31 @@ observable finding or a regression introduced after the reviewed candidate.
 - `CHANGES_REQUESTED` and `NEEDS_USER_DECISION` must not silently expand the
   active TASK scope.  Their handoff names the accepted requirement that is
   affected and the minimal next action.
-- A normal first review contains no more than two findings.  A later review may
-  report only a newly observed regression against the reviewed candidate.
+- Implementation review has three attempts:
+
+  - attempt 1 (standard): normal bounded review, no more than two actionable
+    findings.
+    This is the normal bounded limit: no more than two findings.
+  - attempt 2 (narrowed): only an accepted unresolved prior finding, a repair
+    regression, a requirement violation, a major functional/security/data
+    integrity/test or backward-compatibility failure, or an explicit release
+    gate is admissible. Minor, question, optional, UI, scope-expansion, and
+    ideal-design findings are rejected.
+  - attempt 3 (terminal, final): only BLOCKER/MAJOR release blockers in those
+    required categories are admissible. Minor and question findings are
+    rejected.
+
+  If attempt 3 does not pass, no fourth implementation review is created.
+  The state is materialized as `NEEDS_USER_DECISION` with
+  `implementation_review_terminated: true`, all original findings and
+  dispositions preserved, and a ChatGPT /
+  `ORCHESTRATOR_AND_REVIEWER` route requiring explicit user confirmation.
+
+- The actionable-finding limit and final-attempt scope are enforced for every
+  formal implementation-review decision, so changing the decision keyword does
+  not bypass convergence validation. At attempt 2 or later, any supplied
+  `prior_finding_id` must exactly match the canonical identity of a previously
+  accepted finding that remains unresolved.
 - An implementation subagent may not be created merely to enlarge review scope.
   A review has one assigned executor and returns its findings to the orchestrator.
 

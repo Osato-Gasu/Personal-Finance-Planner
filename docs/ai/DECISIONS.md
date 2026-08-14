@@ -99,3 +99,11 @@
 - `FINDING-012-R1-01` and `FINDING-012-R1-02` are resolved. PowerShell 7／5.1 completion matrices retained 34 cases each; product evidence remained 462 Vitest, 69 take-home, 68 NISA, 86 iDeCo, 28 overview, and 284 portable checks with runtime requests 0, console errors 0, and page errors 0.
 - TASK-008 local completion used exact completion commit `74b6f47b2e11dfe622f956de2fb3ba2640413552` and main CI `31756479657`; TASK-012 local completion used exact completion commit `4e217b8d47cc955f3b3e3da54d97ead811346381` and the same exact main CI. Each registered TASK worktree was clean, reachable, operation-free, and removed/pruned without touching the separate user-owned same-name worktree.
 - TASK-012 active TASK/handoff/report artifacts are removed from the current tree under the project adapter's `git_only` policy and remain fully auditable at release head `4e217b8d47cc955f3b3e3da54d97ead811346381`. No tag, GitHub Release, static deployment, distribution, or user-owned worktree/manifest change was made. The next requirements candidate is TASK-009.
+
+## GOV-014 TASK-009 review-convergence governance recovery
+
+- Shared v0.12.21 was rejected because its clean-source simulation was self-inconsistent; the intermediate assertion-fix commit was also rejected because it was not the final manifest-consistent source.
+- The critical recovery pins final manifest-consistent shared main v0.12.24 at commit `34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb` and migrates TASK-009 attempt 2 from the historical `standard` label to canonical `narrowed` without reexecuting review.
+- Attempt 3 is `terminal`; only a third `CHANGES_REQUESTED` routes to `NEEDS_USER_DECISION`, and attempt 4 is forbidden.
+- Product requirements, implementation candidate, review decision, and finding contents are unchanged. The previous exact inverse rollback audit remains immutable.
+- The incompatible FAD bundle is superseded. GPT generates a new bundle only after the governance recovery commit and exact Governance CI succeed; broader release, distribution, and completion work remains separate.

@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -71,9 +71,16 @@ function Invoke-GitValue([string[]]$Arguments,[string]$Failure){
     ($value-join"`n").Trim()
 }
 function Read-CommitFile([string]$Commit,[string]$Relative){
-    $value=(& git -C $root show "$Commit`:$Relative" 2>$null)
-    if($LASTEXITCODE-ne0){throw "immutable connector file is missing: $Relative"}
-    ($value-join"`n")+"`n"
+    $psi=New-Object Diagnostics.ProcessStartInfo
+    $psi.FileName='git.exe'
+    $psi.Arguments="-C `"$root`" show `"$Commit`:$Relative`""
+    $psi.UseShellExecute=$false;$psi.CreateNoWindow=$true;$psi.RedirectStandardOutput=$true;$psi.RedirectStandardError=$true
+    $psi.StandardOutputEncoding=[Text.Encoding]::UTF8
+    $process=New-Object Diagnostics.Process;$process.StartInfo=$psi
+    if(-not$process.Start()){throw "immutable connector file is missing: $Relative"}
+    $text=$process.StandardOutput.ReadToEnd();$null=$process.StandardError.ReadToEnd();$process.WaitForExit()
+    if($process.ExitCode-ne0){throw "immutable connector file is missing: $Relative"}
+    $text
 }
 function Get-CommitBlob([string]$Commit,[string]$Relative){
     $blob=Invoke-GitValue @('rev-parse',"$Commit`:$Relative") "immutable connector blob is missing: $Relative"

@@ -9,8 +9,8 @@ model: 5.6 Sol
 effort: high
 session_mode: new
 handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
-rules_version: 0.12.20
-rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+rules_version: 0.12.24
+rules_commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -33,6 +33,15 @@ review_completed_at: none
 review_result: none
 review_findings_count: 0
 review_finding_ids: none
+spec_revision_reset: false
+review_stage: implementation
+changes_requested_cycles: 1
+implementation_review_attempt: 2
+implementation_review_profile: narrowed
+implementation_review_terminated: false
+user_confirmation_required: false
+user_confirmation_prompt: none
+review_termination_reason: none
 write_bridge: required_for_state_transition
 write_probe: required_for_chatgpt
 relay_status: none

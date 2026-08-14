@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -117,7 +117,9 @@ foreach($fragment in @('Bounded review policy','acceptance criteria, the actual 
 $chatContract=[IO.File]::ReadAllText((Join-Path $root 'core/CHAT_OUTPUT.md'))
 foreach($fragment in @("project adapter's Japanese phase, role, and effort",'Internal phase/role IDs','do not add explanatory fields','defaults `DefaultLabelLocale` to `ja-JP`')){if($chatContract.IndexOf($fragment,[StringComparison]::Ordinal)-lt0){Fail "chat output contract fragment missing: $fragment"}}
 $lifecycle=[IO.File]::ReadAllText((Join-Path $root 'core/TASK_LIFECYCLE.md'))
-foreach($fragment in @('changes_requested_cycles','second consecutive','NEEDS_USER_DECISION','TASK split')){if($lifecycle.IndexOf($fragment,[StringComparison]::Ordinal)-lt0){Fail "lifecycle bounded changes-requested fragment missing: $fragment"}}
+foreach($fragment in @('changes_requested_cycles','implementation_review_attempt','standard','narrowed','terminal','implementation_review_terminated','NEEDS_USER_DECISION','no fourth implementation review','more than two actionable','prior_finding_id','ChatGPT','user_confirmation_required')){if($lifecycle.IndexOf($fragment,[StringComparison]::Ordinal)-lt0){Fail "lifecycle implementation-review convergence fragment missing: $fragment"}}
+$relayTool=[IO.File]::ReadAllText((Join-Path $root 'tools/relay-bundle.ps1'))
+foreach($fragment in @('Assert-ExistingImplementationReviewPreflight','current relay import report is missing','implementation review preflight mismatch','implementation review preflight state combination is invalid','implementation review preflight terminated route is invalid')){if($relayTool.IndexOf($fragment,[StringComparison]::Ordinal)-lt0){Fail "relay pre-write convergence fragment missing: $fragment"}}
 $origin = (git -C $root remote get-url origin 2>$null).Trim()
 if ($LASTEXITCODE -ne 0 -or $origin -cne 'https://github.com/Osato-Gasu/shared.git') { Fail 'origin must be https://github.com/Osato-Gasu/shared.git' }
 $entries = [regex]::Matches($manifest, '(?ms)^  - path:\s*(?<path>\S+)\s*\r?\n    target:\s*(?<target>\S+)\s*\r?\n    sha256:\s*(?<sha>[A-F0-9]{64})\s*$')

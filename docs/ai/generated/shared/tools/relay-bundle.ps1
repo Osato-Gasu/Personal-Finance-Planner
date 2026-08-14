@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.20
-# source commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+# source version: 0.12.24
+# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -97,6 +97,39 @@ function Read-Key([string]$Text,[string]$Key,[string]$Source){
     $value=$matches[0].Groups[1].Value.Trim()
     if($value-match'^`([^`]+)`$'){$value=$Matches[1]}
     $value
+}
+function Read-ImplementationReviewConvergenceState([string]$Text,[string]$Source){
+    $values=[ordered]@{}
+    foreach($field in @('review_stage','changes_requested_cycles','implementation_review_attempt','implementation_review_profile','implementation_review_terminated')){$values[$field]=Read-Key $Text $field $Source}
+    [pscustomobject]$values
+}
+function Assert-ExistingImplementationReviewPreflight([string]$TaskText,[string]$StateText,[string]$NextText,[string]$HandoffText,[string]$ReportText,[string]$TaskSource,[string]$HandoffSource,[string]$ReportSource){
+    $sources=[ordered]@{
+        $TaskSource=(Read-ImplementationReviewConvergenceState $TaskText $TaskSource)
+        'CURRENT_STATE'=(Read-ImplementationReviewConvergenceState $StateText 'CURRENT_STATE')
+        'NEXT_ACTION'=(Read-ImplementationReviewConvergenceState $NextText 'NEXT_ACTION')
+        $HandoffSource=(Read-ImplementationReviewConvergenceState $HandoffText $HandoffSource)
+        $ReportSource=(Read-ImplementationReviewConvergenceState $ReportText $ReportSource)
+    }
+    $canonical=$sources[$TaskSource]
+    foreach($source in $sources.GetEnumerator()){
+        foreach($field in @('review_stage','changes_requested_cycles','implementation_review_attempt','implementation_review_profile','implementation_review_terminated')){
+            if([string]$source.Value.$field-cne[string]$canonical.$field){throw "implementation review preflight mismatch: $field in $($source.Key)"}
+        }
+    }
+    if([string]$canonical.review_stage-notin@('design','implementation')){throw 'implementation review preflight review_stage is invalid'}
+    if([string]$canonical.changes_requested_cycles-notmatch'^[0-3]$'-or[string]$canonical.implementation_review_attempt-notmatch'^[1-3]$'-or[string]$canonical.implementation_review_terminated-notin@('true','false')){throw 'implementation review preflight state contains an invalid scalar'}
+    $cycles=[int]$canonical.changes_requested_cycles
+    $expectedAttempt=if($cycles-eq0){'1'}elseif($cycles-eq1){'2'}else{'3'}
+    $expectedProfile=if($cycles-eq0){'standard'}elseif($cycles-eq1){'narrowed'}else{'terminal'}
+    $expectedTerminated=if($cycles-eq3){'true'}else{'false'}
+    if([string]$canonical.implementation_review_attempt-cne$expectedAttempt-or[string]$canonical.implementation_review_profile-cne$expectedProfile-or[string]$canonical.implementation_review_terminated-cne$expectedTerminated){throw 'implementation review preflight state combination is invalid'}
+    if($cycles-eq3){
+        $taskPhase=Read-Key $TaskText 'current_phase' $TaskSource;$nextPhase=Read-Key $NextText 'phase' 'NEXT_ACTION';$taskActor=Read-Key $TaskText 'next_actor' $TaskSource;$nextActor=Read-Key $NextText 'next_actor' 'NEXT_ACTION';$taskRole=Read-Key $TaskText 'next_role' $TaskSource;$nextRole=Read-Key $NextText 'next_role' 'NEXT_ACTION';$taskHandoff=Read-Key $TaskText 'handoff_file' $TaskSource;$nextHandoff=Read-Key $NextText 'handoff_file' 'NEXT_ACTION';$handoffDecision=Read-Key $HandoffText 'decision' $HandoffSource
+        $confirmationRequired=Read-Key $NextText 'user_confirmation_required' 'NEXT_ACTION';$confirmationPrompt=Read-Key $NextText 'user_confirmation_prompt' 'NEXT_ACTION'
+        if([string]$canonical.review_stage-cne'implementation'-or$taskPhase-cne'user_decision'-or$nextPhase-cne'user_decision'-or$taskActor-cne'ChatGPT'-or$nextActor-cne'ChatGPT'-or$taskRole-cne'ORCHESTRATOR_AND_REVIEWER'-or$nextRole-cne'ORCHESTRATOR_AND_REVIEWER'-or$taskHandoff-cne$nextHandoff-or(Split-Path -Leaf $taskHandoff)-cne'USER_DECISION_HANDOFF.md'-or$handoffDecision-cne'NEEDS_USER_DECISION'-or$confirmationRequired-cne'true'-or$confirmationPrompt-ceq'none'){throw 'implementation review preflight terminated route is invalid'}
+    }
+    $canonical
 }
 function Set-Key([string]$Text,[string]$Key,[string]$Value,[string]$Source){$pattern="(?m)^$([regex]::Escape($Key)):\s*.*?$";if(-not[regex]::IsMatch($Text,$pattern)){throw "Missing '$Key' in $Source"};[regex]::Replace($Text,$pattern,"${Key}: $Value",1)}
 function Set-OrAdd-Key([string]$Text,[string]$Key,[string]$Value,[string]$Source){$pattern="(?m)^$([regex]::Escape($Key)):\s*.*?$";if([regex]::IsMatch($Text,$pattern)){return [regex]::Replace($Text,$pattern,"${Key}: $Value",1)};$anchor='(?m)^updated_at:\s*.*?$';if(-not[regex]::IsMatch($Text,$anchor)){throw "Missing 'updated_at' in $Source"};[regex]::Replace($Text,$anchor,"${Key}: $Value`n`$0",1)}
@@ -222,7 +255,7 @@ function Get-Transition([string]$Decision,$Bundle,$Adapter){
     }
     $table=@{
         BLOCKED=@{Status='blocked';Phase='blocked';Actor='dynamic';Role='dynamic';Handoff='BLOCKED_HANDOFF.md';ReturnTo='dynamic'}
-        NEEDS_USER_DECISION=@{Status='needs_user_decision';Phase='user_decision';Actor='USER';Role='USER';Handoff='USER_DECISION_HANDOFF.md';ReturnTo='ChatGPT'}
+        NEEDS_USER_DECISION=@{Status='needs_user_decision';Phase='user_decision';Actor='ChatGPT';Role='ORCHESTRATOR_AND_REVIEWER';Handoff='USER_DECISION_HANDOFF.md';ReturnTo='ChatGPT'}
         REQUIREMENTS_DEFINED=@{Status='ready';Phase='implementation';Actor='Codex';Role='IMPLEMENTER';Handoff='CODEX_HANDOFF.md';ReturnTo='ChatGPT'}
     }
     if(-not$table.ContainsKey($Decision)){throw "relay bundle decision is unsupported: $Decision"}
@@ -246,12 +279,29 @@ function Resolve-CandidateField($Bundle,$Adapter){
     if([string]::IsNullOrWhiteSpace($field)){throw "project adapter candidate field is missing for decision: $($Bundle.decision)"}
     $field
 }
+function Validate-SpecRevisionReset($Reset,[int]$TargetRevision){
+    if($null-eq$Reset){throw 'spec revision reset object is required'}
+    foreach($name in @('approved','approved_by','from_revision','to_revision','approval_id','approved_at')){
+        if($null-eq$Reset.PSObject.Properties[$name]){throw "spec revision reset field is missing: $name"}
+    }
+    Require-Bool $Reset.approved 'spec_revision_reset.approved'
+    Require-NonNegativeInteger $Reset.from_revision 'spec_revision_reset.from_revision'
+    Require-NonNegativeInteger $Reset.to_revision 'spec_revision_reset.to_revision'
+    Require-SingleLine $Reset.approved_by 'spec_revision_reset.approved_by'
+    Require-SingleLine $Reset.approval_id 'spec_revision_reset.approval_id'
+    Require-SingleLine $Reset.approved_at 'spec_revision_reset.approved_at'
+    if(-not[bool]$Reset.approved-or[string]$Reset.approved_by-cne'USER'){throw 'spec revision reset requires explicit USER approval'}
+    if([int]$Reset.to_revision-ne$TargetRevision-or[int]$Reset.from_revision-ge[int]$Reset.to_revision){throw 'spec revision reset revision range is invalid'}
+    if([string]$Reset.approved_at-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'){throw 'spec revision reset approval timestamp is invalid'}
+}
 function Validate-Bundle($Bundle,$Adapter,$FindingDispositions){
     if([int]$Bundle.schema_version-ne2){throw 'relay bundle schema_version must be 2'}
     if([string]$Bundle.status-cne'USER_RELAY_REQUIRED'){throw 'relay bundle status must be USER_RELAY_REQUIRED'}
     foreach($name in @('task_id','repository','branch','relay_recipient','relay_recipient_role','result_return_to','decision','next_phase','next_actor','next_role','model','effort','purpose','created_at')){Require-SingleLine $Bundle.$name $name}
     if([string]$Bundle.task_id-notmatch'^TASK-[0-9]+$'){throw 'relay bundle task_id is invalid'}
     if([int]$Bundle.spec_revision-lt1){throw 'relay bundle spec_revision is invalid'}
+    $specRevisionResetProperty=$Bundle.PSObject.Properties['spec_revision_reset']
+    if($null-ne$specRevisionResetProperty-and$null-ne$Bundle.spec_revision_reset){Validate-SpecRevisionReset $Bundle.spec_revision_reset ([int]$Bundle.spec_revision)}
     if([string]$Bundle.repository-notmatch'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'){throw 'relay bundle repository is invalid'}
     if([string]$Bundle.relay_recipient-cne'Codex'){throw 'relay_recipient must be Codex'}
     if([string]$Bundle.relay_recipient_role-cne'IMPLEMENTER'){throw 'relay_recipient_role must be IMPLEMENTER'}
@@ -410,6 +460,57 @@ function Validate-Bundle($Bundle,$Adapter,$FindingDispositions){
     }
     $transition
 }
+function Get-ActionableFindings($Bundle,$FindingDispositions){
+    $dispositionProperty=$Bundle.PSObject.Properties['finding_dispositions']
+    if($null-eq$dispositionProperty-or$null-eq$Bundle.finding_dispositions){return @($Bundle.findings)}
+    $actionableIds=@($FindingDispositions|Where-Object{[string]$_.status-in@('accepted','needs_user_decision')}|ForEach-Object{[string]$_.finding_id})
+    return @($Bundle.findings|Where-Object{$actionableIds-ccontains[string]$_.id})
+}
+function Read-OpenImplementationFindingIds([string]$TaskText){
+    $matches=[regex]::Matches($TaskText,'(?m)^implementation_review_open_finding_ids:\s*(.*?)\s*$')
+    if($matches.Count-eq0){return @()}
+    if($matches.Count-ne1){throw 'TASK implementation review open finding registry is duplicated'}
+    $raw=$matches[0].Groups[1].Value.Trim();if([string]::IsNullOrWhiteSpace($raw)-or$raw-ceq'none'){return @()}
+    $ids=@($raw-split','|ForEach-Object{$_.Trim()}|Where-Object{$_})
+    if($ids.Count-ne@($ids|Select-Object -Unique).Count-or@($ids|Where-Object{$_-notmatch'^FINDING-[0-9]+-[0-9]+$'}).Count-ne0){throw 'TASK implementation review open finding registry is invalid'}
+    return $ids
+}
+function Read-HandoffFindingIds([string]$HandoffText,[string]$SectionTitle,[string]$Source){
+    $pattern='(?ms)^## +{0}\s*\r?\n(?<body>.*?)(?=^##\s+\S|\z)' -f [regex]::Escape($SectionTitle)
+    $match=[regex]::Match($HandoffText,$pattern)
+    if(-not$match.Success){return @()}
+    $ids=[Collections.Generic.List[string]]::new()
+    foreach($line in ([regex]::Split($match.Groups['body'].Value,'\r?\n'))){
+        if($line -match '^\s*-\s*(?:none|not_applicable)\s*$'){continue}
+        if($line -match '^\s*-\s*(?<id>FINDING-[0-9]+-[0-9]+)\s+\[[^\]]+\].*$'){$id=[string]$Matches['id'];if($ids.Contains($id)){throw "$Source $SectionTitle contains duplicate finding id: $id"};$ids.Add($id);continue}
+        if(-not[string]::IsNullOrWhiteSpace($line)){throw "$Source $SectionTitle contains an invalid finding line"}
+    }
+    @($ids)
+}
+function Validate-ImplementationReviewFindingScope($Bundle,[int]$CurrentCycles,$FindingDispositions,[bool]$Reset,[string[]]$OpenFindingIds,[string[]]$AcceptedPriorFindingIds,[string[]]$DispositionFindingIds){
+    if([string]$Bundle.decision-notin@('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')-or[string]$Bundle.review_stage-cne'implementation'){return}
+    $reviewCycles=if($Reset){0}else{$CurrentCycles}
+    if($reviewCycles-ge3){throw 'implementation review terminated; no fourth implementation review is permitted'}
+    $actionable=Get-ActionableFindings $Bundle $FindingDispositions
+    if($reviewCycles-le1-and$actionable.Count-gt2){throw 'implementation review allows at most two actionable findings on standard/narrowed attempts'}
+    if($reviewCycles-ge1){
+        $allowedNarrowed=@('accepted_prior_finding','new_regression','requirement_violation','major_functionality','security','data_loss','data_integrity','required_test','backward_compatibility','release_gate')
+        $allowedTerminal=@('accepted_prior_finding','new_regression','requirement_violation','major_functionality','security','data_loss','data_integrity','required_test','backward_compatibility','release_gate')
+        foreach($finding in @($actionable)){
+            $priorProperty=$finding.PSObject.Properties['prior_finding_id'];$prior=if($null-ne$priorProperty){[string]$priorProperty.Value}else{''}
+            if(-not[string]::IsNullOrWhiteSpace($prior)){
+                if($prior-notmatch'^FINDING-[0-9]+-[0-9]+$'-or$AcceptedPriorFindingIds-cnotcontains$prior-or($DispositionFindingIds-ccontains$prior-and$AcceptedPriorFindingIds-cnotcontains$prior)-or$OpenFindingIds-cnotcontains$prior){throw "prior_finding_id does not exactly match an accepted unresolved finding: $($finding.id)"}
+            }
+            $scopeProperty=$finding.PSObject.Properties['review_scope'];$scope=if($null-ne$scopeProperty){[string]$scopeProperty.Value}else{''}
+            $allowed=if($reviewCycles-eq1){$allowedNarrowed}else{$allowedTerminal}
+            if($allowed-cnotcontains$scope){throw "implementation review scope is not allowed on attempt $([int]$reviewCycles+1): $($finding.id)"}
+            if($scope-ceq'accepted_prior_finding' -and ([string]::IsNullOrWhiteSpace($prior) -or $OpenFindingIds-cnotcontains$prior)){throw "accepted prior finding must be an exact open finding: $($finding.id)"}
+            if($scope-ceq'new_regression' -and [string]::IsNullOrWhiteSpace($prior)){ }
+            if($reviewCycles-eq2 -and [string]$finding.severity-notin@('BLOCKER','MAJOR')){throw "terminal implementation review rejects non-blocking finding: $($finding.id)"}
+            if($reviewCycles-eq1 -and $scope-ne'accepted_prior_finding' -and [string]$finding.severity-notin@('BLOCKER','MAJOR')){throw "narrowed implementation review rejects new non-blocking finding: $($finding.id)"}
+        }
+    }
+}
 function Resolve-ProductIdentity([string]$Reference,$Adapter){
     if($Reference-ceq'none'){return [pscustomobject]@{Reference='none';Sha256='none'}}
     if(@($Adapter.Relay.Requirements.ProductIdentityReferences)-cnotcontains$Reference){throw 'accepted product identity reference is not allowed by project adapter'}
@@ -498,6 +599,8 @@ $origin=(git -C $root remote get-url origin).Trim();if($LASTEXITCODE-ne0-or$orig
 $active=@([regex]::Matches($state,'(?m)^\s+-\s+(TASK-[0-9]+)\s*$')|ForEach-Object{$_.Groups[1].Value}|Select-Object -Unique);if($state-match'(?m)^active_tasks:\s*\[\]\s*$'){$active=@()}
 $taskRelative="docs/ai/tasks/$taskId.md";$taskPath=Project-Path $taskRelative
 $lock=[IO.File]::ReadAllText((Project-Path 'docs/ai/SHARED_RULES.lock.yml'));if((Read-Key $lock 'commit' 'SHARED_RULES.lock.yml')-cne[string]$bundle.shared_candidate){throw 'relay bundle shared candidate mismatch'}
+$specRevisionReset=$false
+$openFindingIds=@()
 if([string]$bundle.decision-eq'REQUIREMENTS_DEFINED'){
     if($active.Count-ne0){throw 'REQUIREMENTS_DEFINED relay requires zero active TASKs'}
     if(Test-Path -LiteralPath $taskPath){throw 'REQUIREMENTS_DEFINED target TASK already exists'}
@@ -506,8 +609,26 @@ if([string]$bundle.decision-eq'REQUIREMENTS_DEFINED'){
 }else{
     if($active.Count-ne1-or$active[0]-cne$taskId){throw 'relay bundle task does not match active TASK'}
     if(-not(Test-Path -LiteralPath $taskPath -PathType Leaf)){throw 'active TASK file is missing'}
-    $taskExisting=[IO.File]::ReadAllText($taskPath);if([int](Read-Key $taskExisting 'spec_revision' $taskRelative)-ne[int]$bundle.spec_revision){throw 'relay bundle spec_revision mismatch'}
-    $currentHandoffRelative=Read-Key $next 'handoff_file' 'NEXT_ACTION';$currentHandoff=[IO.File]::ReadAllText((Project-Path $currentHandoffRelative));$candidateField=Resolve-CandidateField $bundle $adapter
+    $taskExisting=[IO.File]::ReadAllText($taskPath);$taskSpecRevision=[int](Read-Key $taskExisting 'spec_revision' $taskRelative);$specRevisionReset=$false
+    $resetProperty=$bundle.PSObject.Properties['spec_revision_reset']
+    if($taskSpecRevision-ne[int]$bundle.spec_revision){
+        if($null-eq$resetProperty-or$null-eq$bundle.spec_revision_reset){throw 'relay bundle spec_revision mismatch'}
+        Validate-SpecRevisionReset $bundle.spec_revision_reset ([int]$bundle.spec_revision)
+        if([int]$bundle.spec_revision_reset.from_revision-ne$taskSpecRevision){throw 'spec revision reset source revision mismatch'}
+        $specRevisionReset=$true
+    }elseif($null-ne$resetProperty-and$null-ne$bundle.spec_revision_reset){throw 'spec revision reset requires a changed spec_revision'}
+    $openFindingIds=@(Read-OpenImplementationFindingIds $taskExisting)
+    $terminatedStateMatch=[regex]::Match($taskExisting,'(?m)^implementation_review_terminated:\s*true\s*$')
+    if($terminatedStateMatch.Success-and-not$specRevisionReset-and[string]$bundle.decision-in@('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')-and[string]$bundle.review_stage-ceq'implementation'){
+        if([string]$bundle.decision-ceq'APPROVED'){throw 'terminated implementation review requires explicit user decision before release'}
+        throw 'implementation review terminated; no fourth implementation review is permitted'
+    }
+    $currentHandoffRelative=Read-Key $next 'handoff_file' 'NEXT_ACTION';$currentHandoffPath=Project-Path $currentHandoffRelative;if(-not(Test-Path -LiteralPath $currentHandoffPath -PathType Leaf)){throw 'current handoff is missing'};$currentHandoff=[IO.File]::ReadAllText($currentHandoffPath)
+    $acceptedPriorFindingIds=@(Read-HandoffFindingIds $currentHandoff 'Required changes' $currentHandoffRelative)
+    $dispositionFindingIds=@(Read-HandoffFindingIds $currentHandoff 'Independent review disposition audit' $currentHandoffRelative)
+    $currentReportRelative="docs/ai/reports/$taskId/RELAY_IMPORT.md";$currentReportPath=Project-Path $currentReportRelative;if(-not(Test-Path -LiteralPath $currentReportPath -PathType Leaf)){throw 'current relay import report is missing'};$currentReport=[IO.File]::ReadAllText($currentReportPath)
+    Assert-ExistingImplementationReviewPreflight $taskExisting $state $next $currentHandoff $currentReport $taskRelative $currentHandoffRelative $currentReportRelative|Out-Null
+    $candidateField=Resolve-CandidateField $bundle $adapter
     if((Read-Key $currentHandoff $candidateField $currentHandoffRelative)-cne[string]$bundle.reviewed_candidate){throw 'relay bundle candidate does not match canonical review candidate'}
     $canonicalRelative="docs/ai/reports/$taskId/RELAY_BUNDLE.json";$currentCanonicalPath=Project-Path $canonicalRelative
     if([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_COMPLETED'){
@@ -558,15 +679,57 @@ if([string]$bundle.decision-eq'REQUIREMENTS_DEFINED'){
     if($head-cne[string]$bundle.reviewed_handoff_head){throw 'relay bundle handoff HEAD mismatch'}
     & git -C $root merge-base --is-ancestor ([string]$bundle.reviewed_candidate) ([string]$bundle.reviewed_handoff_head);if($LASTEXITCODE-ne0){throw 'relay bundle reviewed candidate is not an ancestor of handoff HEAD'}
 }
-$changesRequestedCycles=0;$effectiveDecision=[string]$bundle.decision;$materializedFromChangesRequested=$false
+$changesRequestedCycles=0
+$effectiveDecision=[string]$bundle.decision
+$materializedFromChangesRequested=$false
+$implementationReviewAttempt=1
+$implementationReviewProfile='standard'
+$implementationReviewTerminated='false'
+$reviewUserConfirmationRequired='false'
+$reviewUserConfirmationPrompt='none'
+$reviewTerminationReason='none'
 if(Test-Path -LiteralPath $taskPath){
     $cycleMatch=[regex]::Match($taskExisting,'(?m)^changes_requested_cycles:\s*(.*?)\s*$')
     if($cycleMatch.Success){$rawCycles=$cycleMatch.Groups[1].Value.Trim();if($rawCycles-notmatch'^\d+$'){throw 'TASK changes_requested_cycles is invalid'};$changesRequestedCycles=[int]$rawCycles}
-    if([string]$bundle.decision-ceq'CHANGES_REQUESTED'){
-        $changesRequestedCycles++
-        if($changesRequestedCycles-ge2){$effectiveDecision='NEEDS_USER_DECISION';$materializedFromChangesRequested=$true;$transition=Get-Transition $effectiveDecision $bundle $adapter}
-    }elseif([string]$bundle.decision-ceq'APPROVED'){$changesRequestedCycles=0}
+    if($specRevisionReset){$changesRequestedCycles=0}
+    $storedAttempt=1;$storedProfile='standard';$storedTerminated='false'
+    $attemptMatch=[regex]::Match($taskExisting,'(?m)^implementation_review_attempt:\s*(.*?)\s*$');if($attemptMatch.Success){$storedAttempt=[int]$attemptMatch.Groups[1].Value.Trim()}
+    $profileMatch=[regex]::Match($taskExisting,'(?m)^implementation_review_profile:\s*(.*?)\s*$');if($profileMatch.Success){$storedProfile=$profileMatch.Groups[1].Value.Trim()}
+    $terminatedMatch=[regex]::Match($taskExisting,'(?m)^implementation_review_terminated:\s*(.*?)\s*$');if($terminatedMatch.Success){$storedTerminated=$terminatedMatch.Groups[1].Value.Trim().ToLowerInvariant()}
+    if(-not$specRevisionReset){
+        if($changesRequestedCycles-lt0-or$changesRequestedCycles-gt3){throw 'TASK changes_requested_cycles is invalid'}
+        $expectedStoredAttempt=if($changesRequestedCycles-eq0){1}elseif($changesRequestedCycles-eq1){2}else{3}
+    $expectedStoredProfile=if($changesRequestedCycles-eq0){'standard'}elseif($changesRequestedCycles-eq1){'narrowed'}else{'terminal'}
+        $expectedStoredTerminated=if($changesRequestedCycles-ge3){'true'}else{'false'}
+        if($storedAttempt-ne$expectedStoredAttempt-or$storedProfile-cne$expectedStoredProfile-or$storedTerminated-cne$expectedStoredTerminated){throw 'TASK implementation review state is inconsistent'}
+    }
+    Validate-ImplementationReviewFindingScope $bundle $changesRequestedCycles $findingDispositions $specRevisionReset $openFindingIds $acceptedPriorFindingIds $dispositionFindingIds
+    if([string]$bundle.decision-ceq'CHANGES_REQUESTED'-and[string]$bundle.review_stage-ceq'implementation'){
+        if($changesRequestedCycles-eq2){
+            $changesRequestedCycles=3
+            $implementationReviewTerminated='true'
+            $implementationReviewProfile='terminal'
+            $effectiveDecision='NEEDS_USER_DECISION'
+            $materializedFromChangesRequested=$true
+            $transition=Get-Transition $effectiveDecision $bundle $adapter
+        } else {
+            $changesRequestedCycles++
+        }
+    }elseif([string]$bundle.decision-ceq'APPROVED'){
+        $changesRequestedCycles=0
+    }
 }
+$implementationReviewAttempt=if($changesRequestedCycles-eq0){1}elseif($changesRequestedCycles-eq1){2}else{3}
+if($changesRequestedCycles-eq0){$implementationReviewProfile='standard'}elseif($changesRequestedCycles-eq1){$implementationReviewProfile='narrowed'}else{$implementationReviewProfile='terminal'}
+$implementationReviewTerminated=if($changesRequestedCycles-ge3){'true'}elseif($implementationReviewTerminated -ceq 'true'){$implementationReviewTerminated}else{'false'}
+$reviewUserConfirmationRequired=if($implementationReviewTerminated-ceq'true' -or $effectiveDecision-ceq'NEEDS_USER_DECISION'){'true'}else{'false'}
+$reviewTerminationReason=if($implementationReviewTerminated-ceq'true'){'third implementation-review CHANGES_REQUESTED; explicit user confirmation required'}else{'none'}
+$reviewUserConfirmationPrompt=if($reviewUserConfirmationRequired-ceq'true'){ 'Review unresolved blockers, choose release, remediation, or a new approved spec revision; no fourth implementation review is permitted.' }else{'none'}
+$implementationReviewStage=if([string]$bundle.decision-in@('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')){[string]$bundle.review_stage}elseif([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){[string]$bundle.independent_review.kind}elseif([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_COMPLETED'){[string]$bundle.independent_review_result.review_kind}else{'implementation'}
+$implementationReviewOpenFindingIds=@($openFindingIds)
+if($specRevisionReset-or[string]$bundle.decision-ceq'APPROVED'){$implementationReviewOpenFindingIds=@()}
+elseif([string]$bundle.review_stage-ceq'implementation'-and[string]$bundle.decision-in@('CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')){$implementationReviewOpenFindingIds=@(Get-ActionableFindings $bundle $findingDispositions|ForEach-Object{[string]$_.id}|Select-Object -Unique)}
+$implementationReviewOpenFindingValue=if($implementationReviewOpenFindingIds.Count-eq0){'none'}else{$implementationReviewOpenFindingIds-join', '}
 $effectivePhase=if($materializedFromChangesRequested){[string]$transition.Phase}else{[string]$bundle.next_phase}
 $effectiveActor=if($materializedFromChangesRequested){[string]$transition.Actor}else{[string]$bundle.next_actor}
 $effectiveRole=if($materializedFromChangesRequested){[string]$transition.Role}else{[string]$bundle.next_role}
@@ -575,14 +738,30 @@ $effectiveEffort=if($materializedFromChangesRequested){'none'}else{[string]$bund
 $effectiveReturnTo=if($materializedFromChangesRequested){[string]$transition.ReturnTo}else{[string]$bundle.result_return_to}
 $handoffRelative="docs/ai/handoffs/$taskId/$($transition.Handoff)";$reportRelative="docs/ai/reports/$taskId/RELAY_IMPORT.md";$canonicalRelative="docs/ai/reports/$taskId/RELAY_BUNDLE.json"
 $nextTemplate=[string]$adapter.Relay.NextActionTemplates[$effectiveDecision];if([string]::IsNullOrWhiteSpace($nextTemplate)){throw 'project adapter relay next_action template is missing'}
-$nextAction=$nextTemplate.Replace('{task_id}',$taskId).Replace('{decision}',$effectiveDecision).Replace('{actor}',$effectiveActor)
+$nextAction=$nextTemplate
+$nextAction=$nextAction.Replace('{task_id}',$taskId)
+$nextAction=$nextAction.Replace('{decision}',$effectiveDecision)
+$nextAction=$nextAction.Replace('{actor}',$effectiveActor)
+$nextAction=$nextAction.Replace('{implementation_review_attempt}',$implementationReviewAttempt.ToString())
+$nextAction=$nextAction.Replace('{implementation_review_profile}',$implementationReviewProfile)
+$nextAction=$nextAction.Replace('{implementation_review_terminated}',$implementationReviewTerminated)
 
 if(Test-Path -LiteralPath $taskPath){
     $task=[IO.File]::ReadAllText($taskPath)
-    foreach($pair in ([ordered]@{status=$transition.Status;current_phase=$effectivePhase;current_role_id=$effectiveRole;next_actor=$effectiveActor;next_role=$effectiveRole;assigned_model=$effectiveModel;assigned_effort=$effectiveEffort;handoff_file=$handoffRelative;return_to=$effectiveReturnTo;reviewed_candidate=[string]$bundle.reviewed_candidate;shared_candidate=[string]$bundle.shared_candidate}).GetEnumerator()){
-        if($pair.Key-in@('reviewed_candidate','shared_candidate')){$task=Set-OrAdd-Key $task $pair.Key $pair.Value $taskRelative}else{$task=Set-Key $task $pair.Key $pair.Value $taskRelative}
+    foreach($pair in ([ordered]@{
+        status=$transition.Status;spec_revision=[string]$bundle.spec_revision;spec_revision_reset=([string][bool]$specRevisionReset).ToLowerInvariant();current_phase=$effectivePhase;current_role_id=$effectiveRole;next_actor=$effectiveActor;next_role=$effectiveRole;
+        assigned_model=$effectiveModel;assigned_effort=$effectiveEffort;handoff_file=$handoffRelative;return_to=$effectiveReturnTo;
+        reviewed_candidate=[string]$bundle.reviewed_candidate;shared_candidate=[string]$bundle.shared_candidate;
+        review_stage=$implementationReviewStage;changes_requested_cycles=[string]$changesRequestedCycles;implementation_review_attempt=[string]$implementationReviewAttempt;
+        implementation_review_profile=$implementationReviewProfile;implementation_review_terminated=$implementationReviewTerminated;implementation_review_open_finding_ids=$implementationReviewOpenFindingValue;user_confirmation_required=$reviewUserConfirmationRequired;user_confirmation_prompt=$reviewUserConfirmationPrompt;review_termination_reason=$reviewTerminationReason
+    }).GetEnumerator()){
+        if($pair.Key-in@('reviewed_candidate','shared_candidate','spec_revision_reset','review_stage','changes_requested_cycles','implementation_review_attempt','implementation_review_profile','implementation_review_terminated','implementation_review_open_finding_ids','user_confirmation_required','user_confirmation_prompt','review_termination_reason')){$task=Set-OrAdd-Key $task $pair.Key $pair.Value $taskRelative}else{$task=Set-Key $task $pair.Key $pair.Value $taskRelative}
     }
     $task=Set-OrAdd-Key $task 'changes_requested_cycles' ([string]$changesRequestedCycles) $taskRelative
+    $task=Set-OrAdd-Key $task 'implementation_review_attempt' ([string]$implementationReviewAttempt) $taskRelative
+    $task=Set-OrAdd-Key $task 'implementation_review_profile' $implementationReviewProfile $taskRelative
+    $task=Set-OrAdd-Key $task 'implementation_review_terminated' $implementationReviewTerminated $taskRelative
+    $task=Set-OrAdd-Key $task 'implementation_review_open_finding_ids' $implementationReviewOpenFindingValue $taskRelative
     if([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){
         $review=$bundle.independent_review;$allowed=if([string]$review.executor_policy-ceq'strict'){[string]$review.preferred_executor}else{"$($review.preferred_executor), $($adapter.Relay.IndependentReview.FallbackExecutor)"}
         $repositoryAccess=([string][bool]$review.repository_access).ToLowerInvariant()
@@ -599,7 +778,7 @@ if(Test-Path -LiteralPath $taskPath){
 }else{
     $requirements=$bundle.requirements;$createdDate=([string]$bundle.created_at).Substring(0,10);$product=Resolve-ProductIdentity ([string]$requirements.accepted_product_identity_reference) $adapter;$metadataLines=Get-TaskMetadataLines $requirements $adapter
     $browserValue=([string]$requirements.browser_evidence_required).ToLowerInvariant();$designRequired=([string]$requirements.claude_design_review_required).ToLowerInvariant();$implementationRequired=([string]$requirements.claude_implementation_review_required).ToLowerInvariant()
-    $task="---`ntask_id: $taskId`ntitle: $($requirements.title)`nstatus: $($transition.Status)`nroute: TWO_SESSION_FAST`npriority: $($requirements.priority)`nspec_revision: $($bundle.spec_revision)`nspec_status: accepted`ncurrent_phase: $($bundle.next_phase)`ncurrent_role_id: $($bundle.next_role)`nnext_actor: $($bundle.next_actor)`nnext_role: $($bundle.next_role)`nassigned_model: $($bundle.model)`nassigned_effort: $($bundle.effort)`nsession_mode: $($requirements.handoff_mode)`nhandoff_file: $handoffRelative`npreferred_executor: $($requirements.preferred_executor)`nallowed_executors: $($requirements.allowed_executors)`nexecutor_policy: $($requirements.executor_policy)`nreturn_to: $($bundle.result_return_to)`nbrowser_evidence_required: $browserValue`nclaude_design_review_recommendation: $($requirements.claude_design_review_recommendation)`nclaude_implementation_review_recommendation: $($requirements.claude_implementation_review_recommendation)`nclaude_design_review_required: $designRequired`nclaude_implementation_review_required: $implementationRequired`nclaude_design_review_status: $($requirements.claude_design_review_status)`nclaude_implementation_review_status: $($requirements.claude_implementation_review_status)`nbase_commit: $($requirements.base_commit)`nbase_tree: $($requirements.base_tree)`naccepted_product_identity_reference: $($product.Reference)`naccepted_product_sha256: $($product.Sha256)`n$metadataLines`nupdated_at: $createdDate`n---`n`n# $taskId — $($requirements.title)`n`n## Purpose`n`n$($bundle.purpose)`n`n## Scope`n`n$(Lines $bundle.scope)`n`n## Out of scope`n`n$(Lines $bundle.out_of_scope)`n`n## Acceptance criteria`n`n$(Lines $bundle.acceptance_criteria)`n`n## Tests`n`n$(Lines $bundle.tests)`n`n## Build`n`n$(Lines $requirements.build)`n`n## Rollback`n`n$($requirements.rollback)`n`n## Forbidden changes`n`n$(Lines $bundle.forbidden_changes)`n"
+    $task="---`ntask_id: $taskId`ntitle: $($requirements.title)`nstatus: $($transition.Status)`nroute: TWO_SESSION_FAST`npriority: $($requirements.priority)`nspec_revision: $($bundle.spec_revision)`nspec_status: accepted`ncurrent_phase: $($bundle.next_phase)`ncurrent_role_id: $($bundle.next_role)`nnext_actor: $($bundle.next_actor)`nnext_role: $($bundle.next_role)`nassigned_model: $($bundle.model)`nassigned_effort: $($bundle.effort)`nsession_mode: $($requirements.handoff_mode)`nhandoff_file: $handoffRelative`npreferred_executor: $($requirements.preferred_executor)`nallowed_executors: $($requirements.allowed_executors)`nexecutor_policy: $($requirements.executor_policy)`nreturn_to: $($bundle.result_return_to)`nbrowser_evidence_required: $browserValue`nclaude_design_review_recommendation: $($requirements.claude_design_review_recommendation)`nclaude_implementation_review_recommendation: $($requirements.claude_implementation_review_recommendation)`nclaude_design_review_required: $designRequired`nclaude_implementation_review_required: $implementationRequired`nclaude_design_review_status: $($requirements.claude_design_review_status)`nclaude_implementation_review_status: $($requirements.claude_implementation_review_status)`nbase_commit: $($requirements.base_commit)`nbase_tree: $($requirements.base_tree)`naccepted_product_identity_reference: $($product.Reference)`naccepted_product_sha256: $($product.Sha256)`n$metadataLines`nreview_stage: $implementationReviewStage`nchanges_requested_cycles: $changesRequestedCycles`nimplementation_review_attempt: $implementationReviewAttempt`nimplementation_review_profile: $implementationReviewProfile`nimplementation_review_terminated: $implementationReviewTerminated`nimplementation_review_open_finding_ids: $implementationReviewOpenFindingValue`nupdated_at: $createdDate`n---`n`n# $taskId — $($requirements.title)`n`n## Purpose`n`n$($bundle.purpose)`n`n## Scope`n`n$(Lines $bundle.scope)`n`n## Out of scope`n`n$(Lines $bundle.out_of_scope)`n`n## Acceptance criteria`n`n$(Lines $bundle.acceptance_criteria)`n`n## Tests`n`n$(Lines $bundle.tests)`n`n## Build`n`n$(Lines $requirements.build)`n`n## Rollback`n`n$($requirements.rollback)`n`n## Forbidden changes`n`n$(Lines $bundle.forbidden_changes)`n"
 }
 $postReviewFormal=[string]$bundle.decision-in@('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')-and$null-ne$bundle.independent_review_result
 $dispositionById=@{};foreach($disposition in $findingDispositions){$dispositionById[[string]$disposition.finding_id]=$disposition}
@@ -609,10 +788,11 @@ $userDecisionLines=if($postReviewFormal){@($bundle.findings|Where-Object{[string
 $dispositionAuditLines=if($postReviewFormal){@($bundle.findings|ForEach-Object{$disposition=$dispositionById[[string]$_.id];"- $($_.id) [$($_.severity)] disposition=$($disposition.status); reason=$($disposition.reason); original_problem=$($_.problem); original_evidence=$($_.evidence); original_impact=$($_.impact); original_required_change=$($_.required_change)"})}else{@('- not_applicable')}
 $routeDetails=if($null-ne$bundle.PSObject.Properties['route_result']){"- routing_mode: $($bundle.routing_mode)`n- route_repository: $($bundle.route_result.repository)`n- requested_ref: $($bundle.route_result.requested_ref)`n- resolved_commit: $($bundle.route_result.resolved_commit)`n- next_action_blob: $($bundle.route_result.next_action_blob)`n- handoff_blob: $($bundle.route_result.handoff_blob)`n- adapter_blob: $($bundle.route_result.adapter_blob)`n"}else{"- routing_mode: legacy_unspecified`n"}
 $candidateDetail=if(-not[string]::IsNullOrWhiteSpace([string]$candidateField)-and$candidateField-notin@('candidate_commit','reviewed_candidate')){"- ${candidateField}: $($bundle.reviewed_candidate)`n"}else{''}
-$reviewDetails=if([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){"- review_kind: $($bundle.independent_review.kind)`n- review_role: $($bundle.independent_review.review_role)`n- execution_mode: $($bundle.independent_review.execution_mode)`n- repository_access: $(([string][bool]$bundle.independent_review.repository_access).ToLowerInvariant())`n- review_status: $($bundle.independent_review.review_status)`n- request_review_status: $($bundle.independent_review.review_status)`n- review_model: $($bundle.independent_review.model)`n- review_effort: $($bundle.independent_review.effort)`n- preferred_executor: $($bundle.independent_review.preferred_executor)`n- actual_executor: $($bundle.independent_review.actual_executor)`n- provider_substitution: $($bundle.independent_review.provider_substitution)`n- executor_policy: $($bundle.independent_review.executor_policy)`n- reviewed_spec_revision: $($bundle.independent_review.reviewed_spec_revision)`n- review_request_id: $($bundle.independent_review.request_id)`n- review_started_at: $($bundle.independent_review.started_at)`n$candidateDetail"}elseif($null-ne$bundle.independent_review_result){"- review_stage: $($bundle.review_stage)`n- review_kind: $($bundle.independent_review_result.review_kind)`n- review_role: $($bundle.independent_review_result.review_role)`n- review_status: completed`n- request_review_status: $($bundle.independent_review_result.request_review_status)`n- review_model: $($bundle.independent_review_result.model)`n- review_effort: $($bundle.independent_review_result.effort)`n- preferred_executor: $($bundle.independent_review_result.preferred_executor)`n- actual_executor: $($bundle.independent_review_result.actual_executor)`n- execution_mode: $($bundle.independent_review_result.execution_mode)`n- repository_access: $(([string][bool]$bundle.independent_review_result.repository_access).ToLowerInvariant())`n- provider_substitution: $($bundle.independent_review_result.provider_substitution)`n- executor_policy: $($bundle.independent_review_result.executor_policy)`n- reviewed_spec_revision: $($bundle.independent_review_result.spec_revision)`n- review_request_id: $($bundle.independent_review_result.request_id)`n- review_started_at: $($bundle.independent_review_result.started_at)`n- review_completed_at: $($bundle.independent_review_result.completed_at)`n- review_result: $($bundle.independent_review_result.result)`n- review_findings_count: $($bundle.independent_review_result.findings_count)`n- review_finding_ids: $($bundle.independent_review_result.finding_ids)`n$candidateDetail"}else{"- review_stage: $($bundle.review_stage)`n$candidateDetail"}
-$handoff="# RELAY HANDOFF — $taskId`n`n- relay_schema: 2`n- task_id: $taskId`n- decision: $($bundle.decision)`n- relay_recipient: $($bundle.relay_recipient)`n- relay_recipient_role: $($bundle.relay_recipient_role)`n- result_return_to: $($bundle.result_return_to)`n- repository: $($bundle.repository)`n- branch: $($bundle.branch)`n- reviewed_candidate: $($bundle.reviewed_candidate)`n- candidate_commit: $($bundle.reviewed_candidate)`n- reviewed_handoff_head: $($bundle.reviewed_handoff_head)`n- shared_candidate: $($bundle.shared_candidate)`n- next_phase: $($bundle.next_phase)`n- next_actor: $($bundle.next_actor)`n- next_role: $($bundle.next_role)`n- model: $($bundle.model)`n- effort: $($bundle.effort)`n$routeDetails$reviewDetails`n## Purpose`n`n$($bundle.purpose)`n`n## Scope`n`n$(Lines $bundle.scope)`n`n## Out of scope`n`n$(Lines $bundle.out_of_scope)`n`n## Required changes`n`n$($requiredLines-join"`n")`n`n## User decisions required`n`n$($userDecisionLines-join"`n")`n`n## Independent review disposition audit`n`n$($dispositionAuditLines-join"`n")`n`n## Acceptance criteria`n`n$(Lines $bundle.acceptance_criteria)`n`n## Tests`n`n$(Lines $bundle.tests)`n`n## Forbidden changes`n`n$(Lines $bundle.forbidden_changes)`n`nValidated full bundle: $canonicalRelative`n"
+$reviewDetails=if([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){"- review_kind: $($bundle.independent_review.kind)`n- review_role: $($bundle.independent_review.review_role)`n- execution_mode: $($bundle.independent_review.execution_mode)`n- repository_access: $(([string][bool]$bundle.independent_review.repository_access).ToLowerInvariant())`n- review_status: $($bundle.independent_review.review_status)`n- request_review_status: $($bundle.independent_review.review_status)`n- review_model: $($bundle.independent_review.model)`n- review_effort: $($bundle.independent_review.effort)`n- preferred_executor: $($bundle.independent_review.preferred_executor)`n- actual_executor: $($bundle.independent_review.actual_executor)`n- provider_substitution: $($bundle.independent_review.provider_substitution)`n- executor_policy: $($bundle.independent_review.executor_policy)`n- reviewed_spec_revision: $($bundle.independent_review.reviewed_spec_revision)`n- review_request_id: $($bundle.independent_review.request_id)`n- review_started_at: $($bundle.independent_review.started_at)`n$candidateDetail"}elseif($null-ne$bundle.independent_review_result){"- review_kind: $($bundle.independent_review_result.review_kind)`n- review_role: $($bundle.independent_review_result.review_role)`n- review_status: completed`n- request_review_status: $($bundle.independent_review_result.request_review_status)`n- review_model: $($bundle.independent_review_result.model)`n- review_effort: $($bundle.independent_review_result.effort)`n- preferred_executor: $($bundle.independent_review_result.preferred_executor)`n- actual_executor: $($bundle.independent_review_result.actual_executor)`n- execution_mode: $($bundle.independent_review_result.execution_mode)`n- repository_access: $(([string][bool]$bundle.independent_review_result.repository_access).ToLowerInvariant())`n- provider_substitution: $($bundle.independent_review_result.provider_substitution)`n- executor_policy: $($bundle.independent_review_result.executor_policy)`n- reviewed_spec_revision: $($bundle.independent_review_result.spec_revision)`n- review_request_id: $($bundle.independent_review_result.request_id)`n- review_started_at: $($bundle.independent_review_result.started_at)`n- review_completed_at: $($bundle.independent_review_result.completed_at)`n- review_result: $($bundle.independent_review_result.result)`n- review_findings_count: $($bundle.independent_review_result.findings_count)`n- review_finding_ids: $($bundle.independent_review_result.finding_ids)`n$candidateDetail"}else{$candidateDetail}
+$handoff="# RELAY HANDOFF — $taskId`n`n- relay_schema: 2`n- task_id: $taskId`n- decision: $($bundle.decision)`n- relay_recipient: $($bundle.relay_recipient)`n- relay_recipient_role: $($bundle.relay_recipient_role)`n- result_return_to: $($bundle.result_return_to)`n- repository: $($bundle.repository)`n- branch: $($bundle.branch)`n- reviewed_candidate: $($bundle.reviewed_candidate)`n- candidate_commit: $($bundle.reviewed_candidate)`n- reviewed_handoff_head: $($bundle.reviewed_handoff_head)`n- shared_candidate: $($bundle.shared_candidate)`n- spec_revision_reset: $(([string][bool]$specRevisionReset).ToLowerInvariant())`n- next_phase: $($bundle.next_phase)`n- next_actor: $($bundle.next_actor)`n- next_role: $($bundle.next_role)`n- model: $($bundle.model)`n- effort: $($bundle.effort)`n$routeDetails$reviewDetails`n## Purpose`n`n$($bundle.purpose)`n`n## Scope`n`n$(Lines $bundle.scope)`n`n## Out of scope`n`n$(Lines $bundle.out_of_scope)`n`n## Required changes`n`n$($requiredLines-join"`n")`n`n## User decisions required`n`n$($userDecisionLines-join"`n")`n`n## Independent review disposition audit`n`n$($dispositionAuditLines-join"`n")`n`n## Acceptance criteria`n`n$(Lines $bundle.acceptance_criteria)`n`n## Tests`n`n$(Lines $bundle.tests)`n`n## Forbidden changes`n`n$(Lines $bundle.forbidden_changes)`n`nValidated full bundle: $canonicalRelative`n"
+$handoff=[regex]::Replace($handoff,'(?m)^- spec_revision_reset:.*$',"- spec_revision_reset: $(([string][bool]$specRevisionReset).ToLowerInvariant())`n- review_stage: $implementationReviewStage`n- changes_requested_cycles: $changesRequestedCycles`n- implementation_review_attempt: $implementationReviewAttempt`n- implementation_review_profile: $implementationReviewProfile`n- implementation_review_terminated: $implementationReviewTerminated`n- user_confirmation_required: $reviewUserConfirmationRequired`n- user_confirmation_prompt: $reviewUserConfirmationPrompt`n- review_termination_reason: $reviewTerminationReason`n- implementation_review_open_finding_ids: $implementationReviewOpenFindingValue")
 if($materializedFromChangesRequested){
-    $handoff=[regex]::Replace($handoff,'(?m)^- decision:.*$',"- decision: $effectiveDecision`n- source_decision: $($bundle.decision)`n- changes_requested_cycles: $changesRequestedCycles")
+    $handoff=[regex]::Replace($handoff,'(?m)^- decision:.*$',"- decision: $effectiveDecision`n- source_decision: $($bundle.decision)")
     $handoff=[regex]::Replace($handoff,'(?m)^- relay_recipient:.*$',"- relay_recipient: $effectiveActor")
     $handoff=[regex]::Replace($handoff,'(?m)^- relay_recipient_role:.*$',"- relay_recipient_role: $effectiveRole")
     $handoff=[regex]::Replace($handoff,'(?m)^- result_return_to:.*$',"- result_return_to: $effectiveReturnTo")
@@ -622,9 +802,21 @@ if($materializedFromChangesRequested){
     $handoff=[regex]::Replace($handoff,'(?m)^- model:.*$',"- model: $effectiveModel")
     $handoff=[regex]::Replace($handoff,'(?m)^- effort:.*$',"- effort: $effectiveEffort")
 }
+$handoff=[regex]::Replace($handoff,'(?m)^- changes_requested_cycles:.*$',"- changes_requested_cycles: $changesRequestedCycles")
+$handoff=[regex]::Replace($handoff,'(?m)^- spec_revision_reset:.*$',"- spec_revision_reset: $(([string][bool]$specRevisionReset).ToLowerInvariant())")
+$handoff=[regex]::Replace($handoff,'(?m)^- implementation_review_attempt:.*$',"- implementation_review_attempt: $implementationReviewAttempt")
+$handoff=[regex]::Replace($handoff,'(?m)^- implementation_review_profile:.*$',"- implementation_review_profile: $implementationReviewProfile")
+$handoff=[regex]::Replace($handoff,'(?m)^- implementation_review_terminated:.*$',"- implementation_review_terminated: $implementationReviewTerminated")
+$handoff=[regex]::Replace($handoff,'(?m)^- review_stage:.*$',"- review_stage: $implementationReviewStage")
+$handoff=[regex]::Replace($handoff,'(?m)^- implementation_review_open_finding_ids:.*$',"- implementation_review_open_finding_ids: $implementationReviewOpenFindingValue")
 $canonicalBytes=$normalizedBytes;$canonicalSha=[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($canonicalBytes)).Replace('-','')
 if($active.Count-eq0){$state=[regex]::Replace($state,'(?m)^active_tasks:\s*\[\]\s*$',"active_tasks:`n  - $taskId")}
 $state=[regex]::Replace($state,'(?m)^next_action:\s*.*$',"next_action: $nextAction")
+$state=Set-OrAdd-Key $state 'review_stage' $implementationReviewStage 'CURRENT_STATE'
+$state=Set-OrAdd-Key $state 'changes_requested_cycles' ([string]$changesRequestedCycles) 'CURRENT_STATE'
+$state=Set-OrAdd-Key $state 'implementation_review_attempt' ([string]$implementationReviewAttempt) 'CURRENT_STATE'
+$state=Set-OrAdd-Key $state 'implementation_review_profile' $implementationReviewProfile 'CURRENT_STATE'
+$state=Set-OrAdd-Key $state 'implementation_review_terminated' $implementationReviewTerminated 'CURRENT_STATE'
 
 $targets=@($taskPath,$statePath,$nextPath,(Project-Path 'board/PROGRESS.html'),(Project-Path $handoffRelative),(Project-Path $reportRelative),(Project-Path $canonicalRelative))|Select-Object -Unique
 $directories=@($targets|ForEach-Object{Split-Path -Parent $_}|Select-Object -Unique);$backups=@{};$directoryExisted=@{}
@@ -636,7 +828,7 @@ try{
     [IO.File]::WriteAllText($taskPath,$task,$utf8NoBom);[IO.File]::WriteAllText((Project-Path $handoffRelative),$handoff,$utf8NoBom);[IO.File]::WriteAllBytes((Project-Path $canonicalRelative),$canonicalBytes);[IO.File]::WriteAllText($statePath,$state,$utf8NoBom)
     $canonicalReadback=[IO.File]::ReadAllBytes((Project-Path $canonicalRelative));if([Convert]::ToBase64String($canonicalReadback)-cne[Convert]::ToBase64String($canonicalBytes)){throw 'canonical relay bundle byte readback mismatch'}
     $canonicalIdentity=Get-Identity (Project-Path $canonicalRelative);if($canonicalIdentity.Sha256-cne$canonicalSha-or$canonicalIdentity.Bytes-ne$canonicalBytes.Length){throw 'canonical relay bundle identity readback mismatch'}
-    $report="# RELAY IMPORT — $taskId`n`n- source bundle: $($identity.Name)`n- source SHA-256: $($identity.Sha256)`n- source bytes: $($identity.Bytes)`n- identity verified: true`n- canonical bundle: $canonicalRelative`n- canonical SHA-256: $($canonicalIdentity.Sha256)`n- canonical bytes: $($canonicalIdentity.Bytes)`n- semantic round-trip: verified`n- decision: $($bundle.decision)`n- relay_recipient: $($bundle.relay_recipient)`n- relay_recipient_role: $($bundle.relay_recipient_role)`n- result_return_to: $($bundle.result_return_to)`n- candidate: $($bundle.reviewed_candidate)`n- handoff HEAD: $($bundle.reviewed_handoff_head)`n$routeDetails$reviewDetails- imported findings: $(@($bundle.findings).Count)`n- accepted findings: $(@($requiredFindings).Count)`n- finding dispositions: $($findingDispositions.Count)`n"
+    $report="# RELAY IMPORT — $taskId`n`n- source bundle: $($identity.Name)`n- source SHA-256: $($identity.Sha256)`n- source bytes: $($identity.Bytes)`n- identity verified: true`n- canonical bundle: $canonicalRelative`n- canonical SHA-256: $($canonicalIdentity.Sha256)`n- canonical bytes: $($canonicalIdentity.Bytes)`n- semantic round-trip: verified`n- decision: $($bundle.decision)`n- relay_recipient: $($bundle.relay_recipient)`n- relay_recipient_role: $($bundle.relay_recipient_role)`n- result_return_to: $($bundle.result_return_to)`n- candidate: $($bundle.reviewed_candidate)`n- handoff HEAD: $($bundle.reviewed_handoff_head)`n- spec_revision_reset: $(([string][bool]$specRevisionReset).ToLowerInvariant())`n- review_stage: $implementationReviewStage`n- changes_requested_cycles: $changesRequestedCycles`n- implementation_review_attempt: $implementationReviewAttempt`n- implementation_review_profile: $implementationReviewProfile`n- implementation_review_terminated: $implementationReviewTerminated`n- user_confirmation_required: $reviewUserConfirmationRequired`n- user_confirmation_prompt: $reviewUserConfirmationPrompt`n- review_termination_reason: $reviewTerminationReason`n- implementation_review_open_finding_ids: $implementationReviewOpenFindingValue`n$routeDetails$reviewDetails- imported findings: $(@($bundle.findings).Count)`n- accepted findings: $(@($requiredFindings).Count)`n- finding dispositions: $($findingDispositions.Count)`n"
     [IO.File]::WriteAllText((Project-Path $reportRelative),$report,$utf8NoBom)
     if($FailureInjection-eq'after_writes'){throw 'injected relay failure after writes'}
     Invoke-ProjectScript 'tools/generate-next-action.ps1';if($FailureInjection-eq'after_next_action'){throw 'injected relay failure after NEXT_ACTION'}
