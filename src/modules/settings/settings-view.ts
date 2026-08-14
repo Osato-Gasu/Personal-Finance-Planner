@@ -10,6 +10,7 @@ import {
   displayNameFromEditor,
   displayNameToEditor,
 } from "../../domain/display-name";
+import { productMetadata } from "../../product-metadata";
 
 export type BackupDownload = (
   contents: string,
@@ -124,6 +125,33 @@ export function createSettingsRenderer(
       profile.append(form);
     }
     main.append(profile);
+
+    const appInformation = node(options.document, "section");
+    appInformation.append(
+      node(options.document, "h3", "アプリ情報"),
+      node(options.document, "p", `version ${productMetadata.version}`),
+      node(
+        options.document,
+        "p",
+        `手取り制度確認日 ${productMetadata.ruleVerifiedAt.takeHome}`,
+      ),
+      node(
+        options.document,
+        "p",
+        `NISA制度確認日 ${productMetadata.ruleVerifiedAt.nisa}`,
+      ),
+      node(
+        options.document,
+        "p",
+        `iDeCo制度確認日 ${productMetadata.ruleVerifiedAt.ideco}`,
+      ),
+      node(
+        options.document,
+        "p",
+        "本アプリは概算確認用であり、金融・税務・投資助言ではありません。",
+      ),
+    );
+    main.append(appInformation);
 
     const backup = node(options.document, "section");
     backup.append(node(options.document, "h3", "バックアップ"));
@@ -247,6 +275,7 @@ export function createSettingsRenderer(
     const file = node(options.document, "input");
     file.type = "file";
     file.name = "backup-import";
+    file.setAttribute("aria-label", "JSONバックアップを復元");
     file.accept = "application/json,.json";
     file.addEventListener("change", () => {
       void (async () => {

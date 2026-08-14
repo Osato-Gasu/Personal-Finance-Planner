@@ -20,12 +20,18 @@ export default tseslint.config(
   },
   {
     ...tseslint.configs.disableTypeChecked,
-    files: ["tools/**/*.mjs"],
+    files: ["tools/**/*.mjs", "tests/**/*.mjs"],
     languageOptions: {
       ...tseslint.configs.disableTypeChecked.languageOptions,
       globals: {
+        Buffer: "readonly",
+        URL: "readonly",
         console: "readonly",
+        document: "readonly",
+        fetch: "readonly",
+        localStorage: "readonly",
         process: "readonly",
+        structuredClone: "readonly",
       },
     },
   },

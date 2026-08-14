@@ -5,10 +5,11 @@
 ## 現在の状態
 
 - 設計基準: v0.2
-- 実装状態: M1横断アーキテクチャスパイク
+- 初回配布version: 0.1.0（prerelease、tag `v0.1.0`）
 - 対象: 日本国内の個人利用
 - 保存方式: 初期版はブラウザ内保存とJSONバックアップ
 - 計算結果: 税務・社会保険・投資判断を代替しない概算
+- 制度確認日: 手取り 2026-08-12／NISA 2026-08-12／iDeCo 2026-08-13
 
 ## 主要画面
 
@@ -29,9 +30,21 @@ npm run dev
 
 配布用HTMLは`npm run build`でrepository rootの`Personal-Finance-Planner.html`へ生成・同期する。end userはこのHTMLをダブルクリックするだけで起動でき、利用時にHTTP server、Node.js、npmは不要である。JavaScriptとCSSはHTMLへinlineされるため、このHTMLだけを別folderへコピーしても利用でき、runtimeの外部通信も行わない。
 
+0.1.0の配布物は、同じroot launcher bytesから作るGitHub Releaseの`Personal-Finance-Planner.html`とGitHub Pagesの`index.html`／download HTMLである。backend、analytics、telemetry、runtime external requestは0で、repositoryはprivateのまま維持する。配布物のtarget commit、SHA-256、bytesは`release-manifest.json`と`SHA256SUMS.txt`で確認できる。`SHA256SUMS.txt`は自己参照できないため自身だけを除外し、allowlist内の他4fileを記録する。
+
+利用前にchecksumを照合し、更新前にはJSONバックアップを保存する。同じpathのHTMLを置き換えると同じ保存領域を継続利用できるが、file名・folder・pathを移動すると別の保存領域として見える場合がある。また、`file://`版とGitHub Pages版は別originであり、localStorageも共有されないため、移行はJSON export/importで行う。
+
 `npm run test:portable`はbuild後のHTMLだけを別folderへコピーし、system EdgeまたはChromeの`file://`でroute、browser history、reload、保存、runtime通信なしを検証する。
 
 Stateは同じfile pathのlocalStorageへ保存される。HTMLの移動・folder名変更・file名変更によりbrowser上の保存領域が変わり、以前のStateが見えなくなる可能性があるため、移動前に設定画面の「JSONバックアップを保存」を実行する。復元時は設定画面でJSONを選び、検証結果を確認してから「確認して復元」を押す。取消または検証失敗では既存データを変更しない。
+
+## 配布手順
+
+実配布はimplementation review APPROVED後、approved release headが`origin/main`へ統合され、そのexact main push `Governance CI`がSUCCESSになった後だけ行う。最初に`tools/configure-pages.mjs`を既定dry-runで確認し、必要な場合だけexact target SHA・main CI run ID・approved release headと`--apply`を明示してGitHub Actions sourceを設定する。その後、GitHub Actionsの`Distribution` workflowへversion `0.1.0`、full target SHA、exact main CI run ID、確認値`PUBLISH_v0.1.0`を入力する。
+
+workflowはpreflight、tag、draft prerelease、asset、Pages、live raw-byte/browser verification、Release publicationの順で進む。partial failureでは作成済みtag／Release／asset／Pagesを自動削除・移動・上書きしない。監査artifactのactual identityがexpected exactな場合だけ不足工程を再実行し、1項目でも異なる場合は停止する。詳細は[release checklist](docs/product/RELEASE_CHECKLIST.md)を参照する。
+
+既知の制約として、0.1.0はWindows 10／11のChromium系browserを初期対象とし、複数端末同期、cloud保存、金融機関連携、投資商品の推奨、NISA売却枠再利用、iDeCo受取時課税を提供しない。
 
 ## 技術方針
 

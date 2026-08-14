@@ -18,10 +18,12 @@
     "test:nisa": "vitest run tests/nisa-rules.test.ts tests/nisa-state.test.ts",
     "test:ideco": "vitest run tests/ideco-rules.test.ts tests/ideco-state.test.ts",
     "test:overview": "vitest run tests/overview.test.ts",
+    "test:distribution:contract": "vitest run tests/product-metadata.test.ts tests/distribution.test.mjs tests/distribution-workflow.test.mjs",
+    "test:distribution": "npm run build && node tools/test-distribution-browser.mjs",
     "test:portable": "npm run build && node tools/test-portable-build.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests tools/*.mjs vite.config.ts",
-    "format:check": "prettier --check index.html src tests tools/*.mjs package.json package-lock.json tsconfig.json vite.config.ts eslint.config.js .github/workflows/ci.yml"
+    "format:check": "prettier --check index.html src tests tools/*.mjs package.json package-lock.json tsconfig.json vite.config.ts eslint.config.js .github/workflows/*.yml"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

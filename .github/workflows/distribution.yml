@@ -1,0 +1,305 @@
+name: Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version
+        required: true
+        type: string
+      target_sha:
+        description: Exact approved origin/main full SHA
+        required: true
+        type: string
+      main_ci_run_id:
+        description: Exact successful main Governance CI run ID
+        required: true
+        type: string
+      publish_confirmation:
+        description: Enter PUBLISH_v0.1.0
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: distribution-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
+      deployments: read
+      pages: read
+    outputs:
+      state: ${{ steps.state.outputs.state }}
+      page_url: ${{ steps.state.outputs.page_url }}
+    steps:
+      - name: Validate explicit publication inputs
+        shell: pwsh
+        run: |
+          if ('${{ inputs.version }}' -cne '0.1.0') { throw 'version must be 0.1.0' }
+          if ('${{ inputs.publish_confirmation }}' -cne 'PUBLISH_v0.1.0') { throw 'explicit publication confirmation mismatch' }
+          if ('${{ inputs.target_sha }}' -cnotmatch '^[0-9a-f]{40}$') { throw 'target_sha must be full lowercase 40-hex' }
+          if ('${{ inputs.main_ci_run_id }}' -cnotmatch '^[1-9][0-9]*$') { throw 'main_ci_run_id must be a positive integer' }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.target_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Required static and unit gates
+        shell: pwsh
+        run: |
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run lint
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run format:check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:rules
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:nisa
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:ideco
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:overview
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and verify root launcher
+        run: npm run verify:launcher
+      - name: Build deterministic staging
+        shell: pwsh
+        run: |
+          node tools/build-distribution.mjs `
+            --version '${{ inputs.version }}' `
+            --tag 'v${{ inputs.version }}' `
+            --target-commit '${{ inputs.target_sha }}' `
+            --root-launcher Personal-Finance-Planner.html `
+            --output _distribution
+      - name: Exact side-effect-free preflight
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node tools/distribution-preflight.mjs
+          --repository '${{ github.repository }}'
+          --version '${{ inputs.version }}'
+          --tag 'v${{ inputs.version }}'
+          --release-title 'Personal Finance Planner v${{ inputs.version }}'
+          --target-sha '${{ inputs.target_sha }}'
+          --main-ci-run-id '${{ inputs.main_ci_run_id }}'
+          --staging _distribution
+          --root-launcher Personal-Finance-Planner.html
+          --audit-output _audit/preflight.json
+          --launcher-fresh
+          --required-results
+      - name: Capture resumable state
+        id: state
+        shell: pwsh
+        run: |
+          $audit = Get-Content -LiteralPath _audit/preflight.json -Raw | ConvertFrom-Json
+          "state=$($audit.preflight.classification.state)" >> $env:GITHUB_OUTPUT
+          "page_url=$($audit.pages_url)" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: distribution-preflight-${{ inputs.target_sha }}
+          path: |
+            _distribution
+            _audit/preflight.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  draft_release:
+    needs: preflight
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.target_sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: distribution-preflight-${{ inputs.target_sha }}
+          path: .
+      - name: Create exact tag, draft prerelease, and missing assets
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node tools/distribution-release.mjs stage
+          --repository '${{ github.repository }}'
+          --version '${{ inputs.version }}'
+          --target-sha '${{ inputs.target_sha }}'
+          --staging _distribution
+          --audit _audit/preflight.json
+          --release-notes docs/product/RELEASE_NOTES_v0.1.0.md
+      - name: Record draft job audit identity
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          [IO.Directory]::CreateDirectory('_audit') | Out-Null
+          @{ schema_version = 1; job = 'draft_release'; target_sha = '${{ inputs.target_sha }}'; run_id = '${{ github.run_id }}'; outcome = '${{ job.status }}' } |
+            ConvertTo-Json | Set-Content -LiteralPath _audit/draft-release-operation.json -Encoding utf8
+          node tools/collect-release-audit.mjs --repository '${{ github.repository }}' --tag 'v${{ inputs.version }}' --output _audit/draft-release-objects.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: distribution-draft-audit-${{ inputs.target_sha }}
+          path: _audit
+          if-no-files-found: error
+          retention-days: 30
+
+  pages:
+    needs: [preflight, draft_release]
+    if: needs.preflight.outputs.state != 'exact_pages_deployed' && needs.preflight.outputs.state != 'exact_published'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: distribution-preflight-${{ inputs.target_sha }}
+          path: .
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: _distribution
+      - name: Deploy exact Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Record Pages job audit identity
+        if: always()
+        shell: pwsh
+        run: |
+          [IO.Directory]::CreateDirectory('_audit') | Out-Null
+          @{ schema_version = 1; job = 'pages'; target_sha = '${{ inputs.target_sha }}'; run_id = '${{ github.run_id }}'; outcome = '${{ job.status }}'; page_url = '${{ steps.deployment.outputs.page_url }}' } |
+            ConvertTo-Json | Set-Content -LiteralPath _audit/pages-operation.json -Encoding utf8
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: distribution-pages-audit-${{ inputs.target_sha }}
+          path: _audit/pages-operation.json
+          if-no-files-found: error
+          retention-days: 30
+
+  live_verification:
+    needs: [preflight, draft_release, pages]
+    if: always() && needs.preflight.result == 'success' && needs.draft_release.result == 'success' && (needs.pages.result == 'success' || needs.pages.result == 'skipped')
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
+      deployments: read
+      pages: read
+    outputs:
+      state: ${{ steps.state.outputs.state }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.target_sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: distribution-preflight-${{ inputs.target_sha }}
+          path: .
+      - name: Verify live raw bytes and browser evidence
+        shell: pwsh
+        run: |
+          $pageUrl = '${{ needs.pages.outputs.page_url }}'
+          if ([string]::IsNullOrWhiteSpace($pageUrl)) { $pageUrl = '${{ needs.preflight.outputs.page_url }}' }
+          if ([string]::IsNullOrWhiteSpace($pageUrl)) { throw 'exact Pages URL is unavailable' }
+          node tools/verify-live-distribution.mjs --base-url $pageUrl --staging _distribution
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Reclassify exact post-Pages state
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node tools/distribution-preflight.mjs
+          --repository '${{ github.repository }}'
+          --version '${{ inputs.version }}'
+          --tag 'v${{ inputs.version }}'
+          --release-title 'Personal Finance Planner v${{ inputs.version }}'
+          --target-sha '${{ inputs.target_sha }}'
+          --main-ci-run-id '${{ inputs.main_ci_run_id }}'
+          --staging _distribution
+          --root-launcher Personal-Finance-Planner.html
+          --audit-output _audit/post-live.json
+          --launcher-fresh
+          --required-results
+      - name: Require publication-ready state
+        id: state
+        shell: pwsh
+        run: |
+          $audit = Get-Content -LiteralPath _audit/post-live.json -Raw | ConvertFrom-Json
+          $state = $audit.preflight.classification.state
+          if ($state -cne 'exact_pages_deployed' -and $state -cne 'exact_published') { throw 'post-live state is not publication-ready' }
+          "state=$state" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: distribution-live-audit-${{ inputs.target_sha }}
+          path: _audit
+          if-no-files-found: error
+          retention-days: 30
+
+  publish_release:
+    needs: live_verification
+    if: needs.live_verification.outputs.state == 'exact_pages_deployed'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.target_sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: distribution-live-audit-${{ inputs.target_sha }}
+          path: _audit
+      - name: Publish prerelease only after live verification
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node tools/distribution-release.mjs publish
+          --repository '${{ github.repository }}'
+          --version '${{ inputs.version }}'
+          --target-sha '${{ inputs.target_sha }}'
+          --audit _audit/post-live.json
+      - name: Record publication job audit identity
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          [IO.Directory]::CreateDirectory('_audit') | Out-Null
+          @{ schema_version = 1; job = 'publish_release'; target_sha = '${{ inputs.target_sha }}'; run_id = '${{ github.run_id }}'; outcome = '${{ job.status }}' } |
+            ConvertTo-Json | Set-Content -LiteralPath _audit/publication-operation.json -Encoding utf8
+          node tools/collect-release-audit.mjs --repository '${{ github.repository }}' --tag 'v${{ inputs.version }}' --output _audit/publication-objects.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: distribution-publication-audit-${{ inputs.target_sha }}
+          path: _audit
+          if-no-files-found: error
+          retention-days: 30

@@ -52,6 +52,8 @@ jobs:
         run: npm run test:ideco
       - name: Validate integrated overview source selection and state safety
         run: npm run test:overview
+      - name: Validate TASK-009 distribution contracts and workflow
+        run: npm run test:distribution:contract
       - name: Build
         run: npm run build:app
       - name: Verify committed root launcher freshness
@@ -64,3 +66,5 @@ jobs:
         run: ./tools/test-complete-task-local.ps1
       - name: Test standalone file build
         run: npm run test:portable
+      - name: Test staged HTTP distribution build
+        run: npm run test:distribution
