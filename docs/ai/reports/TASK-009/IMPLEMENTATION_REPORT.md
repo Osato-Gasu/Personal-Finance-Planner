@@ -1,0 +1,107 @@
+# IMPLEMENTATION REPORT — TASK-009
+
+- task_id: TASK-009
+- spec_revision: 1
+- phase: implementation_review
+- status: review_requested
+- origin_main_baseline: 0dbc4fb102c92a6df12331540c6cc11010258f54
+- origin_main_baseline_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
+- origin_main_workflow_run_id: 31758459149
+- origin_main_workflow_identity: Governance CI / main / push / success
+- activation_commit: d6f4e828c242abeffc6bb70d91daf882837671d3
+- activation_tree: b230a318881967e7e2d14206734b77cd1ca6a0a8
+- activation_workflow_run_id: 31765609086
+- activation_workflow_attempt: 1
+- activation_workflow_identity: Governance CI / codex/task-009-distribution / push / success
+- implementation_candidate: a50635882ccd48b91a79234977b1bb436f826877
+- candidate_commit: a50635882ccd48b91a79234977b1bb436f826877
+- candidate_tree: ce9d102f21c497c9b2d1e9d57a2c6cd7014fb5bf
+- candidate_workflow_run_id: 31769779453
+- candidate_workflow_attempt: 1
+- candidate_workflow_conclusion: success
+- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / a50635882ccd48b91a79234977b1bb436f826877
+- shared_version: 0.12.20
+- shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- changed_files_count: 29
+- changed_files: .github/workflows/ci.yml; .github/workflows/distribution.yml; .gitignore; Personal-Finance-Planner.html; README.md; docs/product/RELEASE_CHECKLIST.md; docs/product/RELEASE_NOTES_v0.1.0.md; eslint.config.js; index.html; package.json; src/modules/settings/settings-view.ts; src/product-metadata.ts; tests/distribution-workflow.test.mjs; tests/distribution.test.mjs; tests/product-metadata.test.ts; tools/build-distribution.mjs; tools/collect-release-audit.mjs; tools/configure-pages-lib.mjs; tools/configure-pages.mjs; tools/distribution-browser-smoke.mjs; tools/distribution-lib.mjs; tools/distribution-preflight-lib.mjs; tools/distribution-preflight.mjs; tools/distribution-release.mjs; tools/distribution-state.mjs; tools/github-distribution-api.mjs; tools/test-distribution-browser.mjs; tools/test-portable-build.mjs; tools/verify-live-distribution.mjs
+- version_identity: package.json/package-lock 0.1.0; tag v0.1.0; title Personal Finance Planner v0.1.0; prerelease
+- metadata_identity: take_home 2026-08-12; nisa 2026-08-12; ideco 2026-08-13; UI read-only and state-free
+- artifact_paths: .nojekyll; Personal-Finance-Planner.html; SHA256SUMS.txt; index.html; release-manifest.json
+- launcher_identity: Personal-Finance-Planner.html / 215965 bytes / 40dc17b4ab125c7b5cadc6b7dbc1463648c976dbc5f1f4e3b6f26de527b8ac37
+- pages_index_identity: index.html / 215965 bytes / 40dc17b4ab125c7b5cadc6b7dbc1463648c976dbc5f1f4e3b6f26de527b8ac37
+- manifest_identity: release-manifest.json / 1152 bytes / 87a84f3994ca36d59eef5caa69be56e1fc353de4cae72fcf117c8669699301b5
+- checksums_identity: SHA256SUMS.txt / 337 bytes / 283b77f40e2564a07824953a3fdc01c5b36f69ca56236c1620cd291438108b0a
+- nojekyll_identity: .nojekyll / 0 bytes / e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+- checksum_contract: SHA-256; checksum file self-reference excluded explicitly; UTF-8 no BOM; LF; exactly one trailing LF
+- workflow_contract: workflow_dispatch only; version-keyed concurrency with cancel-in-progress false; top-level permissions empty; job-level least privilege; github-pages environment; needs-ordered preflight/tag-draft-assets/Pages/live/publish
+- action_pins: actions/checkout@11d5960a326750d5838078e36cf38b85af677262; actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020; actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02; actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093; actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa; actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+- preflight_contract: package version/target/current origin-main/exact main push Governance CI/APPROVED release head/launcher/all tests/allowlist/manifest/checksum/tag-Release conflict/Pages input checked before side effects
+- recovery_contract: fresh/tag-only/draft/exact-asset-subset/Pages/published states resume only on exact identity; mismatch blocks; existing objects are not overwritten, moved, deleted, rolled back, or unpublished
+- release_order: exact tag; draft prerelease and exact assets; Pages; raw bytes and live browser; prerelease publish last
+- public_repository_visibility: private
+- public_tags: 0
+- public_releases: 0
+- public_pages: not configured (API 404)
+- public_deployments: 0
+- manual_distribution_runs: 0
+- distribution_dispatch_performed: false
+- live_pages_verification: not performed by design before APPROVED main integration and exact main CI
+- governance_ps7: shared/current/next/progress/project, REQUIREMENTS_DEFINED smoke, audit identity, normalization 21, overlay, completion 34 PASS
+- governance_ps51: shared/current/next/progress/project, REQUIREMENTS_DEFINED smoke, audit identity, normalization 21, overlay, completion 34 PASS
+- startup_context_bytes: 42619 (target <=61440; maximum <=65536)
+- npm_ci: 137 packages; 0 vulnerabilities
+- typecheck_lint_format: PASS
+- vitest: 20 files; 485 tests PASS
+- focused_tests: take-home 69; NISA 68; iDeCo 86; overview 28 PASS
+- distribution_contract_tests: 3 files; 23 tests PASS
+- launcher_freshness: PASS; 215965 bytes
+- portable_browser: msedge; 284 checks; 5 routes; 360px; storage preserved; runtime requests 0; console errors 0; page errors 0
+- staged_http_browser: msedge; 5 routes; 360px; keyboard focus/settings metadata/storage/backup/import preview-cancel-success PASS; runtime external requests 0; console errors 0; page errors 0
+- portable_test_sync_fix: route heading completion is awaited before localStorage overflow injection; existing assertion/count retained; test passed three consecutive post-fix executions including final clean gate
+- non_regression: AppState/migration/storage/import/export and financial rules/calculations candidate diff 0; existing tests were not removed, skipped, or weakened
+- generated_shared_diff: 0
+- task_012_force_operations: 0
+- candidate_to_handoff_production_diff: required 0; verified before handoff push
+- tests_failed: none
+- unresolved: none
+- worktree: clean_candidate
+- actual_executor: Codex
+- provider_substitution: none
+- review_role: ORCHESTRATOR_AND_REVIEWER
+- execution_mode: separate_session
+- repository_access: true
+- review_status: requested
+- request_review_status: requested
+- review_model: 5.6 Sol
+- review_effort: high
+- reviewed_candidate: a50635882ccd48b91a79234977b1bb436f826877
+- reviewed_spec_revision: 1
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- review_stage: implementation
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_final: false
+- implementation_review_terminated: false
+- attempt_4_forbidden: false
+- execution_started_at: 2026-08-14 12:38:49 JST
+- execution_finished_at: 2026-08-14 13:37:45 JST
+
+## Requirement and acceptance evidence
+
+- R01/R13 and AC01: exact baseline/activation/tree/CI and shared/product identities remained fixed; only TASK-009 is active; generated shared was not edited.
+- R02/R03/R14 and AC02: version and rule dates derive from canonical metadata and display read-only; state/storage/backup/migration/financial behavior has no purpose-extraneous diff.
+- R04/R05 and AC03: exact five-file allowlist, byte-identical launcher copies, deterministic manifest/checksum, and negative link/extra/secret/path cases are covered by contract tests.
+- R06/R07 and AC04: repository remains private; candidate Pages surface contains only the allowlist; manual-only pinned workflow, concurrency, environment, needs, and least privileges have static assertions.
+- R08 and AC05: wrong input/SHA/main/CI, stale artifact, digest/allowlist conflict, conflicting release state, and Pages readiness fail before write; Pages apply requires approved exact main CI and does not bypass permission failures.
+- R09/R10 and AC06: ordered state machine and exact partial-state recovery are pure-tested; conflicting identity blocks without destructive rollback.
+- R11 and AC07: settings and release documentation align on version/hash/date/disclaimer/offline/storage boundaries; file:// and staged HTTP evidence passed. Live Pages evidence is intentionally deferred to authorized distribution.
+- R12 and AC08: candidate CI exact success precedes this direct-child docs-only handoff; attempt 1/standard/cycles 0 is established and production diff is zero.
+- R15 and AC09: no TASK-012 force delete was used and directory residue was not treated as a blocker.
+- AC10 and T08 completion-only identities are not claimed: release/main/distribution/live/completion/final CI were explicitly not performed at this handoff boundary.
+- F01～F08: no forbidden state/financial/publication/security/destructive/history-rewrite/test-weakening/generated-shared/TASK-012-force action occurred.

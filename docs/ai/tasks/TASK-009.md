@@ -1,23 +1,23 @@
 ---
 task_id: TASK-009
 title: 配布
-status: ready
+status: review_requested
 route: TWO_SESSION_FAST
 priority: low
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-009/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -29,6 +29,32 @@ base_commit: 0dbc4fb102c92a6df12331540c6cc11010258f54
 base_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
 accepted_product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
+review_stage: implementation
+changes_requested_cycles: 0
+implementation_review_attempt: 1
+implementation_review_profile: standard
+implementation_review_final: false
+implementation_review_terminated: false
+attempt_4_forbidden: false
+implementation_candidate: a50635882ccd48b91a79234977b1bb436f826877
+review_kind: implementation
+review_role: ORCHESTRATOR_AND_REVIEWER
+execution_mode: separate_session
+repository_access: true
+review_status: requested
+request_review_status: requested
+review_model: 5.6 Sol
+review_effort: high
+reviewed_candidate: a50635882ccd48b91a79234977b1bb436f826877
+reviewed_spec_revision: 1
+review_request_id: none
+review_started_at: none
+review_completed_at: none
+review_result: none
+review_findings_count: 0
+review_finding_ids: none
+actual_executor: ChatGPT
+provider_substitution: none
 
 updated_at: 2026-08-14
 ---
