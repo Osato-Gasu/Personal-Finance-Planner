@@ -83,11 +83,13 @@
 
 ## TASK-009 配布
 
-- GitHub Release
-- static deployment
-- distribution automation
-- release checklist
-- 配布version管理、制度確認日表示
+- 初回配布version `0.1.0`を`package.json`を唯一の正本として管理し、package-lock、表示、manifest、tag、Release titleへ決定的に反映する。settingsには既存rule metadataから導出した手取り確認日`2026-08-12`、NISA確認日`2026-08-12`、iDeCo確認日`2026-08-13`をread-only表示し、AppState、localStorage、backup/import/exportへ保存しない。
+- root `Personal-Finance-Planner.html`を唯一のstandalone配布HTML正本とし、GitHub Release asset、Pagesの`index.html`、ダウンロードHTMLをtarget commitのroot launcherとbyte-exactに一致させる。manifest／checksumはUTF-8 no BOM、LF、末尾LF 1個の決定的形式でversion、tag、target commit、SHA-256、bytes、制度確認日を記録する。
+- Pages stagingは`index.html`、`Personal-Finance-Planner.html`、`release-manifest.json`、`SHA256SUMS.txt`、`.nojekyll`だけを許可し、source、test、docs、TASK packet、user data、secret、linkを含めない。repository visibilityはprivateのまま、custom domain、第三者host、CDN、analytics、telemetry、backend、runtime external fetchを追加しない。
+- 配布workflowはmanual `workflow_dispatch`専用で、push／pull_request／schedule／releaseをtriggerにせず、同一versionのconcurrency、GitHub公式actionのimmutable full-SHA pin、job-level least privilege、Pages environment／needsを備える。side effect前にversion、target SHA、exact main Governance CI、launcher、test、artifact allowlist、manifest／checksum、既存tag／Release、Pages入力を検証する。
+- 公開順序は、全preflight成功後のtag作成、draft prereleaseとasset準備、Pages deploy、live raw-byte／browser検証、Release publishとする。既存objectを上書きせず、partial failureは自動rollback／unpublishせずactual identityと停止工程を監査記録する。APPROVED release headのmain統合とexact main CI成功までは公開side effectを作成しない。
+- release checklistとsettings／release notesにはversion、commit/hash、制度確認日、concept-only、offline／no-backend、backupと同一path置換、file://版とPages版のorigin／storage分離、既知制約、失敗時手順を記録し、主要route、reload、360px、keyboard/focus、storage、backup/export/import、network／console／page error 0のbrowser evidenceを必須とする。
+- activationではTASK-009のrequirements/state/report、必要なproduct要件正本とPRODUCT_IDENTITIESだけを同期し、金融計算、制度rule、保存data、製品実装、workflow、launcher、README、tag、Release、Pages、distributionは変更しない。TASK-012の残存空directoryはnon-blockingとし、force削除を行わない。
 
 ## 実装順序の制約
 
