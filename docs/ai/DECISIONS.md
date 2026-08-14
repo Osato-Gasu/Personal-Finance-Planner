@@ -107,3 +107,6 @@
 - Attempt 3 is `terminal`; only a third `CHANGES_REQUESTED` routes to `NEEDS_USER_DECISION`, and attempt 4 is forbidden.
 - Product requirements, implementation candidate, review decision, and finding contents are unchanged. The previous exact inverse rollback audit remains immutable.
 - The incompatible FAD bundle is superseded. GPT generates a new bundle only after the governance recovery commit and exact Governance CI succeed; broader release, distribution, and completion work remains separate.
+- Governance recovery commit `e6b0563402448c8408480db3d7ace215cc45df3f` retains run `31807878297` attempt 1 as FAILURE and adopts attempt 2／job `94799343402` as the exact SUCCESS for that commit.
+- Before any new formal relay Import, `CURRENT_STATE.md` and the existing `RELAY_IMPORT.md` audit record are normalized to the same five-source convergence values without reexecuting review or changing the decision, findings, product, or canonical relay bundle.
+- GPT may generate the replacement CHANGES_REQUESTED bundle only after the normalization commit's own exact Governance CI succeeds; the old FAD bundle remains forbidden.

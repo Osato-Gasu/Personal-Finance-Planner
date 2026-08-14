@@ -37,6 +37,13 @@
 - governance_recovery_shared_tree: 1cbd973d590896d57aa0eb4777ecd0aef775132a
 - governance_recovery_manifest_sha256: 2B7CF6EE56A5BBDBBE674E5E42A4F04D24FFEEFD57B66A66667A4913A6061DB9
 - governance_recovery_manifest_bytes: 4367
+- governance_recovery_commit: e6b0563402448c8408480db3d7ace215cc45df3f
+- governance_recovery_tree: 3ed9a084d2a4c1c62e2c6d7c533e21372c5bff2c
+- governance_recovery_ci_history: run 31807878297 attempt 1 FAILURE retained; attempt 2 / job 94799343402 exact SUCCESS
+- five_source_convergence_normalization: TASK / CURRENT_STATE / NEXT_ACTION / implementation review handoff / RELAY_IMPORT = implementation / 1 / 2 / narrowed / false
+- canonical_relay_bundle_diff: 0
+- old_fad_bundle_reuse_forbidden: true
+- normalization_next_action: GPT generates a replacement CHANGES_REQUESTED bundle only after the normalization commit exact Governance CI succeeds
 - original_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
 - original_profile: standard
 - canonical_migrated_profile: narrowed

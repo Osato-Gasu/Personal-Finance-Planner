@@ -22,6 +22,10 @@
 - handoff_blob: 6601367b00b1a4f516c9212416fe5b1fda18ba02
 - adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: narrowed
+- implementation_review_terminated: false
 - implementation_candidate: a50635882ccd48b91a79234977b1bb436f826877
 - imported findings: 3
 - accepted findings: 3
