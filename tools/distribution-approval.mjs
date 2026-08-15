@@ -9,6 +9,19 @@ export const DISTRIBUTION_APPROVAL_PATHS = Object.freeze({
   releaseHandoff: "docs/ai/handoffs/TASK-009/RELEASE_HANDOFF.md",
 });
 
+// APPROVED relay imports are governance-only commits produced by the
+// repository-native relay importer. Any other path makes the release head a
+// different product candidate from the one that was reviewed.
+export const DISTRIBUTION_RELEASE_IMPORT_PATHS = Object.freeze([
+  "board/PROGRESS.html",
+  "docs/ai/CURRENT_STATE.md",
+  "docs/ai/NEXT_ACTION.yml",
+  "docs/ai/handoffs/TASK-009/RELEASE_HANDOFF.md",
+  "docs/ai/reports/TASK-009/RELAY_BUNDLE.json",
+  "docs/ai/reports/TASK-009/RELAY_IMPORT.md",
+  "docs/ai/tasks/TASK-009.md",
+]);
+
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 
 function parseTaskFrontmatter(text) {
@@ -67,6 +80,7 @@ export function evaluateCanonicalApproval(input = {}) {
   const handoff =
     input.releaseHandoff ??
     parseReleaseHandoff(input.releaseHandoffText ?? input.handoffText);
+  const commitMetadata = input.commitMetadata ?? input.gitMetadata;
 
   if (typeof targetSha !== "string" || !FULL_SHA.test(targetSha))
     errors.push("target SHA must be a lowercase full 40-hex SHA");
@@ -271,6 +285,82 @@ export function evaluateCanonicalApproval(input = {}) {
         "canonical approval branch identity mismatch",
       );
     }
+
+    if (!commitMetadata || typeof commitMetadata !== "object") {
+      errors.push("canonical approval commit metadata is required");
+    } else {
+      const target = commitMetadata.target;
+      const reviewedHandoff = commitMetadata.reviewedHandoff;
+      const changedPaths = commitMetadata.diff?.changedPaths;
+
+      requireExact(
+        errors,
+        target?.sha,
+        targetSha,
+        "target commit metadata SHA mismatch",
+      );
+      if (!Array.isArray(target?.parents)) {
+        errors.push("target commit parent metadata is missing");
+      } else {
+        requireExact(
+          errors,
+          target.parents.length,
+          1,
+          "formal release head must have exactly one parent",
+        );
+        requireExact(
+          errors,
+          target.parents[0],
+          bundle.reviewed_handoff_head,
+          "formal release head parent must equal reviewed handoff head",
+        );
+      }
+
+      requireExact(
+        errors,
+        reviewedHandoff?.sha,
+        bundle.reviewed_handoff_head,
+        "reviewed handoff metadata SHA mismatch",
+      );
+      if (!Array.isArray(reviewedHandoff?.parents)) {
+        errors.push("reviewed handoff parent metadata is missing");
+      } else {
+        requireExact(
+          errors,
+          reviewedHandoff.parents.length,
+          1,
+          "reviewed handoff must have exactly one parent",
+        );
+        requireExact(
+          errors,
+          reviewedHandoff.parents[0],
+          bundle.reviewed_candidate,
+          "reviewed handoff parent must equal reviewed candidate",
+        );
+      }
+
+      requireExact(
+        errors,
+        commitMetadata.diff?.base,
+        bundle.reviewed_handoff_head,
+        "release import diff base mismatch",
+      );
+      requireExact(
+        errors,
+        commitMetadata.diff?.target,
+        targetSha,
+        "release import diff target mismatch",
+      );
+      if (!Array.isArray(changedPaths)) {
+        errors.push("release import changed-path metadata is missing");
+      } else {
+        const allowedPaths = new Set(DISTRIBUTION_RELEASE_IMPORT_PATHS);
+        for (const path of changedPaths) {
+          if (!allowedPaths.has(path))
+            errors.push(`release import path is not allowed: ${String(path)}`);
+        }
+      }
+    }
   }
 
   return {
@@ -281,6 +371,7 @@ export function evaluateCanonicalApproval(input = {}) {
     reviewed_handoff_head: bundle?.reviewed_handoff_head ?? null,
     decision: bundle?.decision ?? null,
     phase: task?.current_phase ?? null,
+    release_import_paths: commitMetadata?.diff?.changedPaths ?? null,
   };
 }
 
@@ -300,6 +391,55 @@ async function readGitBlob(cwd, targetSha, path) {
       text: null,
       error: `${path} cannot be read at target SHA: ${message}`,
     };
+  }
+}
+
+async function readCommitMetadata(cwd, sha, label) {
+  try {
+    const result = await execFileAsync("git", ["cat-file", "-p", sha], {
+      cwd,
+      encoding: "utf8",
+      windowsHide: true,
+      env: { ...process.env, GIT_NO_REPLACE_OBJECTS: "1" },
+    });
+    const parents = result.stdout
+      .split(/\r?\n/u)
+      .filter((line) => line.startsWith("parent "))
+      .map((line) => line.slice("parent ".length));
+    if (parents.some((parent) => !FULL_SHA.test(parent)))
+      throw new Error("parent is not a lowercase full 40-hex SHA");
+    return { metadata: { sha, parents } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: `${label} commit metadata cannot be read: ${message}` };
+  }
+}
+
+async function readChangedPaths(cwd, base, target) {
+  try {
+    const result = await execFileAsync(
+      "git",
+      ["diff", "--name-only", "--no-renames", "-z", base, target, "--"],
+      {
+        cwd,
+        encoding: "buffer",
+        windowsHide: true,
+        env: { ...process.env, GIT_NO_REPLACE_OBJECTS: "1" },
+      },
+    );
+    return {
+      diff: {
+        base,
+        target,
+        changedPaths: result.stdout
+          .toString("utf8")
+          .split("\0")
+          .filter(Boolean),
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: `release import diff metadata cannot be read: ${message}` };
   }
 }
 
@@ -324,6 +464,30 @@ export async function readCanonicalApprovalAtCommit({
           : "releaseHandoffText"
     ] = value.text;
     if (value.error) result.readErrors.push(value.error);
+  }
+  const bundle = parsedBundle(result.relayBundle);
+  if (
+    bundle &&
+    FULL_SHA.test(bundle.reviewed_handoff_head ?? "") &&
+    FULL_SHA.test(bundle.reviewed_candidate ?? "")
+  ) {
+    const [target, reviewedHandoff, diff] = await Promise.all([
+      readCommitMetadata(cwd, targetSha, "target"),
+      readCommitMetadata(cwd, bundle.reviewed_handoff_head, "reviewed handoff"),
+      readChangedPaths(cwd, bundle.reviewed_handoff_head, targetSha),
+    ]);
+    result.commitMetadata = {
+      target: target.metadata,
+      reviewedHandoff: reviewedHandoff.metadata,
+      diff: diff.diff,
+    };
+    for (const observation of [target, reviewedHandoff, diff]) {
+      if (observation.error) result.readErrors.push(observation.error);
+    }
+  } else {
+    result.readErrors.push(
+      "canonical relay lacks exact reviewed commit identities for metadata proof",
+    );
   }
   return result;
 }

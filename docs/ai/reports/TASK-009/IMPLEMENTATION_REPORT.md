@@ -44,6 +44,10 @@
 - canonical_relay_bundle_diff: 0
 - terminal_relay_bundle: TASK-009_CHANGES_REQUESTED_R2_V01224_RELAY_CD87DC8DF74D.json / 15657 bytes / CD87DC8DF74D649867B4FE73ED96DAD326BAFA195E30A13C13D3B5241FA3C32A
 - terminal_review_state: cycles 2 / attempt 3 / terminal / terminated false
+- terminal_relay_import_commit: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
+- terminal_relay_import_tree: db287ddff0ad9c653edaeb5fd7179e378ccb28e6
+- terminal_relay_import_ci_history: run 31873701715 attempt 1 / job 94986096856 FAILURE retained at standalone file build step 23; attempt 2 / job 94991735777 exact SUCCESS including steps 23 and 24
+- terminal_relay_import_ci_reruns: failed jobs rerun exact 1; additional workflow dispatch 0
 - project_final_state_authority: docs/ai/tasks/TASK-009.md
 - next_action_schema_contains_project_final_fields: false
 - next_action_generator_managed: true
@@ -79,8 +83,10 @@
 - workflow_contract: workflow_dispatch only; version-keyed concurrency with cancel-in-progress false; top-level permissions empty; job-level least privilege; github-pages environment; needs-ordered preflight/tag-draft-assets/Pages/live/publish
 - action_pins: actions/checkout@11d5960a326750d5838078e36cf38b85af677262; actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020; actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02; actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093; actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa; actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 - finding_r1_01_resolution: tools/distribution-approval.mjs reads canonical relay/task/release handoff blobs from target SHA git tree; pure validator requires APPROVED／implementation／release, exact candidate and handoff, approved TASK state, and source commit binding. distribution preflight and configure Pages both require it; forged or missing proof returns side_effects 0.
-- finding_r1_02_resolution: stageRelease revalidates exact published tag/release/assets and returns no_op=true／side_effects=0; workflow continues live verification with Pages skipped and never republishes. fresh/tag-only/draft/asset-subset/Pages/published stage paths are contract-tested.
+- finding_r1_02_resolution: stageRelease revalidates exact published tag/release/assets and returns no_op=true／side_effects=0; workflow continues live verification with Pages skipped and never republishes. State-specific fresh/tag-only/empty-draft/asset-subset/release-assets/Pages/published/conflicting fixtures assert the actual API path.
 - finding_r1_03_resolution: verifyLiveRawBytes iterates all DISTRIBUTION_ALLOWLIST paths, including HTTP-success empty .nojekyll, compares exact staging bytes, and emits raw_files path/bytes/SHA-256 evidence. Missing/non-empty .nojekyll and staged HTTP 5-file paths are tested.
+- finding_r2_01_resolution: canonical approval proof now reads target and reviewed-handoff commit objects plus the reviewed-handoff-to-target diff from immutable Git objects; it requires target single parent == reviewed_handoff_head, reviewed handoff single parent == reviewed_candidate, and changes limited to the repository-native seven-path APPROVED relay import allowlist. Preflight and Pages setup reject unreviewed descendants, wrong parents, merge commits, production-mixed imports, wrong candidate parents, and missing metadata with side_effects 0.
+- finding_r2_02_resolution: release staging fixtures independently exercise fresh, exact_tag_only, empty exact_draft_release, exact asset subset, exact_release_assets, exact_pages_deployed, exact_published, and conflicting states. GET／POST／PATCH／upload sequence, URLs, tag target, draft title/flags, asset path/SHA-256/bytes, result state, operation list, and actual side-effect count are asserted; only exact_published is no_op=true with side_effects 0.
 - preflight_contract: package version/target/current origin-main/exact main push Governance CI/canonical APPROVED release proof/launcher/all tests/allowlist/manifest/checksum/tag-Release conflict/Pages input checked before side effects
 - recovery_contract: fresh/tag-only/draft/exact-asset-subset/Pages/published states resume only on exact identity; mismatch blocks; existing objects are not overwritten, moved, deleted, rolled back, or unpublished
 - release_order: exact tag; draft prerelease and exact assets; Pages; raw bytes and live browser; prerelease publish last
@@ -97,9 +103,9 @@
 - startup_context_bytes: 37703 (target <=61440; maximum <=65536)
 - npm_ci: 137 packages; 0 vulnerabilities
 - typecheck_lint_format: PASS
-- vitest: 20 files; 500 tests PASS
+- vitest: 20 files; 510 tests PASS
 - focused_tests: take-home 69; NISA 68; iDeCo 86; overview 28 PASS
-- distribution_contract_tests: 3 files; 38 tests PASS
+- distribution_contract_tests: 3 files; 48 tests PASS
 - launcher_freshness: PASS; 215965 bytes
 - portable_browser: msedge; 284 checks; 5 routes; 360px; storage preserved; runtime requests 0; console errors 0; page errors 0
 - staged_http_browser: msedge; 5 routes; 5 raw files including empty .nojekyll; 360px; keyboard focus/settings metadata/storage/backup/import preview-cancel-success PASS; runtime external requests 0; console errors 0; page errors 0
@@ -108,8 +114,8 @@
 - task_012_force_operations: 0
 - candidate_to_handoff_production_diff: 0; exact six governance/review paths only, production diff 0
 - tests_failed: none
-- unresolved_findings: FINDING-009-R2-01 and FINDING-009-R2-02 accepted as non-relaxable MAJOR findings and pending correction; FINDING-009-R1-03 remains resolved
-- worktree: clean_candidate
+- unresolved_findings: none in implementation; FINDING-009-R2-01 and FINDING-009-R2-02 corrected without changing their accepted text, severity, scope, or prior_finding_id; FINDING-009-R1-03 remains resolved
+- worktree: attempt_3_candidate_pending_exact_validation
 - actual_executor: Codex
 - provider_substitution: none
 - review_role: ORCHESTRATOR_AND_REVIEWER
@@ -134,7 +140,7 @@
 - implementation_review_final: true
 - implementation_review_terminated: false
 - attempt_4_forbidden: true
-- execution_started_at: 2026-08-14 18:15:04 JST
+- execution_started_at: 2026-08-15 18:14:55 JST
 - candidate_ci_finished_at: 2026-08-14 18:52:30 JST
 
 ## Requirement and acceptance evidence

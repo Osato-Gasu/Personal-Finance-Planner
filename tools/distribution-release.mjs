@@ -46,6 +46,12 @@ async function uploadAsset({
     asset.digest !== `sha256:${sha256(bytes)}`
   )
     throw new Error(`uploaded release asset identity mismatch: ${name}`);
+  return {
+    url,
+    path: name,
+    sha256: sha256(bytes),
+    bytes: bytes.byteLength,
+  };
 }
 
 function assetIdentity(asset) {
@@ -102,6 +108,7 @@ async function verifyPublishedNoOp({ api, base, tag, expected, target }) {
     state: "exact_published",
     side_effects: 0,
     no_op: true,
+    operations: [],
   };
 }
 
@@ -132,6 +139,7 @@ export async function stageRelease({
     throw new Error("audit expected identity mismatch");
 
   const state = audit.preflight.classification.state;
+  const operations = [];
   const allowed = new Set([
     "fresh",
     "exact_tag_only",
@@ -150,9 +158,16 @@ export async function stageRelease({
     `${base}/git/ref/tags/${encodeURIComponent(tag)}`,
   );
   if (tagRef === null) {
-    await api.post(`${base}/git/refs`, {
+    const url = `${base}/git/refs`;
+    await api.post(url, {
       ref: `refs/tags/${tag}`,
       sha: target,
+    });
+    operations.push({
+      operation: "create_tag",
+      url,
+      ref: `refs/tags/${tag}`,
+      target_commit: target,
     });
     tagRef = await api.get(`${base}/git/ref/tags/${encodeURIComponent(tag)}`);
   }
@@ -176,7 +191,8 @@ export async function stageRelease({
       throw new Error(
         "release notes contain an unresolved identity placeholder",
       );
-    release = await api.post(`${base}/releases`, {
+    const url = `${base}/releases`;
+    release = await api.post(url, {
       tag_name: tag,
       target_commitish: target,
       name: `Personal Finance Planner v${version}`,
@@ -184,6 +200,13 @@ export async function stageRelease({
       draft: true,
       prerelease: true,
       generate_release_notes: false,
+    });
+    operations.push({
+      operation: "create_draft_release",
+      url,
+      tag,
+      target_commit: target,
+      title: `Personal Finance Planner v${version}`,
     });
   }
   if (
@@ -212,8 +235,21 @@ export async function stageRelease({
       uploadUrl: release.upload_url,
       path: resolve(stagingPath, expectedAsset.path),
     });
+    operations.push({
+      operation: "upload_asset",
+      url: `${release.upload_url.replace("{?name,label}", "")}?name=${encodeURIComponent(expectedAsset.path)}`,
+      path: expectedAsset.path,
+      sha256: expectedAsset.sha256,
+      bytes: expectedAsset.bytes,
+    });
   }
-  return { ok: true, state: "exact_release_assets", side_effects: 0 };
+  return {
+    ok: true,
+    state: "exact_release_assets",
+    side_effects: operations.length,
+    no_op: false,
+    operations,
+  };
 }
 
 export async function publishRelease({
@@ -249,7 +285,21 @@ export async function publishRelease({
   });
   if (published.draft !== false || published.prerelease !== true)
     throw new Error("Release publication identity mismatch");
-  return { ok: true, state: "exact_published", side_effects: 1 };
+  return {
+    ok: true,
+    state: "exact_published",
+    side_effects: 1,
+    no_op: false,
+    operations: [
+      {
+        operation: "publish_release",
+        url: `${base}/releases/${String(release.id)}`,
+        release_id: release.id,
+        tag,
+        target_commit: target,
+      },
+    ],
+  };
 }
 
 async function main() {

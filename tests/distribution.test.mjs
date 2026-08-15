@@ -8,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildDistribution,
@@ -21,8 +21,15 @@ import {
 } from "../tools/distribution-state.mjs";
 import { evaluateDistributionPreflight } from "../tools/distribution-preflight-lib.mjs";
 import { configurePages } from "../tools/configure-pages-lib.mjs";
-import { evaluateCanonicalApproval } from "../tools/distribution-approval.mjs";
-import { stageRelease } from "../tools/distribution-release.mjs";
+import {
+  DISTRIBUTION_RELEASE_IMPORT_PATHS,
+  evaluateCanonicalApproval,
+} from "../tools/distribution-approval.mjs";
+import { GitHubApiError } from "../tools/github-distribution-api.mjs";
+import {
+  publishRelease,
+  stageRelease,
+} from "../tools/distribution-release.mjs";
 import { verifyLiveRawBytes } from "../tools/verify-live-distribution.mjs";
 
 const targetCommit = "a".repeat(40);
@@ -56,6 +63,18 @@ function approvedCanonicalProof(target = targetCommit) {
     },
     taskText: `---\ntask_id: TASK-009\nstatus: approved\ncurrent_phase: release\ncurrent_role_id: IMPLEMENTER\nnext_actor: Codex\nnext_role: IMPLEMENTER\nhandoff_file: docs/ai/handoffs/TASK-009/RELEASE_HANDOFF.md\nimplementation_candidate: ${approvedCandidate}\nreviewed_candidate: ${approvedCandidate}\n---\n`,
     releaseHandoffText: `# RELAY HANDOFF — TASK-009\n\n- relay_schema: 2\n- task_id: TASK-009\n- decision: APPROVED\n- reviewed_candidate: ${approvedCandidate}\n- candidate_commit: ${approvedCandidate}\n- reviewed_handoff_head: ${approvedHandoff}\n- resolved_commit: ${approvedHandoff}\n- next_phase: release\n- next_actor: Codex\n- next_role: IMPLEMENTER\n`,
+    commitMetadata: {
+      target: { sha: target, parents: [approvedHandoff] },
+      reviewedHandoff: {
+        sha: approvedHandoff,
+        parents: [approvedCandidate],
+      },
+      diff: {
+        base: approvedHandoff,
+        target,
+        changedPaths: [...DISTRIBUTION_RELEASE_IMPORT_PATHS],
+      },
+    },
   };
 }
 
@@ -389,9 +408,12 @@ describe("side-effect-free preflight", () => {
 });
 
 describe("canonical APPROVED release proof", () => {
-  it("requires target-tree proof instead of caller SHA self-attestation", () => {
+  it("accepts only the exact single-parent governance release-import head", () => {
     const proof = approvedCanonicalProof();
-    expect(evaluateCanonicalApproval(proof)).toMatchObject({ ok: true });
+    expect(evaluateCanonicalApproval(proof)).toMatchObject({
+      ok: true,
+      release_import_paths: DISTRIBUTION_RELEASE_IMPORT_PATHS,
+    });
 
     const forged = {
       ...proof,
@@ -407,6 +429,55 @@ describe("canonical APPROVED release proof", () => {
     expect(evaluateCanonicalApproval(wrongCandidate)).toMatchObject({
       ok: false,
     });
+  });
+
+  it.each([
+    [
+      "unreviewed descendant",
+      (proof) => {
+        proof.commitMetadata.target.parents = ["d".repeat(40)];
+      },
+    ],
+    [
+      "wrong parent",
+      (proof) => {
+        proof.commitMetadata.target.parents = [approvedCandidate];
+      },
+    ],
+    [
+      "merge commit",
+      (proof) => {
+        proof.commitMetadata.target.parents = [approvedHandoff, "d".repeat(40)];
+      },
+    ],
+    [
+      "production-mixed release import",
+      (proof) => {
+        proof.commitMetadata.diff.changedPaths.push("src/main.ts");
+      },
+    ],
+    [
+      "wrong candidate parent",
+      (proof) => {
+        proof.commitMetadata.reviewedHandoff.parents = ["d".repeat(40)];
+      },
+    ],
+    [
+      "missing commit metadata",
+      (proof) => {
+        proof.commitMetadata = undefined;
+      },
+    ],
+  ])("rejects %s with side-effect-free preflight", (_label, mutate) => {
+    const proof = approvedCanonicalProof();
+    mutate(proof);
+    expect(evaluateCanonicalApproval(proof).ok).toBe(false);
+    expect(
+      evaluateDistributionPreflight({
+        ...validPreflight(),
+        canonicalApproval: proof,
+      }),
+    ).toMatchObject({ ok: false, side_effects: 0 });
   });
 
   it.each([
@@ -443,7 +514,7 @@ describe("release staging reruns", () => {
     };
   }
 
-  function releaseWithAssets({ draft = true } = {}) {
+  function releaseWithAssets({ draft = true, assets } = {}) {
     const expected = identities();
     return {
       tag_name: expected.release.tag,
@@ -451,8 +522,9 @@ describe("release staging reruns", () => {
       draft,
       prerelease: true,
       id: 10,
-      upload_url: "https://uploads.invalid/releases/10/assets{?name,label}",
-      assets: expected.release.assets.map((asset) => ({
+      upload_url:
+        "https://uploads.github.com/repos/owner/repo/releases/10/assets{?name,label}",
+      assets: (assets ?? expected.release.assets).map((asset) => ({
         name: asset.path,
         size: asset.bytes,
         digest: `sha256:${asset.sha256}`,
@@ -460,36 +532,192 @@ describe("release staging reruns", () => {
     };
   }
 
-  it.each([
-    "fresh",
-    "exact_tag_only",
-    "exact_draft_release",
-    "exact_release_assets",
-    "exact_pages_deployed",
-  ])("stages %s through the existing resumable path", async (state) => {
-    const get = vi
-      .fn()
-      .mockResolvedValueOnce({ object: { type: "commit", sha: targetCommit } })
-      .mockResolvedValueOnce(releaseWithAssets());
+  function stagingFixture({ tagExists, releaseExists, assets = [] }) {
+    const events = [];
+    const tagUrl =
+      "https://api.github.com/repos/owner/repo/git/ref/tags/v0.1.0";
+    const releaseUrl =
+      "https://api.github.com/repos/owner/repo/releases/tags/v0.1.0";
+    let hasTag = tagExists;
+    let hasRelease = releaseExists;
     const api = {
-      get,
-      post: vi.fn().mockResolvedValue({
-        object: { type: "commit", sha: targetCommit },
-        ...releaseWithAssets(),
+      get: vi.fn(async (url) => {
+        events.push({ method: "GET", url });
+        if (url === tagUrl) {
+          if (!hasTag) throw new GitHubApiError(404, "not found");
+          return { object: { type: "commit", sha: targetCommit } };
+        }
+        if (url === releaseUrl) {
+          if (!hasRelease) throw new GitHubApiError(404, "not found");
+          return releaseWithAssets({ assets });
+        }
+        throw new Error(`unexpected GET: ${url}`);
+      }),
+      post: vi.fn(async (url, body) => {
+        events.push({ method: "POST", url, body });
+        if (url.endsWith("/git/refs")) {
+          hasTag = true;
+          return { object: { type: "commit", sha: targetCommit } };
+        }
+        if (url.endsWith("/releases")) {
+          hasRelease = true;
+          return releaseWithAssets({ assets: [] });
+        }
+        throw new Error(`unexpected POST: ${url}`);
+      }),
+      patch: vi.fn(async (url, body) => {
+        events.push({ method: "PATCH", url, body });
+        throw new Error(`unexpected PATCH: ${url}`);
       }),
     };
+    const uploadAssetImpl = vi.fn(async (input) => {
+      events.push({
+        method: "UPLOAD",
+        url: `${input.uploadUrl.replace("{?name,label}", "")}?name=${encodeURIComponent(basename(input.path))}`,
+        path: basename(input.path),
+      });
+    });
+    return { api, events, uploadAssetImpl };
+  }
+
+  it.each([
+    {
+      label: "fresh",
+      state: "fresh",
+      tagExists: false,
+      releaseExists: false,
+      assets: [],
+      writes: 5,
+      operations: [
+        "create_tag",
+        "create_draft_release",
+        "upload_asset",
+        "upload_asset",
+        "upload_asset",
+      ],
+      methods: [
+        "GET",
+        "POST",
+        "GET",
+        "GET",
+        "POST",
+        "UPLOAD",
+        "UPLOAD",
+        "UPLOAD",
+      ],
+    },
+    {
+      label: "exact_tag_only",
+      state: "exact_tag_only",
+      tagExists: true,
+      releaseExists: false,
+      assets: [],
+      writes: 4,
+      operations: [
+        "create_draft_release",
+        "upload_asset",
+        "upload_asset",
+        "upload_asset",
+      ],
+      methods: ["GET", "GET", "POST", "UPLOAD", "UPLOAD", "UPLOAD"],
+    },
+    {
+      label: "exact_draft_release",
+      state: "exact_draft_release",
+      tagExists: true,
+      releaseExists: true,
+      assets: [],
+      writes: 3,
+      operations: ["upload_asset", "upload_asset", "upload_asset"],
+      methods: ["GET", "GET", "UPLOAD", "UPLOAD", "UPLOAD"],
+    },
+    {
+      label: "exact_asset_subset",
+      state: "exact_draft_release",
+      tagExists: true,
+      releaseExists: true,
+      assets: identities().release.assets.slice(0, 1),
+      writes: 2,
+      operations: ["upload_asset", "upload_asset"],
+      methods: ["GET", "GET", "UPLOAD", "UPLOAD"],
+    },
+    {
+      label: "exact_release_assets",
+      state: "exact_release_assets",
+      tagExists: true,
+      releaseExists: true,
+      assets: identities().release.assets,
+      writes: 0,
+      operations: [],
+      methods: ["GET", "GET"],
+    },
+    {
+      label: "exact_pages_deployed",
+      state: "exact_pages_deployed",
+      tagExists: true,
+      releaseExists: true,
+      assets: identities().release.assets,
+      writes: 0,
+      operations: [],
+      methods: ["GET", "GET"],
+    },
+  ])("stages $label through its state-specific API path", async (testCase) => {
+    const fixture = stagingFixture(testCase);
     const result = await stageRelease({
-      api,
+      api: fixture.api,
       token: "test",
       repository: "owner/repo",
       version: "0.1.0",
       target: targetCommit,
-      audit: stageAudit(state),
+      audit: stageAudit(testCase.state),
       staging: ".",
       releaseNotesPath: "package.json",
-      uploadAssetImpl: vi.fn(),
+      uploadAssetImpl: fixture.uploadAssetImpl,
     });
-    expect(result.ok).toBe(true);
+    expect(result).toMatchObject({
+      ok: true,
+      state: "exact_release_assets",
+      side_effects: testCase.writes,
+      no_op: false,
+    });
+    expect(result.operations.map((entry) => entry.operation)).toEqual(
+      testCase.operations,
+    );
+    expect(fixture.events.map((entry) => entry.method)).toEqual(
+      testCase.methods,
+    );
+    expect(fixture.api.patch).not.toHaveBeenCalled();
+    expect(fixture.uploadAssetImpl).toHaveBeenCalledTimes(
+      testCase.operations.filter((operation) => operation === "upload_asset")
+        .length,
+    );
+    for (const operation of result.operations) {
+      expect(operation.url).toMatch(
+        /^https:\/\/(?:api|uploads)\.github\.com\//u,
+      );
+      if (operation.operation === "upload_asset") {
+        const expected = identities().release.assets.find(
+          (asset) => asset.path === operation.path,
+        );
+        expect(operation).toMatchObject(expected);
+      }
+    }
+    if (testCase.operations.includes("create_tag"))
+      expect(fixture.api.post).toHaveBeenCalledWith(
+        "https://api.github.com/repos/owner/repo/git/refs",
+        { ref: "refs/tags/v0.1.0", sha: targetCommit },
+      );
+    if (testCase.operations.includes("create_draft_release"))
+      expect(fixture.api.post).toHaveBeenCalledWith(
+        "https://api.github.com/repos/owner/repo/releases",
+        expect.objectContaining({
+          tag_name: "v0.1.0",
+          target_commitish: targetCommit,
+          name: "Personal Finance Planner v0.1.0",
+          draft: true,
+          prerelease: true,
+        }),
+      );
   });
 
   it("makes exact_published a fully revalidated side-effect-free no-op", async () => {
@@ -518,9 +746,102 @@ describe("release staging reruns", () => {
       state: "exact_published",
       side_effects: 0,
       no_op: true,
+      operations: [],
     });
     expect(api.post).not.toHaveBeenCalled();
     expect(api.patch).not.toHaveBeenCalled();
+    expect(api.get).toHaveBeenNthCalledWith(
+      1,
+      "https://api.github.com/repos/owner/repo/git/ref/tags/v0.1.0",
+    );
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      "https://api.github.com/repos/owner/repo/releases/tags/v0.1.0",
+    );
+  });
+
+  it("publishes only the exact Pages-deployed draft with one audited PATCH", async () => {
+    const expected = identities();
+    const tagUrl =
+      "https://api.github.com/repos/owner/repo/git/ref/tags/v0.1.0";
+    const releaseUrl =
+      "https://api.github.com/repos/owner/repo/releases/tags/v0.1.0";
+    const patchUrl = "https://api.github.com/repos/owner/repo/releases/10";
+    const events = [];
+    const api = {
+      get: vi.fn(async (url) => {
+        events.push({ method: "GET", url });
+        if (url === tagUrl)
+          return { object: { type: "commit", sha: targetCommit } };
+        if (url === releaseUrl) return releaseWithAssets();
+        throw new Error(`unexpected GET: ${url}`);
+      }),
+      post: vi.fn(),
+      patch: vi.fn(async (url, body) => {
+        events.push({ method: "PATCH", url, body });
+        return { draft: false, prerelease: true };
+      }),
+    };
+    const result = await publishRelease({
+      api,
+      repository: "owner/repo",
+      version: "0.1.0",
+      target: targetCommit,
+      audit: {
+        expected_state: expected,
+        preflight: { classification: { state: "exact_pages_deployed" } },
+      },
+    });
+    expect(events).toEqual([
+      { method: "GET", url: tagUrl },
+      { method: "GET", url: releaseUrl },
+      {
+        method: "PATCH",
+        url: patchUrl,
+        body: { draft: false, prerelease: true },
+      },
+    ]);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: true,
+      state: "exact_published",
+      side_effects: 1,
+      no_op: false,
+      operations: [
+        {
+          operation: "publish_release",
+          url: patchUrl,
+          release_id: 10,
+          tag: "v0.1.0",
+          target_commit: targetCommit,
+        },
+      ],
+    });
+  });
+
+  it("rejects conflicting state before every API write", async () => {
+    const fixture = stagingFixture({
+      tagExists: true,
+      releaseExists: true,
+      assets: identities().release.assets,
+    });
+    await expect(
+      stageRelease({
+        api: fixture.api,
+        token: "test",
+        repository: "owner/repo",
+        version: "0.1.0",
+        target: targetCommit,
+        audit: stageAudit("conflicting"),
+        staging: ".",
+        releaseNotesPath: "package.json",
+        uploadAssetImpl: fixture.uploadAssetImpl,
+      }),
+    ).rejects.toThrow("preflight state does not permit release staging");
+    expect(fixture.events).toEqual([]);
+    expect(fixture.api.post).not.toHaveBeenCalled();
+    expect(fixture.api.patch).not.toHaveBeenCalled();
+    expect(fixture.uploadAssetImpl).not.toHaveBeenCalled();
   });
 });
 
@@ -662,6 +983,35 @@ describe("guarded Pages setup", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.side_effects).toBe(0);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("rejects the same production-mixed canonical proof before Pages writes", async () => {
+    const proof = approvedCanonicalProof();
+    proof.commitMetadata.diff.changedPaths.push("tools/unreviewed.mjs");
+    const post = vi.fn();
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ private: true })
+      .mockResolvedValueOnce({ commit: { sha: targetCommit } })
+      .mockResolvedValueOnce({
+        head_sha: targetCommit,
+        head_branch: "main",
+        event: "push",
+        name: "Governance CI",
+        conclusion: "success",
+      })
+      .mockResolvedValueOnce(null);
+    const result = await configurePages({
+      api: { get, post },
+      repository: "owner/repo",
+      targetSha: targetCommit,
+      mainCiRunId: 123,
+      approvedReleaseHead: targetCommit,
+      canonicalApproval: proof,
+      apply: true,
+    });
+    expect(result).toMatchObject({ ok: false, side_effects: 0 });
     expect(post).not.toHaveBeenCalled();
   });
 });
