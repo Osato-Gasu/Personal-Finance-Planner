@@ -30,9 +30,9 @@ npm run dev
 
 配布用HTMLは`npm run build`でrepository rootの`Personal-Finance-Planner.html`へ生成・同期する。end userはこのHTMLをダブルクリックするだけで起動でき、利用時にHTTP server、Node.js、npmは不要である。JavaScriptとCSSはHTMLへinlineされるため、このHTMLだけを別folderへコピーしても利用でき、runtimeの外部通信も行わない。
 
-0.1.0の配布物は、同じroot launcher bytesから作るGitHub Releaseの`Personal-Finance-Planner.html`とGitHub Pagesの`index.html`／download HTMLである。backend、analytics、telemetry、runtime external requestは0で、repositoryはprivateのまま維持する。配布物のtarget commit、SHA-256、bytesは`release-manifest.json`と`SHA256SUMS.txt`で確認できる。`SHA256SUMS.txt`は自己参照できないため自身だけを除外し、allowlist内の他4fileを記録する。
+0.1.0の配布物は、同じroot launcher bytesから作るpublic GitHub Releaseの`Personal-Finance-Planner.html`とGitHub Pagesの`index.html`／download HTMLである。repositoryはpublicで、commit history、branch metadata、公開Actions run・log、Release assetを第三者が閲覧できる。第三者のforkは作成後も存続し得るため、secretやprivateな金融exportをcommitしない。credential／PII等の公開事故が疑われる場合は配布を停止し、履歴を含むincident対応を優先する。backend、analytics、telemetry、runtime external requestは0である。配布物のtarget commit、SHA-256、bytesは`release-manifest.json`と`SHA256SUMS.txt`で確認できる。`SHA256SUMS.txt`は自己参照できないため自身だけを除外し、allowlist内の他4fileを記録する。
 
-利用前にchecksumを照合し、更新前にはJSONバックアップを保存する。同じpathのHTMLを置き換えると同じ保存領域を継続利用できるが、file名・folder・pathを移動すると別の保存領域として見える場合がある。また、`file://`版とGitHub Pages版は別originであり、localStorageも共有されないため、移行はJSON export/importで行う。
+利用前にchecksumを照合し、更新前にはJSONバックアップを保存する。同じpathのHTMLを置き換えると同じ保存領域を継続利用できるが、file名・folder・pathを移動すると別の保存領域として見える場合がある。また、`file://`版とGitHub Pages版は別origin・別storageであり、localStorageも共有されないため、移行はJSON export/importで行う。本アプリは概算確認用であり、金融・税務・投資助言ではない。
 
 `npm run test:portable`はbuild後のHTMLだけを別folderへコピーし、system EdgeまたはChromeの`file://`でroute、browser history、reload、保存、runtime通信なしを検証する。
 
@@ -40,7 +40,7 @@ Stateは同じfile pathのlocalStorageへ保存される。HTMLの移動・folde
 
 ## 配布手順
 
-実配布はimplementation review APPROVED後、approved release headが`origin/main`へ統合され、そのexact main push `Governance CI`がSUCCESSになった後だけ行う。最初に`tools/configure-pages.mjs`を既定dry-runで確認し、必要な場合だけexact target SHA・main CI run ID・approved release headと`--apply`を明示してGitHub Actions sourceを設定する。その後、GitHub Actionsの`Distribution` workflowへversion `0.1.0`、full target SHA、exact main CI run ID、確認値`PUBLISH_v0.1.0`を入力する。
+実配布はimplementation review APPROVED後、approved release headが`origin/main`へ統合され、そのexact main push `Governance CI`がSUCCESSになった後だけ行う。repository-native public exposure auditをrepository外へ生成し、そのabsolute pathとSHA-256を`tools/configure-pages.mjs`へ`--public-audit`／`--public-audit-sha256`として渡して既定dry-runを確認する。必要な場合だけexact target SHA・main CI run ID・approved release headと`--apply`を明示してGitHub Actions source（custom domainなし）を設定する。その後、GitHub Actionsの`Distribution` workflowへversion `0.1.0`、full target SHA、exact main CI run ID、確認値`PUBLISH_v0.1.0`を入力する。
 
 workflowはpreflight、tag、draft prerelease、asset、Pages、live raw-byte/browser verification、Release publicationの順で進む。partial failureでは作成済みtag／Release／asset／Pagesを自動削除・移動・上書きしない。監査artifactのactual identityがexpected exactな場合だけ不足工程を再実行し、1項目でも異なる場合は停止する。詳細は[release checklist](docs/product/RELEASE_CHECKLIST.md)を参照する。
 

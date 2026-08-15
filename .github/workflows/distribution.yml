@@ -37,6 +37,7 @@ jobs:
     outputs:
       state: ${{ steps.state.outputs.state }}
       page_url: ${{ steps.state.outputs.page_url }}
+      public_audit_sha256: ${{ steps.state.outputs.public_audit_sha256 }}
     steps:
       - name: Validate explicit publication inputs
         shell: pwsh
@@ -85,6 +86,20 @@ jobs:
             --target-commit '${{ inputs.target_sha }}' `
             --root-launcher Personal-Finance-Planner.html `
             --output _distribution
+      - name: Audit public repository exposure before any publication write
+        id: public_audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $path = Join-Path '${{ runner.temp }}' 'TASK-009-release-preflight-public-audit.json'
+          node tools/public-exposure-audit.mjs --repository '${{ github.repository }}' --target-sha '${{ inputs.target_sha }}' --phase release_preflight --staging _distribution --output $path
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sha = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+          [IO.Directory]::CreateDirectory('_audit') | Out-Null
+          Copy-Item -LiteralPath $path -Destination '_audit/public-exposure-audit.json'
+          "path=$path" >> $env:GITHUB_OUTPUT
+          "sha256=$sha" >> $env:GITHUB_OUTPUT
       - name: Exact side-effect-free preflight
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -99,6 +114,8 @@ jobs:
           --staging _distribution
           --root-launcher Personal-Finance-Planner.html
           --audit-output _audit/preflight.json
+          --public-audit '${{ steps.public_audit.outputs.path }}'
+          --public-audit-sha256 '${{ steps.public_audit.outputs.sha256 }}'
           --launcher-fresh
           --required-results
       - name: Capture resumable state
@@ -108,6 +125,7 @@ jobs:
           $audit = Get-Content -LiteralPath _audit/preflight.json -Raw | ConvertFrom-Json
           "state=$($audit.preflight.classification.state)" >> $env:GITHUB_OUTPUT
           "page_url=$($audit.pages_url)" >> $env:GITHUB_OUTPUT
+          "public_audit_sha256=${{ steps.public_audit.outputs.sha256 }}" >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: distribution-preflight-${{ inputs.target_sha }}
@@ -245,6 +263,8 @@ jobs:
           --staging _distribution
           --root-launcher Personal-Finance-Planner.html
           --audit-output _audit/post-live.json
+          --public-audit _audit/public-exposure-audit.json
+          --public-audit-sha256 '${{ needs.preflight.outputs.public_audit_sha256 }}'
           --launcher-fresh
           --required-results
       - name: Require publication-ready state

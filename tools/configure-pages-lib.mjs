@@ -8,6 +8,7 @@ export async function configurePages({
   mainCiRunId,
   approvedReleaseHead,
   canonicalApproval,
+  publicAudit,
   apply = false,
 }) {
   if (!/^[0-9a-f]{40}$/.test(targetSha))
@@ -29,7 +30,12 @@ export async function configurePages({
     errors.push(
       `canonical TASK-009 APPROVED release proof is invalid: ${approval.errors.join("; ")}`,
     );
-  if (repo.private !== true) errors.push("repository must remain private");
+  if (repo.private !== false || repo.visibility !== "public")
+    errors.push("repository must be exactly public");
+  if (publicAudit?.ok !== true)
+    errors.push(
+      `public exposure audit proof is invalid: ${(publicAudit?.errors ?? ["missing proof"]).join("; ")}`,
+    );
   if (main.commit?.sha !== targetSha)
     errors.push("APPROVED release head is not current origin/main");
   if (

@@ -108,6 +108,12 @@ describe("deterministic distribution staging", () => {
     expect(packageLock.version).toBe("0.1.0");
     expect(packageLock.packages[""].version).toBe("0.1.0");
     expect(settingsSource).toContain("productMetadata");
+    expect(settingsSource).toContain(
+      "repository ${productMetadata.repositoryVisibility}",
+    );
+    expect(settingsSource).toContain("runtime external requests");
+    expect(settingsSource).toContain("別origin・別storage");
+    expect(settingsSource).not.toContain('type: "set-product-metadata"');
     expect(settingsSource).not.toContain("2026-08-12");
     expect(settingsSource).not.toContain("2026-08-13");
   });
@@ -240,11 +246,19 @@ function identities() {
     artifacts: {
       launcher: {
         path: "Personal-Finance-Planner.html",
-        sha256: "1",
+        sha256: "1".repeat(64),
         bytes: 1,
       },
-      manifest: { path: "release-manifest.json", sha256: "2", bytes: 2 },
-      checksums: { path: "SHA256SUMS.txt", sha256: "3", bytes: 3 },
+      manifest: {
+        path: "release-manifest.json",
+        sha256: "2".repeat(64),
+        bytes: 2,
+      },
+      checksums: {
+        path: "SHA256SUMS.txt",
+        sha256: "3".repeat(64),
+        bytes: 3,
+      },
     },
   });
 }
@@ -345,7 +359,9 @@ function validPreflight() {
     requiredResults: true,
     stagingValid: true,
     manifestValid: true,
-    repositoryPrivate: true,
+    repositoryPrivate: false,
+    repositoryVisibility: "public",
+    publicAudit: { ok: true, errors: [], side_effects: 0 },
     pagesConfigured: true,
     pagesSource: "workflow",
     pagesInputValid: true,
@@ -376,7 +392,9 @@ describe("side-effect-free preflight", () => {
     ["originMain", "b".repeat(40)],
     ["launcherFresh", false],
     ["stagingValid", false],
-    ["repositoryPrivate", false],
+    ["repositoryPrivate", true],
+    ["repositoryVisibility", "private"],
+    ["publicAudit", { ok: false, errors: ["finding"], side_effects: 0 }],
     ["pagesConfigured", false],
     ["pagesInputValid", false],
   ])("rejects wrong %s with zero side effects", (key, value) => {
@@ -597,8 +615,8 @@ describe("release staging reruns", () => {
       ],
       methods: [
         "GET",
-        "POST",
         "GET",
+        "POST",
         "GET",
         "POST",
         "UPLOAD",
@@ -819,6 +837,251 @@ describe("release staging reruns", () => {
     });
   });
 
+  it.each([
+    [
+      "extra asset",
+      (release) =>
+        release.assets.push({
+          name: "extra.txt",
+          size: 1,
+          digest: `sha256:${"a".repeat(64)}`,
+        }),
+    ],
+    [
+      "duplicate asset",
+      (release) => release.assets.push({ ...release.assets[0] }),
+    ],
+    [
+      "wrong digest",
+      (release) => {
+        release.assets[0].digest = `sha256:${"f".repeat(64)}`;
+      },
+    ],
+    [
+      "wrong bytes",
+      (release) => {
+        release.assets[0].size += 1;
+      },
+    ],
+    [
+      "malformed digest",
+      (release) => {
+        release.assets[0].digest = "sha256:missing";
+      },
+    ],
+    [
+      "malformed bytes",
+      (release) => {
+        release.assets[0].size = "1";
+      },
+    ],
+    [
+      "release title change",
+      (release) => {
+        release.name = "changed";
+      },
+    ],
+    [
+      "release draft change",
+      (release) => {
+        release.draft = false;
+      },
+    ],
+  ])("stops stage before every write on %s", async (_label, mutate) => {
+    const release = releaseWithAssets({
+      assets: identities().release.assets.slice(0, 1),
+    });
+    mutate(release);
+    const api = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          object: { type: "commit", sha: targetCommit },
+        })
+        .mockResolvedValueOnce(release),
+      post: vi.fn(),
+      patch: vi.fn(),
+    };
+    const uploadAssetImpl = vi.fn();
+    await expect(
+      stageRelease({
+        api,
+        token: "test",
+        repository: "owner/repo",
+        version: "0.1.0",
+        target: targetCommit,
+        audit: stageAudit("exact_draft_release"),
+        staging: ".",
+        releaseNotesPath: "package.json",
+        uploadAssetImpl,
+      }),
+    ).rejects.toThrow();
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(uploadAssetImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "fresh tag appeared",
+      "fresh",
+      { object: { type: "commit", sha: targetCommit } },
+      null,
+    ],
+    [
+      "fresh release appeared",
+      "fresh",
+      null,
+      releaseWithAssets({ assets: [] }),
+    ],
+    [
+      "tag target changed",
+      "exact_draft_release",
+      { object: { type: "commit", sha: "d".repeat(40) } },
+      releaseWithAssets({ assets: [] }),
+    ],
+    [
+      "stale full subset",
+      "exact_draft_release",
+      { object: { type: "commit", sha: targetCommit } },
+      releaseWithAssets(),
+    ],
+  ])(
+    "rejects stale preflight state: %s",
+    async (_label, state, tagValue, releaseValue) => {
+      const api = {
+        get: vi
+          .fn()
+          .mockResolvedValueOnce(tagValue)
+          .mockResolvedValueOnce(releaseValue),
+        post: vi.fn(),
+        patch: vi.fn(),
+      };
+      const uploadAssetImpl = vi.fn();
+      await expect(
+        stageRelease({
+          api,
+          token: "test",
+          repository: "owner/repo",
+          version: "0.1.0",
+          target: targetCommit,
+          audit: stageAudit(state),
+          staging: ".",
+          releaseNotesPath: "package.json",
+          uploadAssetImpl,
+        }),
+      ).rejects.toThrow();
+      expect(api.post).not.toHaveBeenCalled();
+      expect(api.patch).not.toHaveBeenCalled();
+      expect(uploadAssetImpl).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      "missing asset",
+      (release) => {
+        release.assets.pop();
+      },
+    ],
+    [
+      "extra asset",
+      (release) =>
+        release.assets.push({
+          name: "extra.txt",
+          size: 1,
+          digest: `sha256:${"a".repeat(64)}`,
+        }),
+    ],
+    [
+      "duplicate asset",
+      (release) => release.assets.push({ ...release.assets[0] }),
+    ],
+    [
+      "wrong digest",
+      (release) => {
+        release.assets[0].digest = `sha256:${"f".repeat(64)}`;
+      },
+    ],
+    [
+      "wrong bytes",
+      (release) => {
+        release.assets[0].size += 1;
+      },
+    ],
+    [
+      "release title",
+      (release) => {
+        release.name = "changed";
+      },
+    ],
+    [
+      "draft",
+      (release) => {
+        release.draft = false;
+      },
+    ],
+    [
+      "prerelease",
+      (release) => {
+        release.prerelease = false;
+      },
+    ],
+  ])("stops publish with PATCH 0 on %s", async (_label, mutate) => {
+    const release = releaseWithAssets();
+    mutate(release);
+    const api = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          object: { type: "commit", sha: targetCommit },
+        })
+        .mockResolvedValueOnce(release),
+      post: vi.fn(),
+      patch: vi.fn(),
+    };
+    await expect(
+      publishRelease({
+        api,
+        repository: "owner/repo",
+        version: "0.1.0",
+        target: targetCommit,
+        audit: {
+          expected_state: identities(),
+          preflight: { classification: { state: "exact_pages_deployed" } },
+        },
+      }),
+    ).rejects.toThrow();
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("stops publish when the tag target changes before PATCH", async () => {
+    const api = {
+      get: vi.fn().mockResolvedValueOnce({
+        object: { type: "commit", sha: "d".repeat(40) },
+      }),
+      post: vi.fn(),
+      patch: vi.fn(),
+    };
+    await expect(
+      publishRelease({
+        api,
+        repository: "owner/repo",
+        version: "0.1.0",
+        target: targetCommit,
+        audit: {
+          expected_state: identities(),
+          preflight: { classification: { state: "exact_pages_deployed" } },
+        },
+      }),
+    ).rejects.toThrow("tag target changed");
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
   it("rejects conflicting state before every API write", async () => {
     const fixture = stagingFixture({
       tagExists: true,
@@ -916,7 +1179,7 @@ describe("guarded Pages setup", () => {
   it("is dry-run by default and applies only after all exact reads", async () => {
     const get = vi
       .fn()
-      .mockResolvedValueOnce({ private: true })
+      .mockResolvedValueOnce({ private: false, visibility: "public" })
       .mockResolvedValueOnce({ commit: { sha: targetCommit } })
       .mockResolvedValueOnce({
         head_sha: targetCommit,
@@ -934,13 +1197,14 @@ describe("guarded Pages setup", () => {
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
       canonicalApproval: approvedCanonicalProof(),
+      publicAudit: { ok: true, errors: [], side_effects: 0 },
     });
     expect(dryRun).toMatchObject({ ok: true, applied: false, side_effects: 0 });
     expect(post).not.toHaveBeenCalled();
 
     get.mockReset();
     get
-      .mockResolvedValueOnce({ private: true })
+      .mockResolvedValueOnce({ private: false, visibility: "public" })
       .mockResolvedValueOnce({ commit: { sha: targetCommit } })
       .mockResolvedValueOnce({
         head_sha: targetCommit,
@@ -958,6 +1222,7 @@ describe("guarded Pages setup", () => {
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
       canonicalApproval: approvedCanonicalProof(),
+      publicAudit: { ok: true, errors: [], side_effects: 0 },
       apply: true,
     });
     expect(applied).toMatchObject({ ok: true, applied: true, side_effects: 1 });
@@ -968,7 +1233,7 @@ describe("guarded Pages setup", () => {
     const post = vi.fn();
     const get = vi
       .fn()
-      .mockResolvedValueOnce({ private: true })
+      .mockResolvedValueOnce({ private: false, visibility: "public" })
       .mockResolvedValueOnce({ commit: { sha: "b".repeat(40) } })
       .mockResolvedValueOnce({ conclusion: "failure" })
       .mockResolvedValueOnce(null);
@@ -979,6 +1244,7 @@ describe("guarded Pages setup", () => {
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
       canonicalApproval: approvedCanonicalProof(),
+      publicAudit: { ok: true, errors: [], side_effects: 0 },
       apply: true,
     });
     expect(result.ok).toBe(false);
@@ -986,13 +1252,56 @@ describe("guarded Pages setup", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "private repository",
+      { private: true, visibility: "private" },
+      { ok: true, errors: [] },
+    ],
+    ["missing audit", { private: false, visibility: "public" }, undefined],
+    [
+      "failed audit",
+      { private: false, visibility: "public" },
+      { ok: false, errors: ["finding"] },
+    ],
+  ])(
+    "rejects %s with no Pages write",
+    async (_label, repositoryState, publicAudit) => {
+      const post = vi.fn();
+      const get = vi
+        .fn()
+        .mockResolvedValueOnce(repositoryState)
+        .mockResolvedValueOnce({ commit: { sha: targetCommit } })
+        .mockResolvedValueOnce({
+          head_sha: targetCommit,
+          head_branch: "main",
+          event: "push",
+          name: "Governance CI",
+          conclusion: "success",
+        })
+        .mockResolvedValueOnce(null);
+      const result = await configurePages({
+        api: { get, post },
+        repository: "owner/repo",
+        targetSha: targetCommit,
+        mainCiRunId: 123,
+        approvedReleaseHead: targetCommit,
+        canonicalApproval: approvedCanonicalProof(),
+        publicAudit,
+        apply: true,
+      });
+      expect(result).toMatchObject({ ok: false, side_effects: 0 });
+      expect(post).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects the same production-mixed canonical proof before Pages writes", async () => {
     const proof = approvedCanonicalProof();
     proof.commitMetadata.diff.changedPaths.push("tools/unreviewed.mjs");
     const post = vi.fn();
     const get = vi
       .fn()
-      .mockResolvedValueOnce({ private: true })
+      .mockResolvedValueOnce({ private: false, visibility: "public" })
       .mockResolvedValueOnce({ commit: { sha: targetCommit } })
       .mockResolvedValueOnce({
         head_sha: targetCommit,
@@ -1009,6 +1318,7 @@ describe("guarded Pages setup", () => {
       mainCiRunId: 123,
       approvedReleaseHead: targetCommit,
       canonicalApproval: proof,
+      publicAudit: { ok: true, errors: [], side_effects: 0 },
       apply: true,
     });
     expect(result).toMatchObject({ ok: false, side_effects: 0 });

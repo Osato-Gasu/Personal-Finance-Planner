@@ -9,6 +9,12 @@ describe("read-only product metadata", () => {
   it("binds version and verification dates to their canonical sources", () => {
     expect(productMetadata).toEqual({
       version: packageMetadata.version,
+      repositoryVisibility: "public",
+      distribution: {
+        offline: true,
+        noBackend: true,
+        runtimeExternalRequests: 0,
+      },
       ruleVerifiedAt: {
         takeHome: RULE_VERIFIED_AT,
         nisa: adultNisaRules[0]?.metadata.verifiedAt,
@@ -30,5 +36,7 @@ describe("read-only product metadata", () => {
     expect(serialized).not.toContain("ruleVerifiedAt");
     expect(serialized).not.toContain("2026-08-12");
     expect(serialized).not.toContain("2026-08-13");
+    expect(serialized).not.toContain("repositoryVisibility");
+    expect(serialized).not.toContain("runtimeExternalRequests");
   });
 });

@@ -1,18 +1,18 @@
 # IMPLEMENTATION REPORT — TASK-009
 
 - task_id: TASK-009
-- spec_revision: 1
+- spec_revision: 2
 - phase: implementation
-- status: changes_requested
+- status: implementation_candidate_preparation
 - origin_main_baseline: 0dbc4fb102c92a6df12331540c6cc11010258f54
 - origin_main_baseline_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
 - origin_main_workflow_run_id: 31758459149
 - origin_main_workflow_identity: Governance CI / main / push / success
-- activation_commit: d6f4e828c242abeffc6bb70d91daf882837671d3
-- activation_tree: b230a318881967e7e2d14206734b77cd1ca6a0a8
-- activation_workflow_run_id: 31765609086
+- activation_commit: 2851bf6a68fed7c762c462ea82bbb4850a863b0b
+- activation_tree: 7becd82c06fbf94a90fc44e28dda6e25f56411c5
+- activation_workflow_run_id: 31903813206
 - activation_workflow_attempt: 1
-- activation_workflow_identity: Governance CI / codex/task-009-distribution / push / success
+- activation_workflow_identity: Governance CI / codex/task-009-distribution / push / 2851bf6a68fed7c762c462ea82bbb4850a863b0b / job 95058488867 / success
 - relay_import_commit: 437fab1f6f531df2a0db25e2be7040f8289c509a
 - relay_import_tree: 3cd5ff56d48fa56c50efe2f74366ab8c4f1b8689
 - relay_import_workflow_run_id: 31786335006
@@ -21,18 +21,18 @@
 - corrected_relay_bundle: TASK-009_CHANGES_REQUESTED_RELAY_CCD324A5619B.json / 15380 bytes / CCD324A5619B7270FC0AE44210B0B4C8F760C06516A3A4A490176A145277AB63
 - corrected_relay_next_action_blob: 448dd41f3182b5b1adb721013f18b54226a44e8d
 - reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e / tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c / CI 31789154016 SUCCESS
-- implementation_candidate: 49a70b1500420320c566501505d6e70be044ef7c
-- candidate_commit: 49a70b1500420320c566501505d6e70be044ef7c
-- candidate_tree: 6a731ff862d4844ab218404c1891a95e538dca68
-- candidate_parent: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
-- candidate_workflow_run_id: 31877048549
-- candidate_workflow_attempt: 1
-- candidate_workflow_conclusion: success
-- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / 49a70b1500420320c566501505d6e70be044ef7c / job 94994235004
+- implementation_candidate: pending revision 2 local commit
+- candidate_commit: pending revision 2 local commit
+- candidate_tree: pending revision 2 local commit
+- candidate_parent: 2851bf6a68fed7c762c462ea82bbb4850a863b0b
+- candidate_workflow_run_id: pending push
+- candidate_workflow_attempt: pending push
+- candidate_workflow_conclusion: pending push
+- candidate_workflow_identity: pending revision 2 candidate exact Governance CI
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
-- candidate_shared_version: 0.12.20
-- candidate_shared_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+- candidate_shared_version: 0.12.25
+- candidate_shared_commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 - governance_recovery_shared_version: 0.12.24
 - governance_recovery_shared_commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
 - governance_recovery_shared_tree: 1cbd973d590896d57aa0eb4777ecd0aef775132a
@@ -88,10 +88,10 @@
 - version_identity: package.json/package-lock 0.1.0; tag v0.1.0; title Personal Finance Planner v0.1.0; prerelease
 - metadata_identity: take_home 2026-08-12; nisa 2026-08-12; ideco 2026-08-13; UI read-only and state-free
 - artifact_paths: .nojekyll; Personal-Finance-Planner.html; SHA256SUMS.txt; index.html; release-manifest.json
-- launcher_identity: Personal-Finance-Planner.html / 215965 bytes / 40dc17b4ab125c7b5cadc6b7dbc1463648c976dbc5f1f4e3b6f26de527b8ac37
-- pages_index_identity: index.html / 215965 bytes / 40dc17b4ab125c7b5cadc6b7dbc1463648c976dbc5f1f4e3b6f26de527b8ac37
-- manifest_identity: release-manifest.json / 1152 bytes / a24157ae531dc73341486ebc372ec0ccaf216e8684f20484f82b725856fcc7db
-- checksums_identity: SHA256SUMS.txt / 337 bytes / 5a60f40437f12498a63b0e0f5496ed7f99c729346b0318a833670cd97ca870da
+- launcher_identity: Personal-Finance-Planner.html / 216828 bytes / 20ca17b864fcf09d597aa9cb940fa07990c6a29db3349b5a44eeb41b1ed8bb59
+- pages_index_identity: index.html / 216828 bytes / 20ca17b864fcf09d597aa9cb940fa07990c6a29db3349b5a44eeb41b1ed8bb59
+- manifest_identity: release-manifest.json / 1152 bytes / 0723fe1dcc433a2c989bab66e7c19319450f8a2b345f44524a348a90b22331f1
+- checksums_identity: SHA256SUMS.txt / 337 bytes / 12a41cfb4e036e3546fca4d73e3652f6c26f4ca9219c502eeba8f819d546d501
 - nojekyll_identity: .nojekyll / 0 bytes / e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 - checksum_contract: SHA-256; checksum file self-reference excluded explicitly; UTF-8 no BOM; LF; exactly one trailing LF
 - workflow_contract: workflow_dispatch only; version-keyed concurrency with cancel-in-progress false; top-level permissions empty; job-level least privilege; github-pages environment; needs-ordered preflight/tag-draft-assets/Pages/live/publish
@@ -104,7 +104,7 @@
 - preflight_contract: package version/target/current origin-main/exact main push Governance CI/canonical APPROVED release proof/launcher/all tests/allowlist/manifest/checksum/tag-Release conflict/Pages input checked before side effects
 - recovery_contract: fresh/tag-only/draft/exact-asset-subset/Pages/published states resume only on exact identity; mismatch blocks; existing objects are not overwritten, moved, deleted, rolled back, or unpublished
 - release_order: exact tag; draft prerelease and exact assets; Pages; raw bytes and live browser; prerelease publish last
-- public_repository_visibility: private
+- public_repository_visibility: public
 - public_tags: 0
 - public_releases: 0
 - public_pages: not configured (API 404)
@@ -117,10 +117,10 @@
 - startup_context_bytes: 41284 (target <=61440; maximum <=65536)
 - npm_ci: 137 packages; 0 vulnerabilities
 - typecheck_lint_format: PASS
-- vitest: 20 files; 510 tests PASS
+- vitest: 21 files; 548 tests PASS
 - focused_tests: take-home 69; NISA 68; iDeCo 86; overview 28 PASS
-- distribution_contract_tests: 3 files; 48 tests PASS
-- launcher_freshness: PASS; 215965 bytes
+- distribution_contract_tests: 3 files; 76 tests PASS; public exposure audit 10 tests PASS
+- launcher_freshness: PASS; 216828 bytes
 - portable_browser: msedge; 284 checks; 5 routes; 360px; storage preserved; runtime requests 0; console errors 0; page errors 0
 - staged_http_browser: msedge; 5 routes; 5 raw files including empty .nojekyll; 360px; keyboard focus/settings metadata/storage/backup/import preview-cancel-success PASS; runtime external requests 0; console errors 0; page errors 0
 - non_regression: AppState/migration/storage/import/export and financial rules/calculations candidate diff 0; existing tests were not removed, skipped, or weakened
@@ -128,19 +128,19 @@
 - task_012_force_operations: 0
 - candidate_to_handoff_production_diff: 0; exact six governance/review paths only, production diff 0
 - tests_failed: none
-- unresolved_findings: none in the implementation candidate; FINDING-009-R2-01 and FINDING-009-R2-02 remain the unchanged pre-decision open registry, while FINDING-009-R3-01 is pending formal relay materialization; FINDING-009-R1-03 remains resolved
-- worktree: clean_candidate_handoff_pending
+- unresolved_findings: none in the revision 2 implementation candidate; FINDING-009-R3-01 is implemented without severity or scope relaxation; revision 1 findings and identities remain immutable audit
+- worktree: revision_2_candidate_build_in_progress
 - actual_executor: Codex
 - provider_substitution: none
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: requested
-- request_review_status: requested
+- review_status: not_requested
+- request_review_status: not_requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- reviewed_spec_revision: 1
+- reviewed_candidate: none
+- reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
 - review_completed_at: none
@@ -148,14 +148,14 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 2
-- implementation_review_attempt: 3
-- implementation_review_profile: terminal
-- implementation_review_final: true
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_final: false
 - implementation_review_terminated: false
-- attempt_4_forbidden: true
-- execution_started_at: 2026-08-15 18:14:55 JST
-- candidate_ci_finished_at: 2026-08-15 18:38:06 JST
+- attempt_4_forbidden: false
+- execution_started_at: 2026-08-16 05:14:39 JST
+- candidate_ci_finished_at: pending
 
 ## Pending formal relay evidence — FINDING-009-R3-01
 
@@ -191,11 +191,40 @@
 - R01/R13 and AC01: corrected relay import identity, shared/product identities, and activation baseline remain fixed; only TASK-009 is active; generated shared was not edited.
 - R02/R03/R14 and AC02: version and rule dates derive from canonical metadata and display read-only; state/storage/backup/migration/financial behavior has no purpose-extraneous diff.
 - R04/R05 and AC03: exact five-file allowlist, byte-identical launcher copies, deterministic manifest/checksum, and negative link/extra/secret/path cases are covered by contract tests; live evidence now includes .nojekyll.
-- R06/R07 and AC04: repository remains private; candidate Pages surface is not configured; manual-only pinned workflow, concurrency, environment, needs, and least privileges have static assertions.
-- R08 and AC05: canonical APPROVED proof is read from target commit tree and required by preflight and Pages guard; wrong or forged proof fails before writes with side_effects 0.
-- R09/R10 and AC06: ordered state machine and exact partial-state recovery are pure-tested; exact_published stage is a revalidated success no-op and conflicting identity blocks without destructive rollback.
+- R06/R07 and AC04: repository remains public; candidate Pages surface is not configured; manual-only pinned workflow, concurrency, environment, needs, and least privileges have static assertions.
+- R08 and AC05: canonical APPROVED proof and strict repository-native public exposure audit proof are required by preflight and Pages guard; wrong, stale, private, finding-bearing, or forged proof fails before writes with side_effects 0.
+- R09/R10 and AC06: ordered state machine and exact partial-state recovery are pure-tested; stage validates the whole fresh current asset subset before its first write, publish validates the exact full set before PATCH, exact_published is a revalidated success no-op, and all mutation/conflicting identities block without destructive rollback.
 - R11 and AC07: settings and release documentation align on version/hash/date/disclaimer/offline/storage boundaries; file:// and staged HTTP evidence passed, including all five raw files. Live Pages evidence remains intentionally deferred to authorized distribution.
 - R12 and AC08: attempt 2 candidate exact CI `31789154016` SUCCESS precedes this direct-child docs-only handoff; production candidate changes are complete and no release/main/distribution action was performed.
 - R15 and AC09: no TASK-012 force delete was used and directory residue was not treated as a blocker.
 - AC10 and T08 completion-only identities are not claimed: release/main/distribution/live/completion/final CI were explicitly not performed at this handoff boundary.
 - F01～F08: no forbidden state/financial/publication/security/destructive/history-rewrite/test-weakening/generated-shared/TASK-012-force action occurred.
+
+## Spec revision 2 implementation evidence
+
+- reset_commit: `df5b53d3608dc59b74f34ea4cd9ed85ece6265d2`
+- reset_tree: `eefa6dbb315753c625ebb65ee6e9fc82d637a48b`
+- reset_ci: run `31902724613`／attempt `1`／job `95055833945`／SUCCESS
+- revision_2_activation_commit: `2851bf6a68fed7c762c462ea82bbb4850a863b0b`
+- revision_2_activation_tree: `7becd82c06fbf94a90fc44e28dda6e25f56411c5`
+- revision_2_activation_ci: run `31903813206`／attempt `1`／job `95058488867`／SUCCESS
+- revision_2_candidate_commit/tree/parent: recorded by the direct-child handoff-only transition after candidate exact CI SUCCESS
+- revision_2_candidate_ci: recorded by the direct-child handoff-only transition after candidate exact CI SUCCESS
+- revision_2_candidate_changed_paths: `.github/workflows/ci.yml`; `.github/workflows/distribution.yml`; `Personal-Finance-Planner.html`; `README.md`; `docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`; `docs/product/RELEASE_CHECKLIST.md`; `docs/product/RELEASE_NOTES_v0.1.0.md`; `package.json`; `src/modules/settings/settings-view.ts`; `src/product-metadata.ts`; `tests/distribution-workflow.test.mjs`; `tests/distribution.test.mjs`; `tests/product-metadata.test.ts`; `tests/public-exposure-audit.test.mjs`; `tools/configure-pages-lib.mjs`; `tools/configure-pages.mjs`; `tools/distribution-preflight-lib.mjs`; `tools/distribution-preflight.mjs`; `tools/distribution-release.mjs`; `tools/public-exposure-audit-lib.mjs`; `tools/public-exposure-audit.mjs`
+- revision_2_handoff_commit/tree/parent/ci: recorded after the handoff commit and exact CI SUCCESS
+- shared_identity: v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`／tree `4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc`／manifest `ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE`
+- public_approval: `USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`／evidence SHA-256 `781A6207DC4031E36A6771048386981D13120CF35C6CDC421819ABFA697089D5`
+- immutable_public_visibility_audit: `C:\Users\owner\Development\personal\audit\TASK-009-public-visibility-20260816-022215`／PASS／118 commits／2091 objects／1005 blobs／finding 0
+- candidate_working_tree_audit: executed from completed implementation bytes before the local candidate commit; external directory, report SHA-256／bytes／scan counts are recorded by the handoff-only transition
+- candidate_exact_prepush_audit: executed against the exact local candidate commit before push; external directory, report SHA-256／bytes／scan counts are recorded by the handoff-only transition
+- public_visibility_contract: repository API requires `private === false` and `visibility === public`; npm publication guard `package.json.private === true` is unchanged; private repository and missing/stale/finding audit proofs return side_effects 0
+- public_exposure_audit_gate: `tools/public-exposure-audit-lib.mjs`／`tools/public-exposure-audit.mjs`; strict schema 1; full reachable commits/trees/blobs, refs/tags/LFS/submodules, working/staged bytes, obtainable Actions logs/artifacts, and release staging; external non-overwriting UTF-8 no BOM/LF/trailing-LF report; value-redacted fingerprint evidence only; API permission failure is BLOCKED; no ignore flag
+- finding_009_r3_01_stage_resolution: fresh tag and Release absence are both read before the first write; existing tag/Release metadata and every current asset are validated as a unique exact expected subset before upload; unexpected/duplicate/malformed/unavailable/wrong digest/wrong bytes/stale preflight identities produce POST 0／PATCH 0／upload 0
+- finding_009_r3_01_publish_resolution: tag target, Release ID/tag/title/draft/prerelease, and current assets are freshly read; exact unique full set with no missing/extra/digest/bytes mismatch is required before the single publish PATCH
+- asset_mutation_tests: stage extra/duplicate/wrong digest/wrong bytes/malformed digest/malformed bytes/stale fresh/tag/release metadata and publish missing/extra/duplicate/wrong digest/wrong bytes/tag/title/draft/prerelease cases assert write 0; normal fresh/tag-only/empty draft/subset/full/Pages/published/conflicting paths retain exact GET/POST/PATCH/upload order and identities
+- public_docs_and_settings: README, release notes, checklist, and read-only settings describe public repository/Release/history/Actions/assets/forks, secret incident stop, concept-only disclaimer, offline/no backend/runtime request 0, and file-versus-Pages origin/storage separation; no AppState/storage/backup field was added
+- revision_1_immutable: candidate `49a70b1500420320c566501505d6e70be044ef7c`／tree `6a731ff862d4844ab218404c1891a95e538dca68`／CI `31877048549`; handoff `95562d46da80eddb04985a934fe0dd6c5ad4384f`／tree `815fed97ee5c23bd9ea16545481f30942129414b`／CI `31877767077`; never reused as revision 2 identity
+- public_distribution_side_effects_during_implementation: tag 0／Release 0／asset 0／Pages not configured／deployment 0／Distribution dispatch 0／visibility unchanged public／origin/main unchanged／PR 0
+- source_non_regression: activation-to-candidate AppState, migration, storage, backup/import/export, financial calculations/rules, verifiedAt, generated shared, and revision 1 immutable evidence diff 0
+- local_validation: final exact counts and browser evidence are recorded by the handoff-only transition
+- unresolved_revision_2_items: none; implementation review, review decision, relay, release, main integration, publication, and completion are intentionally not performed

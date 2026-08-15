@@ -18,6 +18,8 @@ workflowはこのtemplateの3個のidentity placeholderをexact candidate値へ�
 ## 利用とデータ保全
 
 - standalone／offline／no backendで、runtime external requestは0です。
+- repositoryとGitHub Releaseはpublicです。commit history、branch metadata、公開Actions run・log、Release assetは第三者が閲覧でき、作成済みforkは存続し得ます。
+- credential、PII、privateな金融exportの公開が疑われる場合は配布を停止します。
 - 更新前に設定画面からJSONバックアップを保存してください。
 - 通常は同じpathのHTMLを置き換えてください。file名・folder・pathを変更すると保存領域が変わる場合があります。
 - `file://`版とGitHub Pages版は別originであり、localStorageを共有しません。移行はJSON export/importで行ってください。

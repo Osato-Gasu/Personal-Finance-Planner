@@ -57,9 +57,11 @@ async function uploadAsset({
 function assetIdentity(asset) {
   if (
     typeof asset?.name !== "string" ||
+    asset.name.length === 0 ||
     !Number.isSafeInteger(asset.size) ||
+    asset.size < 0 ||
     typeof asset.digest !== "string" ||
-    !asset.digest.startsWith("sha256:")
+    !/^sha256:[0-9a-f]{64}$/u.test(asset.digest)
   )
     throw new Error(
       `release asset identity is unavailable: ${asset?.name ?? "unknown"}`,
@@ -79,6 +81,56 @@ function expectedAssetIdentity(release) {
   return release.assets
     .map(assetIdentity)
     .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+export function validateReleaseAssets(actualAssets, expectedAssets, mode) {
+  if (!Array.isArray(actualAssets) || !Array.isArray(expectedAssets))
+    throw new Error("release asset set is malformed");
+  const expectedByPath = new Map(
+    expectedAssets.map((asset) => [asset.path, asset]),
+  );
+  if (expectedByPath.size !== expectedAssets.length)
+    throw new Error("expected release asset names are not unique");
+  const seen = new Set();
+  const actual = [];
+  for (const asset of actualAssets) {
+    const identity = assetIdentity(asset);
+    if (seen.has(identity.path))
+      throw new Error(`duplicate release asset: ${identity.path}`);
+    seen.add(identity.path);
+    const expected = expectedByPath.get(identity.path);
+    if (!expected)
+      throw new Error(`unexpected release asset: ${identity.path}`);
+    if (
+      identity.sha256 !== expected.sha256 ||
+      identity.bytes !== expected.bytes
+    )
+      throw new Error(`release asset identity mismatch: ${identity.path}`);
+    actual.push(identity);
+  }
+  if (mode === "full" && actual.length !== expectedAssets.length)
+    throw new Error("release asset full set is incomplete");
+  if (mode !== "subset" && mode !== "full")
+    throw new Error("release asset validation mode is invalid");
+  return actual.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function validateTag(tagRef, target) {
+  if (tagRef?.object?.type !== "commit" || tagRef.object.sha !== target)
+    throw new Error("tag target mismatch; existing tag is never moved");
+}
+
+function validateDraftRelease(release, expected, tag) {
+  if (
+    !Number.isSafeInteger(release?.id) ||
+    release.id <= 0 ||
+    typeof release.upload_url !== "string" ||
+    release.tag_name !== tag ||
+    release.name !== expected.release.title ||
+    release.draft !== true ||
+    release.prerelease !== true
+  )
+    throw new Error("draft prerelease identity mismatch");
 }
 
 async function verifyPublishedNoOp({ api, base, tag, expected, target }) {
@@ -157,6 +209,39 @@ export async function stageRelease({
     api,
     `${base}/git/ref/tags/${encodeURIComponent(tag)}`,
   );
+  let release = await optionalGet(
+    api,
+    `${base}/releases/tags/${encodeURIComponent(tag)}`,
+  );
+  const statesWithoutRelease = new Set(["fresh", "exact_tag_only"]);
+  if (state === "fresh" && (tagRef !== null || release !== null))
+    throw new Error("stale preflight state: fresh remote objects now exist");
+  if (state === "exact_tag_only" && (tagRef === null || release !== null))
+    throw new Error("stale preflight state: tag-only identity changed");
+  if (!statesWithoutRelease.has(state) && (tagRef === null || release === null))
+    throw new Error(
+      "stale preflight state: expected draft objects are missing",
+    );
+  if (tagRef !== null) validateTag(tagRef, target);
+  if (release !== null) {
+    validateDraftRelease(release, expected, tag);
+    const mode =
+      state === "exact_release_assets" || state === "exact_pages_deployed"
+        ? "full"
+        : "subset";
+    const currentAssets = validateReleaseAssets(
+      release.assets,
+      expected.release.assets,
+      mode,
+    );
+    if (
+      state === "exact_draft_release" &&
+      currentAssets.length === expected.release.assets.length
+    )
+      throw new Error(
+        "stale preflight state: draft already has full asset set",
+      );
+  }
   if (tagRef === null) {
     const url = `${base}/git/refs`;
     await api.post(url, {
@@ -171,13 +256,8 @@ export async function stageRelease({
     });
     tagRef = await api.get(`${base}/git/ref/tags/${encodeURIComponent(tag)}`);
   }
-  if (tagRef.object?.type !== "commit" || tagRef.object.sha !== target)
-    throw new Error("tag target mismatch; existing tag is never moved");
+  validateTag(tagRef, target);
 
-  let release = await optionalGet(
-    api,
-    `${base}/releases/tags/${encodeURIComponent(tag)}`,
-  );
   if (release === null) {
     const notesTemplate = await readFileImpl(resolve(releaseNotesPath), "utf8");
     const notes = notesTemplate
@@ -209,27 +289,16 @@ export async function stageRelease({
       title: `Personal Finance Planner v${version}`,
     });
   }
-  if (
-    release.tag_name !== tag ||
-    release.name !== `Personal Finance Planner v${version}` ||
-    release.draft !== true ||
-    release.prerelease !== true
-  )
-    throw new Error("draft prerelease identity mismatch");
-  const existing = new Map(release.assets.map((asset) => [asset.name, asset]));
+  validateDraftRelease(release, expected, tag);
+  const currentAssets = validateReleaseAssets(
+    release.assets,
+    expected.release.assets,
+    "subset",
+  );
+  const existing = new Set(currentAssets.map((asset) => asset.path));
   const stagingPath = resolve(staging);
   for (const expectedAsset of expected.release.assets) {
-    const current = existing.get(expectedAsset.path);
-    if (current) {
-      if (
-        current.size !== expectedAsset.bytes ||
-        current.digest !== `sha256:${expectedAsset.sha256}`
-      )
-        throw new Error(
-          `existing asset mismatch; never overwrite: ${expectedAsset.path}`,
-        );
-      continue;
-    }
+    if (existing.has(expectedAsset.path)) continue;
     await uploadAssetImpl({
       token,
       uploadUrl: release.upload_url,
@@ -272,13 +341,8 @@ export async function publishRelease({
   const release = await api.get(
     `${base}/releases/tags/${encodeURIComponent(tag)}`,
   );
-  if (
-    release.tag_name !== tag ||
-    release.name !== expected.release.title ||
-    release.draft !== true ||
-    release.prerelease !== true
-  )
-    throw new Error("draft release changed before publication");
+  validateDraftRelease(release, expected, tag);
+  validateReleaseAssets(release.assets, expected.release.assets, "full");
   const published = await api.patch(`${base}/releases/${String(release.id)}`, {
     draft: false,
     prerelease: true,

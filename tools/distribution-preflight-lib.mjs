@@ -40,8 +40,13 @@ export function evaluateDistributionPreflight(input) {
   requireValue(input.stagingValid === true, "staging allowlist is invalid");
   requireValue(input.manifestValid === true, "manifest/checksum is invalid");
   requireValue(
-    input.repositoryPrivate === true,
-    "repository must remain private",
+    input.repositoryPrivate === false &&
+      input.repositoryVisibility === "public",
+    "repository must be exactly public",
+  );
+  requireValue(
+    input.publicAudit?.ok === true,
+    `public exposure audit proof is invalid: ${(input.publicAudit?.errors ?? ["missing proof"]).join("; ")}`,
   );
   requireValue(
     input.pagesConfigured === true && input.pagesSource === "workflow",

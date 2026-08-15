@@ -10,6 +10,12 @@ function latestVerifiedAt(values: readonly string[], label: string): string {
 
 export interface ProductMetadata {
   readonly version: string;
+  readonly repositoryVisibility: "public";
+  readonly distribution: {
+    readonly offline: true;
+    readonly noBackend: true;
+    readonly runtimeExternalRequests: 0;
+  };
   readonly ruleVerifiedAt: {
     readonly takeHome: string;
     readonly nisa: string;
@@ -19,6 +25,12 @@ export interface ProductMetadata {
 
 export const productMetadata: ProductMetadata = Object.freeze({
   version: packageMetadata.version,
+  repositoryVisibility: "public",
+  distribution: Object.freeze({
+    offline: true,
+    noBackend: true,
+    runtimeExternalRequests: 0,
+  }),
   ruleVerifiedAt: Object.freeze({
     takeHome: RULE_VERIFIED_AT,
     nisa: latestVerifiedAt(

@@ -9,6 +9,7 @@ import {
   GitHubDistributionApi,
   optionalGet,
 } from "./github-distribution-api.mjs";
+import { readAuditProof } from "./public-exposure-audit-lib.mjs";
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -119,6 +120,8 @@ const mainCiRunId = Number(option("--main-ci-run-id"));
 const staging = resolve(option("--staging"));
 const launcher = resolve(option("--root-launcher"));
 const auditOutput = resolve(option("--audit-output"));
+const publicAuditPath = resolve(option("--public-audit"));
+const publicAuditSha256 = option("--public-audit-sha256");
 const artifacts = await verifyDistribution({
   version,
   tag,
@@ -174,6 +177,13 @@ const actualState = {
   otherTags: tags.filter((value) => value.name !== tag).length,
   otherReleases: releases.filter((value) => value.tag_name !== tag).length,
 };
+const publicAudit = await readAuditProof({
+  path: publicAuditPath,
+  expectedSha256: publicAuditSha256,
+  repository,
+  targetCommit,
+  phase: "release_preflight",
+});
 const result = evaluateDistributionPreflight({
   version,
   packageVersion: packageMetadata.version,
@@ -193,6 +203,8 @@ const result = evaluateDistributionPreflight({
   stagingValid: true,
   manifestValid: true,
   repositoryPrivate: repo.private,
+  repositoryVisibility: repo.visibility,
+  publicAudit: publicAudit.validation,
   pagesConfigured: pages !== null,
   pagesSource: pages?.build_type,
   pagesInputValid: true,
@@ -208,6 +220,11 @@ const audit = {
   pages_url: pagesState.url,
   pages_deployments: pagesState.audit,
   canonical_approval_source: canonicalApproval.sourceCommit,
+  public_exposure_audit: {
+    path: publicAuditPath,
+    sha256: publicAuditSha256,
+    bytes: publicAudit.bytes.byteLength,
+  },
 };
 await mkdir(dirname(auditOutput), { recursive: true });
 await writeFile(auditOutput, `${JSON.stringify(audit, null, 2)}\n`, {

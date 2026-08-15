@@ -5,6 +5,7 @@ on:
   pull_request:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -54,6 +55,17 @@ jobs:
         run: npm run test:overview
       - name: Validate TASK-009 distribution contracts and workflow
         run: npm run test:distribution:contract
+      - name: Test public exposure audit contracts
+        run: npm run test:public-exposure-audit
+      - name: Audit public repository history and candidate bytes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node tools/public-exposure-audit.mjs
+          --repository '${{ github.repository }}'
+          --target-sha '${{ github.sha }}'
+          --phase candidate_ci
+          --output '${{ runner.temp }}/TASK-009-public-audit-${{ github.run_id }}.json'
       - name: Build
         run: npm run build:app
       - name: Verify committed root launcher freshness

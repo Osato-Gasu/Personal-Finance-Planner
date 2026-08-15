@@ -133,6 +133,26 @@ export function createSettingsRenderer(
       node(
         options.document,
         "p",
+        `公開形態 repository ${productMetadata.repositoryVisibility}／GitHub Release public`,
+      ),
+      node(
+        options.document,
+        "p",
+        `動作形態 offline／no backend／runtime external requests ${String(productMetadata.distribution.runtimeExternalRequests)}`,
+      ),
+      node(
+        options.document,
+        "p",
+        "公開repositoryではcommit履歴、branch metadata、Actions run・log、Release assetを第三者が閲覧でき、forkが作成・存続する場合があります。secret事故時は配布を停止してください。",
+      ),
+      node(
+        options.document,
+        "p",
+        "file://版とGitHub Pages版は別origin・別storageです。移行にはJSONバックアップを使用してください。",
+      ),
+      node(
+        options.document,
+        "p",
         `手取り制度確認日 ${productMetadata.ruleVerifiedAt.takeHome}`,
       ),
       node(

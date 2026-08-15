@@ -118,4 +118,33 @@ describe("manual distribution workflow", () => {
       ),
     );
   });
+
+  it("requires a public exposure audit proof before the first publication write", () => {
+    expect(workflow).toContain(
+      "Audit public repository exposure before any publication write",
+    );
+    expect(workflow).toContain("tools/public-exposure-audit.mjs");
+    expect(workflow).toContain("--phase release_preflight");
+    expect(workflow).toContain("--public-audit");
+    expect(workflow).toContain("--public-audit-sha256");
+    expect(workflow.indexOf("tools/public-exposure-audit.mjs")).toBeLessThan(
+      workflow.indexOf("tools/distribution-preflight.mjs"),
+    );
+    expect(workflow.indexOf("tools/distribution-preflight.mjs")).toBeLessThan(
+      workflow.indexOf(
+        "Create exact tag, draft prerelease, and missing assets",
+      ),
+    );
+    expect(workflow).toContain("_audit/public-exposure-audit.json");
+  });
+
+  it("keeps the public audit read-only and asset validation inside repository-native tools", () => {
+    expect(workflow).toMatch(
+      /preflight:[\s\S]*?actions: read[\s\S]*?contents: read/u,
+    );
+    expect(workflow).not.toContain("--ignore-finding");
+    expect(workflow).not.toContain("--skip-public-audit");
+    expect(workflow).toContain("node tools/distribution-release.mjs stage");
+    expect(workflow).toContain("node tools/distribution-release.mjs publish");
+  });
 });

@@ -32,9 +32,10 @@ RepositoryとGitHub Releaseはpublicであり、全tracked source／commit histo
 ## Pages setup
 
 1. `GITHUB_TOKEN`をprocess環境だけへ渡し、repository／fileへ保存しない。
-2. `node tools/configure-pages.mjs --repository Osato-Gasu/Personal-Finance-Planner --target-sha <TARGET_FULL_SHA> --main-ci-run-id <EXACT_RUN_ID> --approved-release-head <TARGET_FULL_SHA>`を実行する。Pages setupはtarget SHAのgit treeに保存されたcanonical APPROVED proofも読み、既定dry-runの`create_actions_pages_site`または`already_exact`だけを確認する。
-3. 未構成の場合だけ同じexact引数へ`--apply`を追加する。sourceはGitHub Actions、custom domainなし、repository public維持とする。
-4. 403、admin権限不足、main/CI/approval/audit mismatchでは設定を変更せず停止する。visibility変更や別hostで迂回しない。
+2. `node tools/public-exposure-audit.mjs --repository Osato-Gasu/Personal-Finance-Planner --target-sha <TARGET_FULL_SHA> --phase release_preflight --staging <EXACT_STAGING_PATH> --output <REPOSITORY_OUTSIDE_UNIQUE_PATH>`を実行し、PASS／finding 0のraw report SHA-256を取得する。outputは既存fileを上書きせず、API権限不足時はBLOCKEDとする。
+3. `node tools/configure-pages.mjs --repository Osato-Gasu/Personal-Finance-Planner --target-sha <TARGET_FULL_SHA> --main-ci-run-id <EXACT_RUN_ID> --approved-release-head <TARGET_FULL_SHA> --public-audit <ABSOLUTE_AUDIT_PATH> --public-audit-sha256 <EXACT_AUDIT_SHA256>`を実行する。Pages setupはtarget SHAのgit treeに保存されたcanonical APPROVED proofとpublic auditのschema／repository／target／phase／public visibility／全required scan／finding 0／raw identityを読み、既定dry-runの`create_actions_pages_site`または`already_exact`だけを確認する。
+4. 未構成の場合だけ同じexact引数へ`--apply`を追加する。sourceはGitHub Actions、custom domainなし、repository public維持とする。
+5. 403、admin権限不足、main/CI/approval/audit mismatchでは設定を変更せず停止する。visibility変更や別hostで迂回しない。
 
 ## Manual distribution dispatch
 
