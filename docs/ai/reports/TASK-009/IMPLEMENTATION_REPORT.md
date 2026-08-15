@@ -2,8 +2,8 @@
 
 - task_id: TASK-009
 - spec_revision: 1
-- phase: implementation_review
-- status: review_requested
+- phase: implementation
+- status: changes_requested
 - origin_main_baseline: 0dbc4fb102c92a6df12331540c6cc11010258f54
 - origin_main_baseline_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
 - origin_main_workflow_run_id: 31758459149
@@ -42,6 +42,15 @@
 - governance_recovery_ci_history: run 31807878297 attempt 1 FAILURE retained; attempt 2 / job 94799343402 exact SUCCESS
 - five_source_convergence_normalization: TASK / CURRENT_STATE / NEXT_ACTION / implementation review handoff / RELAY_IMPORT = implementation / 1 / 2 / narrowed / false
 - canonical_relay_bundle_diff: 0
+- terminal_relay_bundle: TASK-009_CHANGES_REQUESTED_R2_V01224_RELAY_CD87DC8DF74D.json / 15657 bytes / CD87DC8DF74D649867B4FE73ED96DAD326BAFA195E30A13C13D3B5241FA3C32A
+- terminal_review_state: cycles 2 / attempt 3 / terminal / terminated false
+- project_final_state_authority: docs/ai/tasks/TASK-009.md
+- next_action_schema_contains_project_final_fields: false
+- next_action_generator_managed: true
+- progress_generator_managed: true
+- original_formal_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
+- import_binding_head: f79a89e3bb2136bc5716a2c08dc17f1ebc3e518d
+- prior_import_validator_failure_rollback_patch_sha256: 4CC48CFE72689F982366C1BBDD1678A3A41C05F98F8965D325A9A42C2B43869B
 - old_fad_bundle_reuse_forbidden: true
 - normalization_next_action: GPT generates a replacement CHANGES_REQUESTED bundle only after the normalization commit exact Governance CI succeeds
 - original_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
@@ -99,7 +108,7 @@
 - task_012_force_operations: 0
 - candidate_to_handoff_production_diff: 0; exact six governance/review paths only, production diff 0
 - tests_failed: none
-- unresolved_findings: none; FINDING-009-R1-01～03 fixed as non-relaxable MAJOR requirements
+- unresolved_findings: FINDING-009-R2-01 and FINDING-009-R2-02 accepted as non-relaxable MAJOR findings and pending correction; FINDING-009-R1-03 remains resolved
 - worktree: clean_candidate
 - actual_executor: Codex
 - provider_substitution: none
@@ -119,12 +128,12 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: narrowed
-- implementation_review_final: false
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: terminal
+- implementation_review_final: true
 - implementation_review_terminated: false
-- attempt_4_forbidden: false
+- attempt_4_forbidden: true
 - execution_started_at: 2026-08-14 18:15:04 JST
 - candidate_ci_finished_at: 2026-08-14 18:52:30 JST
 

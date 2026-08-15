@@ -3,13 +3,13 @@ updated_at: 2026-08-14
 active_tasks:
   - TASK-009
 review_stage: implementation
-changes_requested_cycles: 1
-implementation_review_attempt: 2
-implementation_review_profile: narrowed
+changes_requested_cycles: 2
+implementation_review_attempt: 3
+implementation_review_profile: terminal
 implementation_review_terminated: false
-next_action: ChatGPT regenerates the already-decided TASK-009 attempt 2 CHANGES_REQUESTED relay against the v0.12.24 governance recovery head
+next_action: Codex processes CHANGES_REQUESTED relay for TASK-009
 ---
 
 # Current state
 
-TASK-009 attempt 2 candidate `bdf59b25e1f32866a9539af4c1918210440b0d8e`（tree `8ab3ef5c71f156b2fcafa1aad4691be64e8c601c`）と既決CHANGES_REQUESTED判定は変更しない。review attempt 2を再実施せず、shared v0.12.24／`34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb`のgovernance recovery headに対してGPTが同じFINDING-009-R2-01／R2-02を保持する新relayを再生成する。両findingはまだ未Import・未着手で、旧FAD bundleは再利用禁止。tag／Release／Pages／deployment／manual distribution runを含むpublic side effectは0。
+TASK-009 implementation review attempt 3はPROJECT_RULESに基づくterminal／finalであり、attempt 4は禁止される。両project-specific fieldの機械正本は`docs/ai/tasks/TASK-009.md` frontmatterとし、CURRENT_STATE frontmatterおよびNEXT_ACTION schemaへは追加しない。FINDING-009-R2-01／R2-02は非緩和MAJOR findingとしてacceptedかつ修正待ちで、review attempt 2の判定、candidate、original formal review handoffは変更しない。tag／Release／Pages／deployment／manual Distribution runを含むpublic side effectは0。
