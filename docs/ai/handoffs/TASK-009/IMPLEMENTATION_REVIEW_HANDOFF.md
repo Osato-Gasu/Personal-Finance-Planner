@@ -15,73 +15,63 @@
 - baseline_commit: 0dbc4fb102c92a6df12331540c6cc11010258f54
 - baseline_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
 - activation_commit: d6f4e828c242abeffc6bb70d91daf882837671d3
-- activation_tree: b230a318881967e7e2d14206734b77cd1ca6a0a8
 - activation_workflow_run_id: 31765609086
-- activation_workflow_attempt: 1
-- activation_workflow_conclusion: success
-- relay_import_commit: 437fab1f6f531df2a0db25e2be7040f8289c509a
-- relay_import_tree: 3cd5ff56d48fa56c50efe2f74366ab8c4f1b8689
-- relay_import_workflow_run_id: 31786335006
-- relay_import_workflow_attempt: 1
-- relay_import_workflow_conclusion: success
-- implementation_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- candidate_commit: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- candidate_tree: 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c
-- candidate_parent: 437fab1f6f531df2a0db25e2be7040f8289c509a
-- candidate_workflow_run_id: 31789154016
+- terminal_relay_import_commit: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
+- terminal_relay_import_tree: db287ddff0ad9c653edaeb5fd7179e378ccb28e6
+- terminal_relay_import_parent: f79a89e3bb2136bc5716a2c08dc17f1ebc3e518d
+- terminal_relay_import_workflow_run_id: 31873701715
+- terminal_relay_import_workflow_history: attempt 1 / job 94986096856 FAILURE retained; failed jobs rerun exact 1; attempt 2 / job 94991735777 SUCCESS including steps 23 and 24
+- implementation_candidate: 49a70b1500420320c566501505d6e70be044ef7c
+- candidate_commit: 49a70b1500420320c566501505d6e70be044ef7c
+- candidate_tree: 6a731ff862d4844ab218404c1891a95e538dca68
+- candidate_parent: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
+- candidate_workflow_run_id: 31877048549
 - candidate_workflow_attempt: 1
+- candidate_workflow_job_id: 94994235004
 - candidate_workflow_conclusion: success
-- original_handoff_commit: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
-- original_handoff_workflow_run_id: 31790374136
-- original_handoff_workflow_attempt: 1
-- original_handoff_workflow_conclusion: success
+- original_formal_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
+- reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
+- reviewed_attempt_2_workflow_run_id: 31789154016
 - shared_candidate: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
+- shared_version: 0.12.24
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
 - product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
 - spec_revision: 1
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: narrowed
-- implementation_review_final: false
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: terminal
+- implementation_review_final: true
 - implementation_review_terminated: false
-- attempt_4_forbidden: false
-- review_attempt: 2
-- review_profile: narrowed
-- original_review_profile: standard under shared v0.12.20
-- canonical_migrated_profile: narrowed under shared v0.12.24
-- review_reexecuted: false
-- review_decision_changed: false
-- findings_changed: false
-- final_review: false
+- attempt_4_forbidden: true
+- review_attempt: 3
+- review_profile: terminal
+- final_review: true
 
 ## Assignment / result
 
-- purpose: implementation review attempt 2を再実施せず、既決CHANGES_REQUESTED判定を新shared／新routing identityで再生成するためのgovernance recovery handoffとする。
-- next_purpose: GPT regenerates the already-decided attempt 2 CHANGES_REQUESTED relay against the governance recovery head.
-- scope: candidateのcanonical approval validator、distribution preflight／Pages guard、exact published stage rerun、5-file live raw verification、workflow／contract／browser evidence、および既存配布要件の非退行。
-- out_of_scope: implementation修正、review判定のimport、release head作成、main統合、tag、GitHub Release、Pages、deployment、distribution dispatch、local completion、canonical completion sync。
-- acceptance_criteria: docs/ai/tasks/TASK-009.mdのR01～R15、AC01～AC10、T01～T08、F01～F08全件。AC10の実配布／completion結果は実行しない。
-- changes_requested_relay: corrected bundle 15380 bytes／SHA-256 CCD324A5619B7270FC0AE44210B0B4C8F760C06516A3A4A490176A145277AB63、next_action_blob 448dd41f3182b5b1adb721013f18b54226a44e8d、Import commit 437fab1f6f531df2a0db25e2be7040f8289c509a、Import CI 31786335006 SUCCESS。
-- finding_resolution_R1_01: target SHA git treeからrelay/task/release handoffを読み、APPROVED／implementation／release、candidate／handoff exact identity、TASK approved state、source commit bindingをpure検証し、preflight／Pages setupへ必須化。missing／wrong／forged proofはside_effects 0で拒否。
-- finding_resolution_R1_02: exact_publishedのtag／Release／assetを再検証し、stageが`no_op=true`／`side_effects=0`で成功。workflowはPagesをskipしlive verificationを継続、publishを再実行しない。fresh、tag-only、draft、asset subset、Pages deployed、publishedをテスト。
-- finding_resolution_R1_03: `DISTRIBUTION_ALLOWLIST`全5 pathをlive fetchし、`.nojekyll`のHTTP success／0 bytes／staging raw-byte exactを含む`raw_files`監査証拠を出力。missing／non-zero negative testとstaged HTTPで確認。
-- tests_and_build: PowerShell 7／5.1全governance gate、REQUIREMENTS_DEFINED smoke、audit identity／normalization 21、overlay、completion 34 cases、Vitest 500 tests、focused 69／68／86／28、distribution contract 38 tests、portable 284 checks、staged HTTP raw 5-file＋browser PASS。
-- artifact_review: allowlist 5 files、root／Pages HTML byte exact、deterministic UTF-8/LF manifest/checksum、link／extra／secret／path traversal拒否、checksum self-reference除外を維持。
-- workflow_review: workflow_dispatch only、version concurrency、official action full-SHA pin、job-level least privilege、canonical APPROVED preflight、tag→draft/assets→Pages→live→publish、exact partial-state resumeを確認。
-- browser_review: file://とstaged HTTPの5 routes、reload、360px、keyboard focus、settings metadata、storage、backup、import preview／cancel／success、runtime external requests 0、console/page errors 0を確認。staged HTTP raw evidenceは5 path全件。
-- non_regression_review: AppState／migration／storage／import／exportとfinancial rules／calculationsへの目的外diff 0、package version 0.1.0、既存test count非減少。
-- public_side_effects: repository private、tags 0、releases 0、Pages 404未構成、deployments 0、manual distribution workflow runs 0。candidate CIはGovernance CI pushのみ。
-- candidate_to_handoff_production_diff: 必須0。handoff parentはcandidate exactで、差分はboard/PROGRESS.html、docs/ai/CURRENT_STATE.md、docs/ai/NEXT_ACTION.yml、docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md、docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md、docs/ai/tasks/TASK-009.mdの6 pathだけとする。
-- commit_policy: candidate bdf59b25e1f32866a9539af4c1918210440b0d8e／tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601cを変更せずexact reviewする。handoffはこのcandidateの直系子docs-only commitとし、通常push後に新handoff CI SUCCESSを確認する。
-- non_relaxable: public side effect 0、private repository、allowlist、action pin／least privilege、canonical APPROVED exact main preflight、artifact identity、runtime external requests 0、state／financial non-regression、existing test count。
-- stop_conditions: candidate／tree／CI identity、handoff parent／tree／CI identity、production diff 0、公開面0、R01～R15、AC01～AC10、T01～T08、F01～F08の不一致。判定を勝手に補修せずGPTへ返す。
+- purpose: TASK-009 implementation review attempt 3／terminal／finalとして、attempt 2のFINDING-009-R2-01／R2-02を非緩和で修正したexact candidateをreviewする。
+- scope: canonical approvalのimmutable commit topology／release-import allowlist proof、state-specific release staging／publication audit、Pages／preflight共通guard、workflow／contract／browser evidence、およびR01～R15の非退行。
+- out_of_scope: implementation修正、review判定のimport、attempt 4、release head作成、main統合、tag、GitHub Release、asset、Pages、deployment、distribution dispatch、local completion、canonical completion sync。
+- acceptance_criteria: `docs/ai/tasks/TASK-009.md`のR01～R15、AC01～AC10、T01～T08、F01～F08全件。AC10の実配布／completion結果はこのreviewで実行しない。
+- finding_R2_01: MAJOR／release_gate／prior_finding_id null。target single parent == reviewed_handoff_head、reviewed handoff single parent == reviewed_candidate、reviewed handoff→targetをrepository-native 7-path APPROVED import allowlistへ限定するimmutable Git proofをpreflightとPages setupへ共通必須化。unreviewed descendant、wrong parent、merge、production mix、wrong candidate parent、missing metadataはside_effects 0で拒否する。
+- finding_R2_02: MAJOR／required_test／prior_finding_id null。fresh、exact_tag_only、empty draft、exact asset subset、exact_release_assets、exact_pages_deployed、exact_published、conflictingを別fixtureとし、GET／POST／PATCH／upload sequence、URL、tag target、title／draft／prerelease、asset path／SHA-256／bytes、final state、actual operations／side_effectsを固定。exact_publishedだけが`no_op=true`／`side_effects=0`。
+- finding_preservation: R2-01／R2-02の原文・severity・scope・prior_finding_idはcanonical TASK／RELAY_HANDOFF／RELAY_BUNDLE／RELAY_IMPORTから変更せず、FINDING-009-R1-03の5-file live raw-byte検証もresolvedのまま維持した。
+- tests_and_build: clean validation treeでPowerShell 7／5.1のgovernance、REQUIREMENTS_DEFINED smoke、audit identity／normalization 21、overlay、completion 34、npm ci 137 packages／0 vulnerabilities、typecheck、lint、format、Vitest 510、focused 69／68／86／28、distribution contract 48、build／launcher 215965 bytes、portable 284 checks、staged HTTP 5 raw files＋browserがPASS。
+- browser_review: file://とstaged HTTPの5 routes、360px、keyboard focus、settings metadata、storage、backup／import、runtime external requests 0、console errors 0、page errors 0を確認し、`.nojekyll`はHTTP success／0 bytes／raw exactを維持した。
+- non_regression_review: AppState／migration／storage／backup／import／export、financial rules／calculations、package／lock、workflow、launcher、README、docs/product、identity registryへの目的外diffは0。
+- public_side_effects: repository private、tags 0、releases 0、Pages未構成、deployments 0、manual Distribution workflow runs 0。candidate工程のGitHub actionはGovernance CI pushだけ。
+- candidate_to_handoff_production_diff: 必須0。handoff parentはcandidate exactで、差分は`board/PROGRESS.html`、`docs/ai/CURRENT_STATE.md`、`docs/ai/NEXT_ACTION.yml`、`docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md`、`docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`、`docs/ai/tasks/TASK-009.md`の6 pathだけとする。
+- commit_policy: candidate `49a70b1500420320c566501505d6e70be044ef7c`／tree `6a731ff862d4844ab218404c1891a95e538dca68`を変更せずexact reviewする。handoffはこのcandidateの直系子docs-only commitとし、新規exact handoff Governance CI SUCCESSを必須とする。
+- non_relaxable: public side effect 0、private repository、7-path release-import proof、5-file distribution allowlist、action pin／least privilege、artifact identity、actual side-effect audit、runtime request 0、state／financial non-regression、existing test count。
+- stop_conditions: candidate／tree／CI、handoff parent／tree／CI、production diff 0、公開面0、finding identity、R01～R15、AC01～AC10、T01～T08、F01～F08の不一致。判定を勝手に補修せずCodexへexact relayを返す。
 - return_to: Codex
 - report: docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md
 
 ## Review policy
 
-- attempt 2 is canonically migrated from standard under shared v0.12.20 to narrowed under shared v0.12.24; the prior review is not reexecuted and its decision and findings are unchanged.
-- Review only candidate bdf59b25e1f32866a9539af4c1918210440b0d8e and tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c.
-- Do not dispatch distribution.yml or create/move/delete tag, Release, Pages, deployment, asset, or repository visibility state during review.
-- Do not create attempt 3 or attempt 4. Return an APPROVED or CHANGES_REQUESTED relay to Codex; do not perform release, main integration, distribution, completion, or canonical sync.
+- Attempt 3 uses the terminal profile and is final. Only BLOCKER or MAJOR findings in non-relaxable categories may block; FINDING-009-R2-01／R2-02 remain non-relaxable and must be verified without relaxation.
+- Review only candidate `49a70b1500420320c566501505d6e70be044ef7c` and tree `6a731ff862d4844ab218404c1891a95e538dca68`; the direct-child handoff changes governance/review documents only.
+- If attempt 3 fails, route `NEEDS_USER_DECISION`; do not create attempt 4.
+- Do not dispatch `distribution.yml` or create／move／delete tag、Release、asset、Pages、deployment、or repository visibility state during review.
+- Return an exact APPROVED、CHANGES_REQUESTED、BLOCKED、or NEEDS_USER_DECISION relay to Codex. Do not perform release、main integration、distribution、completion、or canonical sync.

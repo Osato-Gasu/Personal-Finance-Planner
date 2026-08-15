@@ -20,14 +20,15 @@
 - relay_import_workflow_conclusion: success
 - corrected_relay_bundle: TASK-009_CHANGES_REQUESTED_RELAY_CCD324A5619B.json / 15380 bytes / CCD324A5619B7270FC0AE44210B0B4C8F760C06516A3A4A490176A145277AB63
 - corrected_relay_next_action_blob: 448dd41f3182b5b1adb721013f18b54226a44e8d
-- implementation_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- candidate_commit: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- candidate_tree: 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c
-- candidate_parent: 437fab1f6f531df2a0db25e2be7040f8289c509a
-- candidate_workflow_run_id: 31789154016
+- reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e / tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c / CI 31789154016 SUCCESS
+- implementation_candidate: 49a70b1500420320c566501505d6e70be044ef7c
+- candidate_commit: 49a70b1500420320c566501505d6e70be044ef7c
+- candidate_tree: 6a731ff862d4844ab218404c1891a95e538dca68
+- candidate_parent: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
+- candidate_workflow_run_id: 31877048549
 - candidate_workflow_attempt: 1
 - candidate_workflow_conclusion: success
-- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / bdf59b25e1f32866a9539af4c1918210440b0d8e
+- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / 49a70b1500420320c566501505d6e70be044ef7c / job 94994235004
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - candidate_shared_version: 0.12.20
@@ -115,7 +116,7 @@
 - candidate_to_handoff_production_diff: 0; exact six governance/review paths only, production diff 0
 - tests_failed: none
 - unresolved_findings: none in implementation; FINDING-009-R2-01 and FINDING-009-R2-02 corrected without changing their accepted text, severity, scope, or prior_finding_id; FINDING-009-R1-03 remains resolved
-- worktree: attempt_3_candidate_pending_exact_validation
+- worktree: clean_candidate_handoff_pending
 - actual_executor: Codex
 - provider_substitution: none
 - review_role: ORCHESTRATOR_AND_REVIEWER
@@ -141,7 +142,7 @@
 - implementation_review_terminated: false
 - attempt_4_forbidden: true
 - execution_started_at: 2026-08-15 18:14:55 JST
-- candidate_ci_finished_at: 2026-08-14 18:52:30 JST
+- candidate_ci_finished_at: 2026-08-15 18:38:06 JST
 
 ## Requirement and acceptance evidence
 
