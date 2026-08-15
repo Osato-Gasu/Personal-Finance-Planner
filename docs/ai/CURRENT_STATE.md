@@ -1,5 +1,5 @@
 ---
-updated_at: 2026-08-15
+updated_at: 2026-08-16
 active_tasks:
   - TASK-009
 review_stage: implementation
@@ -7,9 +7,11 @@ changes_requested_cycles: 0
 implementation_review_attempt: 1
 implementation_review_profile: standard
 implementation_review_terminated: false
-next_action: Codex resolves BLOCKED relay for TASK-009
+next_action: Codex implements TASK-009 spec revision 2 from the reset base
 ---
 
 # Current state
 
-TASK-009 attempt 3 candidate `49a70b1500420320c566501505d6e70be044ef7c`（tree `6a731ff862d4844ab218404c1891a95e538dca68`）は、FINDING-009-R2-01／R2-02を本文・MAJOR severity・release_gate／required_test scope・prior_finding_id nullのまま修正した。run `31873701715` attempt 1 FAILUREを保持し、同run attempt 2／job `94991735777`とcandidate Governance CI `31877048549`／job `94994235004`はいずれもexact SUCCESS。attempt 3 terminal substantive reviewはpassせず、`FINDING-009-R3-01`はformal relay materialization待ちである。shared v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`でparser compatibilityはAPPROVEDとなったが、user_decision stateはまだmaterializeしていない。attempt 4は引き続き禁止され、tag／Release／Pages／deployment／manual Distribution runを含むpublic side effectは0である。
+TASK-009 spec revision 2 is active in implementation phase from reset base commit `df5b53d3608dc59b74f34ea4cd9ed85ece6265d2`／tree `eefa6dbb315753c625ebb65ee6e9fc82d637a48b`; reset Governance CI `31902724613` attempt 1／job `95055833945` succeeded. Review convergence is reset to cycles 0／attempt 1／standard／terminated false, open findings none, and no revision 2 implementation candidate or review request exists.
+
+Repository visibility is public under approval `USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`; the pre-publication full-history security/privacy audit passed. The only existing public side effect is the approved repository visibility change. Tag、GitHub Release、Pages、deployment、Distribution workflow dispatch are all 0／not configured. Revision 1 candidate `49a70b1500420320c566501505d6e70be044ef7c` and handoff `95562d46da80eddb04985a934fe0dd6c5ad4384f` remain immutable audit evidence and must not be reused.

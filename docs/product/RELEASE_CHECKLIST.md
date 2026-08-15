@@ -2,6 +2,8 @@
 
 このchecklistはimplementation review APPROVED後の実配布担当者向けである。candidate／review中はtag、Release、Pages設定、deployment、distribution dispatchを行わない。
 
+RepositoryとGitHub Releaseはpublicであり、全tracked source／commit history、branch metadata、公開対象Actions run／log、Release metadata／assetは閲覧可能となる。第三者forkは作成・存続し得る。公開承認は`USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`、revision 1 immutable audit identityはcandidate `49a70b1500420320c566501505d6e70be044ef7c`／handoff `95562d46da80eddb04985a934fe0dd6c5ad4384f`である。
+
 ## 固定identity
 
 - version: `0.1.0`（`package.json`正本、package-lock/UI/manifestとexact一致）
@@ -18,7 +20,9 @@
 - [ ] target commit自身の`RELAY_BUNDLE.json`、TASK-009 release state、`RELEASE_HANDOFF.md`からdecision=APPROVED／reviewed candidate／handoff／release phaseを検証した（callerのSHA自己一致だけでは通過しない）
 - [ ] approved release headがcurrent `origin/main`へ統合済みである
 - [ ] supplied main CI runはtarget SHA／branch `main`／event `push`／name `Governance CI`／conclusion `success`がexact一致する
-- [ ] repository visibilityはprivateである
+- [ ] repository visibilityはpublicであり、GitHub Releaseもpublicとして扱う
+- [ ] candidate作成前に、全reachable commit／tree／blob、全branch／tag、LFS pointer、submodule、公開可能なActions log／artifactのsecurity/privacy auditを実行し、high-confidence credential、private key、live token、PII、private financial export、unintended user-owned fileが0である
+- [ ] release side effect直前に同じ全履歴auditを再実行し、1件でも検出した場合はtag／Release／Pages／distribution writeを0のまま停止する
 - [ ] version、tag、title、target SHA、launcher freshness、全required test/buildを確認した
 - [ ] staging pathは`.nojekyll`、`Personal-Finance-Planner.html`、`SHA256SUMS.txt`、`index.html`、`release-manifest.json`だけである
 - [ ] root／Release／Pages 2 HTMLのraw bytes、SHA-256、bytesが一致する
@@ -29,8 +33,8 @@
 
 1. `GITHUB_TOKEN`をprocess環境だけへ渡し、repository／fileへ保存しない。
 2. `node tools/configure-pages.mjs --repository Osato-Gasu/Personal-Finance-Planner --target-sha <TARGET_FULL_SHA> --main-ci-run-id <EXACT_RUN_ID> --approved-release-head <TARGET_FULL_SHA>`を実行する。Pages setupはtarget SHAのgit treeに保存されたcanonical APPROVED proofも読み、既定dry-runの`create_actions_pages_site`または`already_exact`だけを確認する。
-3. 未構成の場合だけ同じexact引数へ`--apply`を追加する。sourceはGitHub Actions、custom domainなし、repository private維持とする。
-4. 403、admin権限不足、main/CI/approval mismatchでは設定を変更せず停止する。visibility変更や別hostで迂回しない。
+3. 未構成の場合だけ同じexact引数へ`--apply`を追加する。sourceはGitHub Actions、custom domainなし、repository public維持とする。
+4. 403、admin権限不足、main/CI/approval/audit mismatchでは設定を変更せず停止する。visibility変更や別hostで迂回しない。
 
 ## Manual distribution dispatch
 
@@ -42,6 +46,8 @@ GitHub Actionsの`Distribution`を手動実行し、次を入力する。
 - `publish_confirmation`: `PUBLISH_v0.1.0`
 
 workflow triggerは`workflow_dispatch`だけである。順序はtag → draft prerelease → assets → Pages deploy → live raw-byte verification → live browser verification → Release publishで、開始・tag・draftだけをSUCCESS扱いしない。
+
+最初のasset write前に、current asset全体がexpected allowlist内で一意かつexpected assetsのexact subsetであり、既存assetのSHA-256／bytesがexactであることを検証する。upload後もRelease publishのPATCH前にtag、Release metadata、全expected asset集合を再取得し、full setがexactであることを確認する。extra／missing／duplicate／wrong digest／wrong bytesが1件でもあればupload／PATCHは0とする。
 
 ## Live evidence
 
@@ -58,6 +64,8 @@ workflow triggerは`workflow_dispatch`だけである。順序はtag → draft p
 各side-effect jobの監査artifactでtag target、draft/prerelease/title、asset SHA-256/bytes、Pages target/manifest、停止工程を確認する。既存objectがexpected exactで、不足工程だけが明確な場合に限りrerunする。1項目でも異なる場合は`conflicting`として停止し、GPTへactual identityを返す。
 
 自動rollbackは行わない。tagを削除・移動・再作成せず、Release／assetを削除・上書きせず、Pagesをunpublish／rollbackせず、deploymentを削除しない。公開後の訂正は新しい承認済み手順として扱う。
+
+high-confidence credential、private key、live token、PII、private financial export、unintended user-owned fileを検出した場合は、値をlog／reportへ複製せずincident responseへ移管し、配布を停止する。completion前にも全履歴auditを再実行する。
 
 ## 利用者向け注意
 

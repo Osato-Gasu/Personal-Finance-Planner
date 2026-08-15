@@ -1,77 +1,74 @@
----
-task_id: TASK-009
-title: 配布
-status: ready
-route: TWO_SESSION_FAST
-priority: low
-spec_revision: 2
-spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
-assigned_model: 5.6 Sol
-assigned_effort: high
-session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-009/CODEX_HANDOFF.md
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
-return_to: ChatGPT
-browser_evidence_required: true
-claude_design_review_recommendation: optional
-claude_implementation_review_recommendation: optional
-claude_design_review_required: false
-claude_implementation_review_required: false
-claude_design_review_status: not_requested
-claude_implementation_review_status: not_requested
-base_commit: df5b53d3608dc59b74f34ea4cd9ed85ece6265d2
-base_tree: eefa6dbb315753c625ebb65ee6e9fc82d637a48b
-accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
-accepted_product_sha256: 98DC0649BB6232B61432EDDAEAC204CEAC763C6E530AF33272E3A3080FBC994B
-review_stage: implementation
-changes_requested_cycles: 0
-implementation_review_attempt: 1
-implementation_review_profile: standard
-implementation_review_final: false
-implementation_review_terminated: false
-attempt_4_forbidden: false
-spec_revision_reset: true
-implementation_review_open_finding_ids: none
-user_confirmation_required: false
-user_confirmation_prompt: none
-review_termination_reason: none
-implementation_candidate: none
-review_kind: none
-review_role: none
-execution_mode: existing_session
-repository_access: true
-review_status: not_requested
-request_review_status: none
-review_model: none
-review_effort: none
-reviewed_candidate: none
-reviewed_spec_revision: none
-review_request_id: none
-review_started_at: none
-review_completed_at: none
-review_result: none
-review_findings_count: 0
-review_finding_ids: none
-actual_executor: Codex
-provider_substitution: none
+# TASK-009 spec revision 2 activation record
 
-shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-updated_at: 2026-08-16
----
+## Approval and reset
 
-# TASK-009 — 配布
+- approval_id: `USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`
+- approved_at: `2026-08-16 02:22:15 JST`
+- approved_by: `USER`
+- approval_evidence_sha256: `781A6207DC4031E36A6771048386981D13120CF35C6CDC421819ABFA697089D5`
+- reset_bundle_filename: `TASK-009_SPEC_REVISION_2_RESET_RELAY_91ED20651DE1.json`
+- reset_bundle_sha256: `91ED20651DE1B6F3C4ECC2A8B1595E4B609C0A3430CF0E4824935F29A1E7D5BA`
+- reset_bundle_bytes: `17845`
+- canonical_bundle_sha256: `91ED20651DE1B6F3C4ECC2A8B1595E4B609C0A3430CF0E4824935F29A1E7D5BA`
+- reset_import_commit: `df5b53d3608dc59b74f34ea4cd9ed85ece6265d2`
+- reset_import_tree: `eefa6dbb315753c625ebb65ee6e9fc82d637a48b`
+- reset_import_parent: `25be0b48699ef350bd72a60e3b564b7dd8c1d2a4`
+- reset_ci_run／attempt／job: `31902724613`／`1`／`95055833945` — `SUCCESS`
+- revision_2_activation_commit: this document's containing commit, with subject `docs(requirements): activate TASK-009 spec revision 2`
+- revision_2_activation_tree: the tree of that containing commit
+- revision_2_activation_ci: the new push-event `Governance CI` for that containing commit; exact run／attempt／job is returned after CI completion
 
-## Purpose
+The activation commit SHA/tree and its future CI identity cannot be self-embedded as literal hashes inside the same commit. They are bound by the containing Git object, exact subject/parent, and the final exact return identity.
+
+## Reason for revision
+
+The user explicitly approved Public visibility after a full-history security/privacy audit passed. Revision 1 required private repository visibility, so its R06／AC04／Out of scope no longer matched the repository source of truth. Revision 2 makes the repository and GitHub Release public, treats commit history／branch metadata／Actions logs／forkability as known exposure, and incorporates `FINDING-009-R3-01` asset mutation safety into R10／AC06／T06／F04 without relaxing it.
+
+## Public exposure audit
+
+- evidence directory: `C:\Users\owner\Development\personal\audit\TASK-009-public-visibility-20260816-022215`
+- audit result: `PASS`
+- inventory: 118 commits, 2091 reachable objects, 1005 reachable blobs／9778446 bytes, 8 branches, 0 tags, 0 LFS pointers, 0 submodules, 112／113 retrievable Actions logs／4315177 bytes
+- findings: high-confidence credential 0, private key 0, live token 0, private financial export 0, unintended user-owned file 0
+- visibility: `private` → `public`; visibility-only API changes `1`; repository content diff `0`; refs diff `0`
+- post-visibility run `31887544173`: attempt 1／job `95018938492` FAILURE; attempt 2／job `95048540627` SUCCESS
+
+## Revision 1 immutable audit
+
+- candidate: `49a70b1500420320c566501505d6e70be044ef7c`
+- candidate tree: `6a731ff862d4844ab218404c1891a95e538dca68`
+- candidate parent: `00667a01fbf769fc583c1f6b129b5f8b012f7c43`
+- candidate CI: `31877048549` SUCCESS
+- handoff: `95562d46da80eddb04985a934fe0dd6c5ad4384f`
+- handoff tree: `815fed97ee5c23bd9ea16545481f30942129414b`
+- handoff CI: `31877767077` SUCCESS
+- terminal substantive review: non-pass
+- pending finding evidence: `FINDING-009-R3-01`
+
+These identities remain immutable audit evidence and are not reused as a revision 2 candidate.
+
+## Convergence reset and boundary
+
+- spec revision: `2`
+- changes requested cycles: `0`
+- implementation review attempt: `1`
+- profile: `standard`
+- terminated: `false`
+- open findings: `none`
+- terminal relay imported: `false`
+- cycles 3 materialized: `false`
+- NEEDS_USER_DECISION materialized: `false`
+- attempt 4 created: `false`
+- product implementation diff in reset/activation: `0`
+- public side effect: existing visibility change `1`; reset/activation added `0`
+
+## Full revision 2 requirements
+
+### Purpose
 
 ユーザーがrepository Public化を明示承認し、全履歴security／privacy auditとPublic化後のexact Governance CIが成功したため、TASK-009 spec revision 1のprivate visibility要件を失効させ、spec revision 2へ正式resetする。revision 2はpublic repository、public GitHub Release、allowlist済みpublic GitHub Pagesを前提とし、公開面の全履歴auditとFINDING-009-R3-01のwrite-time asset再検証を非緩和release gateとして取り込む。
 
-## Scope
+### Scope
 
 - R01 Revision 2 activation: current branch head 25be0b48699ef350bd72a60e3b564b7dd8c1d2a4、tree 6733a380a68e708f4509cb5a72ad6c8d05bc4714、origin/main 0dbc4fb102c92a6df12331540c6cc11010258f54、shared v0.12.25／f07571d3e8745b9a49a28b1ac77e211c210146a3、public visibility、run 31887544173 attempt 2 SUCCESSをexact確認する。USER approval USER-APPROVAL-TASK-009-PUBLIC-20260816-022215でrevision 1→2をresetし、cycles 0／attempt 1／standard／terminated falseへ戻す。reset import exact CI後にrevision 2 requirements activationだけを行い、製品実装前にSTOPする。
 - R02 Version: 初回versionは0.1.0、tagはv0.1.0、Release titleはPersonal Finance Planner v0.1.0、classificationはprerelease。package.jsonを唯一のversion正本とし、package-lock、UI、manifest、tag、titleをderived／validatorでexact一致させる。
@@ -89,14 +86,14 @@ updated_at: 2026-08-16
 - R14 Non-regression: 税・社会保険・手取り・NISA・iDeCo・overviewの計算、rule値／期間／source selection、AppState schema、migration、storage key、backup/import/export semantics、既存user bytesを変更しない。standalone file://、offline、hash route、runtime external requests 0を維持する。
 - R15 TASK-012 directory: 残存空directoryはnon-blocking。registered worktreeでない、empty、unlock済みを確認できる場合だけ通常削除し、force削除や内容／lock不明時の削除を行わない。削除不能でもTASK-009を継続する。
 
-## Out of scope
+### Out of scope
 
 - 金融制度値・計算・保存data contractの変更、financial recommendation化、制度再確認なしのverifiedAt更新。
 - repositoryをprivateへ戻すこと、別public repository、custom domain、installer／desktop app、backend／login／cloud sync、銀行・証券API、第三者配布基盤。
 - 公開済み履歴を自動history rewriteして除去すること。高信頼secret／PII／private financial exportを検出した場合は公開・配布を停止し、別の明示承認されたincident responseへ移管する。
 - v0.1.0以外の公開、stable 1.0宣言、revision 2 activation exact CI前の製品実装、APPROVED・exact main CI前のtag／Release／Pages／distribution。
 
-## Acceptance criteria
+### Acceptance criteria
 
 - AC01 Revision 2 reset／activation: explicit USER approval付きreset bundleがspec 1→2、cycles 0／attempt 1／standard／terminated false、open finding noneをrepository-nativeにmaterializeし、reset import exact CI SUCCESS後にTASK、CODEX_HANDOFF、CURRENT_STATE、NEXT_ACTION、Progress、revision 2 report、docs/product、affected PRODUCT_IDENTITIESがrevision 2へ同期する。activation exact CI SUCCESS後にSTOPする。
 - AC02 R02／R03／R14: 0.1.0と制度確認日が正本から一致表示され、State／storage／backup bytes、migration、金融計算、rule値・期間への目的外diffが0。
@@ -109,7 +106,7 @@ updated_at: 2026-08-16
 - AC09 R15: TASK-012 directoryはempty／unregistered／unlocked確認後の通常削除だけを許し、force操作0。残存してもTASK-009を停止しない。
 - AC10 完了時はtag v0.1.0がapproved revision 2 targetを指し、public prerelease assets／manifest／checksum／Pages bytesが一致し、local main==origin/main、main clean、TASK-009 worktree安全削除、active_tasks=[]、final main Governance CI SUCCESSとなる。
 
-## Tests
+### Tests
 
 - T01 Governance／activation: PS7／PS5.1のgovernance、REQUIREMENTS_DEFINED smoke、audit identity／normalization、overlay、completionをPASSし、explicit USER spec reset、revision 2 state、startup context <=65536 bytes（目標<=61440）を検証する。
 - T02 Regression/build: npm ci、typecheck、lint、format:check、Vitest 510以上、focused 69／68／86／28以上、build、verify:launcher、portable 284以上を既存count非減少でPASSする。
@@ -120,30 +117,7 @@ updated_at: 2026-08-16
 - T07 Browser: staged HTTPとfile://（別folder、日本語／空白path）、公開Pagesで主要route、reload、responsive、keyboard、settings、storage、backup/export/import、download/hash、network/error evidenceを検証する。
 - T08 Gates: reset import／revision 2 activation／candidate／handoff／release branch／main／distribution／final syncの各exact Governance CI、manual distribution workflow、live downloaded SHA／bytes、local completionを各exact identityで確認する。
 
-## Build
-
-- pwsh -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- pwsh -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- pwsh -NoProfile -ExecutionPolicy Bypass -File tools/validate-audit-identities.ps1
-- pwsh -NoProfile -ExecutionPolicy Bypass -File tools/test-audit-identity-normalization.ps1
-- pwsh -NoProfile -ExecutionPolicy Bypass -File tools/validate-project-overlay.ps1
-- pwsh -NoProfile -ExecutionPolicy Bypass -File tools/test-complete-task-local.ps1
-- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/validate-ai-governance.ps1
-- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/test-requirements-defined-smoke.ps1
-- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/validate-audit-identities.ps1
-- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/test-audit-identity-normalization.ps1
-- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/validate-project-overlay.ps1
-- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/test-complete-task-local.ps1
-- npm ci && npm run typecheck && npm run lint && npm run format:check
-- npm run test && npm run test:rules && npm run test:nisa && npm run test:ideco && npm run test:overview
-- npm run test:distribution:contract && npm run build && npm run verify:launcher && npm run test:portable && npm run test:distribution
-- Require exact Governance CI for activation, candidate, handoff, release branch, main and final sync; require exact manual distribution workflow/live evidence before completion
-
-## Rollback
-
-Import/materialize/validator/implementationの公開前失敗はtransactional rollbackまたはTASK-009だけの通常修正commitで扱う。公開side effect後はobjectを自動削除・移動・上書きせずactual identityを記録してBLOCKEDとする。origin/main、他TASK、user-owned dataを変更せず、破壊的Git/filesystem操作を使わない。
-
-## Forbidden changes
+### Forbidden changes
 
 - F01 AppState、schema、migration、storage、backup/import/export、金融計算、rule値／期間／verifiedAt、user data bytesの目的外変更。
 - F02 high-confidence credential、private key、live token、PII、private financial export、unintended user-owned fileをpublic history／Release／Pages／Actions logへ含めること。audit findingを無視して公開・配布を続けること。
