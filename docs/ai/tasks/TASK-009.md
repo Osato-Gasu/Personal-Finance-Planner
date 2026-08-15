@@ -60,7 +60,7 @@ review_finding_ids: none
 actual_executor: ChatGPT
 provider_substitution: none
 
-shared_candidate: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
+shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
 implementation_review_open_finding_ids: FINDING-009-R2-01, FINDING-009-R2-02
 updated_at: 2026-08-15
 ---
@@ -85,7 +85,7 @@ updated_at: 2026-08-15
 - R10 Idempotency／failure: 既存tag、Release、asset、Pagesを上書き・移動・削除しない。rerunは全identityがexpected exactな場合だけ不足工程を再開し、相違時はBLOCKED。partial failureでは自動rollback／unpublishをせず、作成済みobjectと停止工程を監査記録してGPTへ返す。
 - R11 Documentation／evidence: README、release notes、docs/product/RELEASE_CHECKLIST.md、settingsへversion、commit/hash、制度確認日、concept-only disclaimer、offline/no-backend、backupと同一path置換、file://とPagesの別origin/storage、既知制約、partial failure手順を整合記載する。browser evidenceは主要route、reload、360px、keyboard/focus、storage、backup/export/import、console/page error 0、unexpected runtime request 0を必須とする。
 - R12 Lifecycle: implementation candidateではworkflow/tool/UI/docs/testsまで完成させるが公開side effect 0。candidate exact CI後にhandoff-only commitを作りproduction diff 0でレビューし、APPROVED import→release branch CI→main fast-forward→exact main CI→distribution→local completion→canonical completion sync→final main CIの順を守る。
-- R13 Governance: activation governanceはshared v0.12.20／commit 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e、review convergence recovery governanceはshared v0.12.24／commit 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fbとする。このcompatibility amendmentはproduct requirement、implementation candidate、review判定、findingを変更せず、docs/ai/generated/shared/**を直接編集しない。activationではTASK packet/state/product要件/affected PRODUCT_IDENTITIESだけを同期し、製品実装を開始しない。
+- R13 Governance: activation governanceはshared v0.12.20／commit 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e、review convergence recovery governanceはshared v0.12.24／commit 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb、finding-ID parser compatibility governanceはindependent exact reviewでAPPROVEDとなったshared v0.12.25／commit f07571d3e8745b9a49a28b1ac77e211c210146a3とする。このcompatibility amendmentはproduct requirement、implementation candidate、terminal substantive review結果、review判定、findingを変更せず、docs/ai/generated/shared/**を直接編集しない。activationではTASK packet/state/product要件/affected PRODUCT_IDENTITIESだけを同期し、製品実装を開始しない。
 - R14 Non-regression: 税・社会保険・手取り・NISA・iDeCo・overviewの計算、rule値/期間/source selection、AppState schema、migration、storage key、backup/import/export semantics、既存user bytesを変更しない。standalone file://、offline、hash route、runtime external requests 0を維持する。
 - R15 TASK-012 directory: 残存空directoryはnon-blocking。registered worktreeでない、empty、unlock済みを確認できる場合だけ通常削除し、force削除や内容／lock不明時の削除を行わない。削除不能でもTASK-009を継続する。
 

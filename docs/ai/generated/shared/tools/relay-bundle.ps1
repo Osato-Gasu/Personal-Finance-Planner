@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.24
-# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
+# source version: 0.12.25
+# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -90,6 +90,9 @@ function Require-List($Value,[string]$Name){if($null-eq$Value-or@($Value).Count-
 function Require-Bool($Value,[string]$Name){if($null-eq$Value-or$Value.GetType()-ne[bool]){throw "relay bundle field must be boolean: $Name"}}
 function Require-NonNegativeInteger($Value,[string]$Name){if($null-eq$Value-or($Value-isnot[int]-and$Value-isnot[long])-or[long]$Value-lt0){throw "relay bundle field must be a non-negative integer: $Name"}}
 function Require-CommitOrNone($Value,[string]$Name){Require-Text $Value $Name;if([string]$Value-cne'none'-and[string]$Value-notmatch'^[0-9a-f]{40}$'){throw "relay bundle commit is invalid: $Name"}}
+function Test-FindingId([string]$Value){
+    -not[string]::IsNullOrWhiteSpace($Value)-and$Value-match'^[A-Z][A-Z0-9_-]*-[0-9]+$'
+}
 function Read-Key([string]$Text,[string]$Key,[string]$Source){
     $matches=[regex]::Matches($Text,"(?m)^\s*(?:-\s*)?$([regex]::Escape($Key)):\s*(.*?)\s*$")
     if($matches.Count-eq0){throw "Missing '$Key' in $Source"}
@@ -390,7 +393,7 @@ function Validate-Bundle($Bundle,$Adapter,$FindingDispositions){
     if($null-eq$Bundle.findings){throw 'relay bundle findings must be an array'}
     foreach($finding in @($Bundle.findings)){
         foreach($name in @('id','severity','target','problem','evidence','impact','required_change')){Require-Text $finding.$name "findings.$name"}
-        if([string]$finding.id-notmatch'^[A-Z][A-Z0-9_-]*-[0-9]+$'){throw "invalid finding id: $($finding.id)"}
+        if(-not(Test-FindingId ([string]$finding.id))){throw "invalid finding id: $($finding.id)"}
         if([string]$finding.severity-notin@('BLOCKER','MAJOR','MINOR','QUESTION')){throw "invalid finding severity: $($finding.severity)"}
     }
     $findingIds=@($Bundle.findings|ForEach-Object{[string]$_.id});if(@($findingIds|Select-Object -Unique).Count-ne$findingIds.Count){throw 'relay bundle finding ids must be unique'}
@@ -472,7 +475,8 @@ function Read-OpenImplementationFindingIds([string]$TaskText){
     if($matches.Count-ne1){throw 'TASK implementation review open finding registry is duplicated'}
     $raw=$matches[0].Groups[1].Value.Trim();if([string]::IsNullOrWhiteSpace($raw)-or$raw-ceq'none'){return @()}
     $ids=@($raw-split','|ForEach-Object{$_.Trim()}|Where-Object{$_})
-    if($ids.Count-ne@($ids|Select-Object -Unique).Count-or@($ids|Where-Object{$_-notmatch'^FINDING-[0-9]+-[0-9]+$'}).Count-ne0){throw 'TASK implementation review open finding registry is invalid'}
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach($id in $ids){if(-not(Test-FindingId $id)-or-not$seen.Add($id)){throw 'TASK implementation review open finding registry is invalid'}}
     return $ids
 }
 function Read-HandoffFindingIds([string]$HandoffText,[string]$SectionTitle,[string]$Source){
@@ -482,7 +486,7 @@ function Read-HandoffFindingIds([string]$HandoffText,[string]$SectionTitle,[stri
     $ids=[Collections.Generic.List[string]]::new()
     foreach($line in ([regex]::Split($match.Groups['body'].Value,'\r?\n'))){
         if($line -match '^\s*-\s*(?:none|not_applicable)\s*$'){continue}
-        if($line -match '^\s*-\s*(?<id>FINDING-[0-9]+-[0-9]+)\s+\[[^\]]+\].*$'){$id=[string]$Matches['id'];if($ids.Contains($id)){throw "$Source $SectionTitle contains duplicate finding id: $id"};$ids.Add($id);continue}
+        if($line -match '^\s*-\s*(?<id>\S+)\s+\[(?<severity>[^\]]+)\].*$'){$id=[string]$Matches['id'];$severity=[string]$Matches['severity'];if(-not(Test-FindingId $id)-or$severity-notin@('BLOCKER','MAJOR','MINOR','QUESTION')){throw "$Source $SectionTitle contains an invalid finding line"};if($ids.Contains($id)){throw "$Source $SectionTitle contains duplicate finding id: $id"};$ids.Add($id);continue}
         if(-not[string]::IsNullOrWhiteSpace($line)){throw "$Source $SectionTitle contains an invalid finding line"}
     }
     @($ids)
@@ -499,7 +503,7 @@ function Validate-ImplementationReviewFindingScope($Bundle,[int]$CurrentCycles,$
         foreach($finding in @($actionable)){
             $priorProperty=$finding.PSObject.Properties['prior_finding_id'];$prior=if($null-ne$priorProperty){[string]$priorProperty.Value}else{''}
             if(-not[string]::IsNullOrWhiteSpace($prior)){
-                if($prior-notmatch'^FINDING-[0-9]+-[0-9]+$'-or$AcceptedPriorFindingIds-cnotcontains$prior-or($DispositionFindingIds-ccontains$prior-and$AcceptedPriorFindingIds-cnotcontains$prior)-or$OpenFindingIds-cnotcontains$prior){throw "prior_finding_id does not exactly match an accepted unresolved finding: $($finding.id)"}
+                if(-not(Test-FindingId $prior)-or$AcceptedPriorFindingIds-cnotcontains$prior-or($DispositionFindingIds-ccontains$prior-and$AcceptedPriorFindingIds-cnotcontains$prior)-or$OpenFindingIds-cnotcontains$prior){throw "prior_finding_id does not exactly match an accepted unresolved finding: $($finding.id)"}
             }
             $scopeProperty=$finding.PSObject.Properties['review_scope'];$scope=if($null-ne$scopeProperty){[string]$scopeProperty.Value}else{''}
             $allowed=if($reviewCycles-eq1){$allowedNarrowed}else{$allowedTerminal}

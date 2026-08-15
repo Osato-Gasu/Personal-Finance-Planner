@@ -110,3 +110,10 @@
 - Governance recovery commit `e6b0563402448c8408480db3d7ace215cc45df3f` retains run `31807878297` attempt 1 as FAILURE and adopts attempt 2／job `94799343402` as the exact SUCCESS for that commit.
 - Before any new formal relay Import, `CURRENT_STATE.md` and the existing `RELAY_IMPORT.md` audit record are normalized to the same five-source convergence values without reexecuting review or changing the decision, findings, product, or canonical relay bundle.
 - GPT may generate the replacement CHANGES_REQUESTED bundle only after the normalization commit's own exact Governance CI succeeds; the old FAD bundle remains forbidden.
+
+## GOV-015 TASK-009 finding-ID parser compatibility recovery
+
+- Shared v0.12.24 could not reload canonical review-cycle finding IDs from the TASK open registry and handoff sections. Shared v0.12.25 candidate `f07571d3e8745b9a49a28b1ac77e211c210146a3` passed independent exact review with `APPROVED` and was fast-forwarded to shared main without source changes.
+- Personal-Finance-Planner synchronizes only the v0.12.25 governance snapshot while retaining attempt 3／terminal／final as `review_requested`, `changes_requested_cycles=2`, `implementation_review_terminated=false`, and open registry `FINDING-009-R2-01, FINDING-009-R2-02`.
+- Product requirements, implementation candidate, and terminal substantive non-pass result remain unchanged. `FINDING-009-R3-01` is preserved as pending formal relay evidence and will be materialized only by a later terminal source `CHANGES_REQUESTED` relay Import.
+- Attempt 4 remains forbidden. Product diff and public side effects remain 0.

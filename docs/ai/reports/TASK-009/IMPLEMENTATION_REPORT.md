@@ -38,6 +38,19 @@
 - governance_recovery_shared_tree: 1cbd973d590896d57aa0eb4777ecd0aef775132a
 - governance_recovery_manifest_sha256: 2B7CF6EE56A5BBDBBE674E5E42A4F04D24FFEEFD57B66A66667A4913A6061DB9
 - governance_recovery_manifest_bytes: 4367
+- shared_finding_id_parser_recovery_version: 0.12.25
+- shared_finding_id_parser_recovery_commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+- shared_finding_id_parser_recovery_tree: 4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc
+- shared_finding_id_parser_recovery_manifest_sha256: ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE
+- shared_finding_id_parser_recovery_review: APPROVED
+- shared_validation: PowerShell 7 and Windows PowerShell 5.1 validate PASS; simulations 332 checks each
+- terminal_review_substantive_result: non_pass_pending_formal_relay
+- terminal_review_new_finding_id: FINDING-009-R3-01
+- terminal_review_new_finding_severity: MAJOR
+- terminal_review_new_finding_scope: release_gate
+- terminal_review_new_finding_prior_finding_id: null
+- review_attempt_4_created: false
+- governance_recovery_execution_started_at: 2026-08-15 21:47:40 JST
 - governance_recovery_commit: e6b0563402448c8408480db3d7ace215cc45df3f
 - governance_recovery_tree: 3ed9a084d2a4c1c62e2c6d7c533e21372c5bff2c
 - governance_recovery_ci_history: run 31807878297 attempt 1 FAILURE retained; attempt 2 / job 94799343402 exact SUCCESS
@@ -101,7 +114,7 @@
 - live_pages_verification: not performed by design before APPROVED main integration and exact main CI
 - governance_ps7: shared/current/next/progress/project, REQUIREMENTS_DEFINED smoke, audit identity, normalization 21, overlay, completion 34 PASS
 - governance_ps51: shared/current/next/progress/project, REQUIREMENTS_DEFINED smoke, audit identity, normalization 21, overlay, completion 34 PASS
-- startup_context_bytes: 37703 (target <=61440; maximum <=65536)
+- startup_context_bytes: 41284 (target <=61440; maximum <=65536)
 - npm_ci: 137 packages; 0 vulnerabilities
 - typecheck_lint_format: PASS
 - vitest: 20 files; 510 tests PASS
@@ -115,7 +128,7 @@
 - task_012_force_operations: 0
 - candidate_to_handoff_production_diff: 0; exact six governance/review paths only, production diff 0
 - tests_failed: none
-- unresolved_findings: none in implementation; FINDING-009-R2-01 and FINDING-009-R2-02 corrected without changing their accepted text, severity, scope, or prior_finding_id; FINDING-009-R1-03 remains resolved
+- unresolved_findings: none in the implementation candidate; FINDING-009-R2-01 and FINDING-009-R2-02 remain the unchanged pre-decision open registry, while FINDING-009-R3-01 is pending formal relay materialization; FINDING-009-R1-03 remains resolved
 - worktree: clean_candidate_handoff_pending
 - actual_executor: Codex
 - provider_substitution: none
@@ -143,6 +156,35 @@
 - attempt_4_forbidden: true
 - execution_started_at: 2026-08-15 18:14:55 JST
 - candidate_ci_finished_at: 2026-08-15 18:38:06 JST
+
+## Pending formal relay evidence — FINDING-009-R3-01
+
+- severity: MAJOR
+- review_scope: release_gate
+- prior_finding_id: null
+- target:
+  - tools/distribution-release.mjs
+  - tests/distribution.test.mjs
+  - .github/workflows/distribution.yml
+  - docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md
+- problem: `stageRelease`はpreflight後に取得した現在のRelease asset集合を、最初のwriteより前に全件exact検証しない。unexpected assetを無視でき、missing asset uploadと別asset mismatch検査が同じloop内で混在する。`publishRelease`はcurrent Releaseのassetsをexpected exactへ再検証せずPATCH publishするため、preflight／live verification後にassetが追加・削除・変更されたconflicting stateでもpublishへ到達し得る。
+- evidence:
+  - current asset集合がexpected assetsのexact subsetかをwrite前に検証しない
+  - unexpected／duplicate asset拒否がない
+  - stage loop内でupload後に後続asset mismatchへ到達し得る
+  - publish前にmissing／extra／duplicate／digest／bytesを再確認しない
+  - stale preflight auditとcurrent API responseの不一致をwrite 0で拒否するtestがない
+- impact:
+  - R10／AC06／T06のexact partial-state resume契約に違反する
+  - F04のconflicting state write 0を満たさない
+  - unexpectedまたはmismatched assetを持つReleaseへupload／publishし得る
+  - release safetyの非緩和MAJOR findingである
+- required_change:
+  - stageReleaseは最初のwrite前にcurrent assets全体を検証する: path unique、expected allowlist内だけ、existing asset SHA-256／bytes exact、expected assetsのexact subset、unexpected／duplicate／mismatchはwrite 0
+  - publishReleaseはPATCH前に全expected asset集合を再取得してexact検証し、missing／extra／duplicate／digest mismatch／bytes mismatchはPATCH 0とする
+  - stale audit/current stateのnegative testを追加する
+  - 正常path、exact_published no-op、既存testを回帰させない
+- materialization_status: evidence only; canonical open findingは変更せず、formal source CHANGES_REQUESTED relay Import時にrepository-native materializeする
 
 ## Requirement and acceptance evidence
 

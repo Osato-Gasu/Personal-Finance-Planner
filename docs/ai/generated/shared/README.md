@@ -1,6 +1,6 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.24
-# source commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
+# source version: 0.12.25
+# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 # 直接編集禁止
 
 # AI Development Governance

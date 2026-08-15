@@ -32,8 +32,13 @@
 - original_formal_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
 - reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
 - reviewed_attempt_2_workflow_run_id: 31789154016
-- shared_candidate: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
-- shared_version: 0.12.24
+- shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
+- shared_version: 0.12.25
+- finding_id_parser_recovery_review: APPROVED
+- recovery_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
+- review_reexecuted: false
+- implementation_candidate_changed: false
+- next_purpose: GPT generates the terminal CHANGES_REQUESTED relay after the v0.12.25 project recovery CI succeeds
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
 - product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
 - spec_revision: 1
@@ -50,6 +55,7 @@
 
 ## Assignment / result
 
+- governance_recovery: shared main was fast-forwarded to v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`; this migration synchronizes parser compatibility only and does not reexecute attempt 3 or change its substantive result.
 - purpose: TASK-009 implementation review attempt 3／terminal／finalとして、attempt 2のFINDING-009-R2-01／R2-02を非緩和で修正したexact candidateをreviewする。
 - scope: canonical approvalのimmutable commit topology／release-import allowlist proof、state-specific release staging／publication audit、Pages／preflight共通guard、workflow／contract／browser evidence、およびR01～R15の非退行。
 - out_of_scope: implementation修正、review判定のimport、attempt 4、release head作成、main統合、tag、GitHub Release、asset、Pages、deployment、distribution dispatch、local completion、canonical completion sync。

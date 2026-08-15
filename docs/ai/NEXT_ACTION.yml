@@ -9,8 +9,8 @@ model: 5.6 Sol
 effort: high
 session_mode: new
 handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
-rules_version: 0.12.24
-rules_commit: 34d9727fbc3ed8fe7dfa39c91ca6683b11dc04fb
+rules_version: 0.12.25
+rules_commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
