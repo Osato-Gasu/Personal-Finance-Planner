@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { lstat, readFile } from "node:fs/promises";
+import { isAbsolute, parse, relative, resolve, sep } from "node:path";
 
 export const PUBLIC_AUDIT_SCHEMA_VERSION = 1;
 export const PUBLIC_AUDIT_REQUIRED_SCANS = Object.freeze([
@@ -221,12 +221,10 @@ export function validatePublicExposureAudit(
 export async function readAuditProof({ path, expectedSha256, ...identity }) {
   if (!isAbsolute(path)) throw new Error("public audit path must be absolute");
   const resolved = resolve(path);
+  await assertNoLinkedPath(resolved);
   const stat = await lstat(resolved);
   if (!stat.isFile() || stat.isSymbolicLink())
     throw new Error("public audit path must be a regular non-link file");
-  const actual = await realpath(resolved);
-  if (actual !== resolved)
-    throw new Error("public audit path must not traverse a link");
   const bytes = await readFile(resolved);
   const report = JSON.parse(bytes.toString("utf8"));
   return {
@@ -243,4 +241,19 @@ export async function readAuditProof({ path, expectedSha256, ...identity }) {
 export function isPathInside(parent, candidate) {
   const value = relative(resolve(parent), resolve(candidate));
   return value !== "" && value !== ".." && !value.startsWith(`..${sep}`);
+}
+
+export async function assertNoLinkedPath(path) {
+  const resolved = resolve(path);
+  const root = parse(resolved).root;
+  let current = root;
+  for (const part of resolved
+    .slice(root.length)
+    .split(/[\\/]/u)
+    .filter(Boolean)) {
+    current = resolve(current, part);
+    const stat = await lstat(current);
+    if (stat.isSymbolicLink())
+      throw new Error("public audit path must not traverse a link");
+  }
 }

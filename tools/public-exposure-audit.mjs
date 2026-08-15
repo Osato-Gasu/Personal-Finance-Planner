@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, lstat, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, lstat, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildPublicAuditReport,
+  assertNoLinkedPath,
   isPathInside,
   scanPublicBytes,
   serializePublicAuditReport,
@@ -253,9 +254,7 @@ export async function runPublicExposureAudit({
   if (isPathInside(root, outputPath) || outputPath === root)
     throw new Error("audit output must be outside the repository");
   await mkdir(dirname(outputPath), { recursive: true });
-  const parentReal = await realpath(dirname(outputPath));
-  if (parentReal !== dirname(outputPath))
-    throw new Error("audit output parent must not traverse a link");
+  await assertNoLinkedPath(dirname(outputPath));
   const startedAt = new Date().toISOString();
   const findings = [];
   const scans = {};
