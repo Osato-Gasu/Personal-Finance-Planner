@@ -4,80 +4,70 @@
 
 - task_id: TASK-009
 - feature: 配布
+- spec_revision: 2
 - phase: implementation_review
 - status: review_requested
 - actor: ChatGPT
 - role: ORCHESTRATOR_AND_REVIEWER
 - model: 5.6 Sol
 - effort: high
+- session_mode: new
+- execution_mode: separate_session
+- return_to: Codex
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch: codex/task-009-distribution
 - baseline_commit: 0dbc4fb102c92a6df12331540c6cc11010258f54
-- baseline_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
-- activation_commit: d6f4e828c242abeffc6bb70d91daf882837671d3
-- activation_workflow_run_id: 31765609086
-- terminal_relay_import_commit: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
-- terminal_relay_import_tree: db287ddff0ad9c653edaeb5fd7179e378ccb28e6
-- terminal_relay_import_parent: f79a89e3bb2136bc5716a2c08dc17f1ebc3e518d
-- terminal_relay_import_workflow_run_id: 31873701715
-- terminal_relay_import_workflow_history: attempt 1 / job 94986096856 FAILURE retained; failed jobs rerun exact 1; attempt 2 / job 94991735777 SUCCESS including steps 23 and 24
-- implementation_candidate: 49a70b1500420320c566501505d6e70be044ef7c
-- candidate_commit: 49a70b1500420320c566501505d6e70be044ef7c
-- candidate_tree: 6a731ff862d4844ab218404c1891a95e538dca68
-- candidate_parent: 00667a01fbf769fc583c1f6b129b5f8b012f7c43
-- candidate_workflow_run_id: 31877048549
-- candidate_workflow_attempt: 1
-- candidate_workflow_job_id: 94994235004
-- candidate_workflow_conclusion: success
-- original_formal_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
-- reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- reviewed_attempt_2_workflow_run_id: 31789154016
+- reset_commit: df5b53d3608dc59b74f34ea4cd9ed85ece6265d2
+- reset_tree: eefa6dbb315753c625ebb65ee6e9fc82d637a48b
+- reset_ci: run 31902724613／attempt 1／job 95055833945／SUCCESS
+- activation_commit: 2851bf6a68fed7c762c462ea82bbb4850a863b0b
+- activation_tree: 7becd82c06fbf94a90fc44e28dda6e25f56411c5
+- activation_ci: run 31903813206／attempt 1／job 95058488867／SUCCESS
+- implementation_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
+- candidate_commit: 9d577d809721af25eef4243088d2a88a4acf2d91
+- candidate_tree: 25ec4bfde700e7f3cfee5b831cab03147a1e3365
+- candidate_parent: 818a3e462a7b80b5c075adcc24a12481d33f0704
+- candidate_activation_ancestor: 2851bf6a68fed7c762c462ea82bbb4850a863b0b
+- candidate_ci: run 31908178646／attempt 1／job 95069128427／SUCCESS
+- retained_candidate_ci_failure: run 31907510795／attempt 1／job 95067528568／FAILURE at cross-runner path canonicalization test; fixed by normal descendant commit
 - shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
 - shared_version: 0.12.25
-- finding_id_parser_recovery_review: APPROVED
-- recovery_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-- review_reexecuted: false
-- implementation_candidate_changed: false
-- next_purpose: GPT generates the terminal CHANGES_REQUESTED relay after the v0.12.25 project recovery CI succeeds
-- product_identity: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
-- product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
-- spec_revision: 1
+- shared_tree: 4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc
+- shared_manifest_sha256: ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE
 - review_stage: implementation
-- changes_requested_cycles: 2
-- implementation_review_attempt: 3
-- implementation_review_profile: terminal
-- implementation_review_final: true
+- review_kind: implementation
+- reviewed_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
+- reviewed_spec_revision: 2
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
+- implementation_review_final: false
 - implementation_review_terminated: false
-- attempt_4_forbidden: true
-- review_attempt: 3
-- review_profile: terminal
-- final_review: true
+- attempt_4_forbidden: false
+- implementation_review_open_finding_ids: none
+- user_confirmation_required: false
+- review_termination_reason: none
 
-## Assignment / result
+## Assignment
 
-- governance_recovery: shared main was fast-forwarded to v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`; this migration synchronizes parser compatibility only and does not reexecute attempt 3 or change its substantive result.
-- purpose: TASK-009 implementation review attempt 3／terminal／finalとして、attempt 2のFINDING-009-R2-01／R2-02を非緩和で修正したexact candidateをreviewする。
-- scope: canonical approvalのimmutable commit topology／release-import allowlist proof、state-specific release staging／publication audit、Pages／preflight共通guard、workflow／contract／browser evidence、およびR01～R15の非退行。
-- out_of_scope: implementation修正、review判定のimport、attempt 4、release head作成、main統合、tag、GitHub Release、asset、Pages、deployment、distribution dispatch、local completion、canonical completion sync。
-- acceptance_criteria: `docs/ai/tasks/TASK-009.md`のR01～R15、AC01～AC10、T01～T08、F01～F08全件。AC10の実配布／completion結果はこのreviewで実行しない。
-- finding_R2_01: MAJOR／release_gate／prior_finding_id null。target single parent == reviewed_handoff_head、reviewed handoff single parent == reviewed_candidate、reviewed handoff→targetをrepository-native 7-path APPROVED import allowlistへ限定するimmutable Git proofをpreflightとPages setupへ共通必須化。unreviewed descendant、wrong parent、merge、production mix、wrong candidate parent、missing metadataはside_effects 0で拒否する。
-- finding_R2_02: MAJOR／required_test／prior_finding_id null。fresh、exact_tag_only、empty draft、exact asset subset、exact_release_assets、exact_pages_deployed、exact_published、conflictingを別fixtureとし、GET／POST／PATCH／upload sequence、URL、tag target、title／draft／prerelease、asset path／SHA-256／bytes、final state、actual operations／side_effectsを固定。exact_publishedだけが`no_op=true`／`side_effects=0`。
-- finding_preservation: R2-01／R2-02の原文・severity・scope・prior_finding_idはcanonical TASK／RELAY_HANDOFF／RELAY_BUNDLE／RELAY_IMPORTから変更せず、FINDING-009-R1-03の5-file live raw-byte検証もresolvedのまま維持した。
-- tests_and_build: clean validation treeでPowerShell 7／5.1のgovernance、REQUIREMENTS_DEFINED smoke、audit identity／normalization 21、overlay、completion 34、npm ci 137 packages／0 vulnerabilities、typecheck、lint、format、Vitest 510、focused 69／68／86／28、distribution contract 48、build／launcher 215965 bytes、portable 284 checks、staged HTTP 5 raw files＋browserがPASS。
-- browser_review: file://とstaged HTTPの5 routes、360px、keyboard focus、settings metadata、storage、backup／import、runtime external requests 0、console errors 0、page errors 0を確認し、`.nojekyll`はHTTP success／0 bytes／raw exactを維持した。
-- non_regression_review: AppState／migration／storage／backup／import／export、financial rules／calculations、package／lock、workflow、launcher、README、docs/product、identity registryへの目的外diffは0。
-- public_side_effects: repository private、tags 0、releases 0、Pages未構成、deployments 0、manual Distribution workflow runs 0。candidate工程のGitHub actionはGovernance CI pushだけ。
-- candidate_to_handoff_production_diff: 必須0。handoff parentはcandidate exactで、差分は`board/PROGRESS.html`、`docs/ai/CURRENT_STATE.md`、`docs/ai/NEXT_ACTION.yml`、`docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md`、`docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`、`docs/ai/tasks/TASK-009.md`の6 pathだけとする。
-- commit_policy: candidate `49a70b1500420320c566501505d6e70be044ef7c`／tree `6a731ff862d4844ab218404c1891a95e538dca68`を変更せずexact reviewする。handoffはこのcandidateの直系子docs-only commitとし、新規exact handoff Governance CI SUCCESSを必須とする。
-- non_relaxable: public side effect 0、private repository、7-path release-import proof、5-file distribution allowlist、action pin／least privilege、artifact identity、actual side-effect audit、runtime request 0、state／financial non-regression、existing test count。
-- stop_conditions: candidate／tree／CI、handoff parent／tree／CI、production diff 0、公開面0、finding identity、R01～R15、AC01～AC10、T01～T08、F01～F08の不一致。判定を勝手に補修せずCodexへexact relayを返す。
-- return_to: Codex
+- purpose: TASK-009 spec revision 2 implementation review attempt 1／standardとして、candidate exact source、tests、workflow、docs、audit evidenceをR01～R15、AC01～AC10、T01～T08、F01～F08へ照合する。
+- exact_scope: activation `2851bf6a68fed7c762c462ea82bbb4850a863b0b`からcandidate `9d577d809721af25eef4243088d2a88a4acf2d91`までの実装diff。handoff commitはcandidate直系子の6-path governance-only transitionであり、production diffは0でなければならない。
+- public_visibility: repository API `private=false`／`visibility=public`を必須化し、npm publish guardの`package.json.private=true`は維持した。repositoryをprivateへ戻す処理はない。
+- public_exposure_audit: repository-native schema 1で全reachable commit/tree/blob、refs/tags/LFS/submodules、working/staged bytes、取得可能Actions logs/artifacts、release stagingを検査する。secret値は保存せずredacted fingerprintだけ、finding 1以上はnonzero、ignore flagなし、API権限不足はBLOCKED、outputはrepository外・non-overwrite・UTF-8 no BOM／LF／末尾LF1。
+- working_tree_audit: `C:\Users\owner\Development\personal\audit\TASK-009-spec-r2-candidate-20260816-053621\working-tree-staged-public-exposure-audit.json`／1159 bytes／SHA-256 `C1EE5850FD697A809AC681B0772D8D9168CE66F0D885DF15FAB89577C62B3A13`／120 commits／1023 blobs／25 refs／115 Actions logs／finding 0／PASS。
+- candidate_exact_audit: `C:\Users\owner\Development\personal\audit\TASK-009-spec-r2-candidate-20260816-053621\candidate-exact-final-prepush-public-exposure-audit.json`／1161 bytes／SHA-256 `50525F5CB06E9E7C5502B972A30A45C777442876ADA17BEDFDED998FB0EA4F0A`／122 commits／1046 blobs／25 refs／116 Actions logs／finding 0／PASS。
+- finding_009_r3_01: stageは最初のwrite前にfresh tag/Release全体と既存asset exact subsetを検証し、publishはPATCH前にtag/Release metadataとasset full setをfresh再検証する。extra／missing／duplicate／wrong digest／wrong bytes／malformed／stale stateはPOST 0／PATCH 0／upload 0。
+- public_docs: README／release notes／checklist／read-only settingsはpublic repository・Release・history・Actions logs・assets・fork、secret incident停止、concept-only、offline／no backend／runtime request 0、file://とPagesの別origin/storageを整合記載する。
+- tests: npm ci 137 packages／0 vulnerabilities、Vitest 548、focused 69／68／86／28、distribution contract 76、public audit 10、completion PS7／5.1各34、normalization各21、portable 284、staged HTTP 5 files／5 routes、runtime requests 0、console errors 0、page errors 0。
+- non_regression: AppState／migration／storage／backup/import/export／financial calculations／rule data／verifiedAt／generated shared／package-lockのactivation-to-candidate diffは0。revision 1 candidate `49a70b1500420320c566501505d6e70be044ef7c`とhandoff `95562d46da80eddb04985a934fe0dd6c5ad4384f`はimmutable auditでありrevision 2へ再利用していない。
+- public_side_effects: repository visibility publicを維持。tag 0、Release 0、asset 0、Pages未構成、deployment 0、Distribution workflow_dispatch 0、origin/main不変、PR 0。
+- out_of_scope: implementation修正、review判定import、relay、attempt 2以降の作成、attempt 4、release、origin/main統合、tag、Release、asset、Pages、deployment、Distribution dispatch、completion。
+- stop_conditions: candidate／tree／CI、audit identity、candidate-to-handoff production diff、public side-effect boundary、R01～R15／AC01～AC10／T01～T08／F01～F08の不一致。reviewerはsourceを補修せずexact relayをCodexへ返す。
 - report: docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md
 
 ## Review policy
 
-- Attempt 3 uses the terminal profile and is final. Only BLOCKER or MAJOR findings in non-relaxable categories may block; FINDING-009-R2-01／R2-02 remain non-relaxable and must be verified without relaxation.
-- Review only candidate `49a70b1500420320c566501505d6e70be044ef7c` and tree `6a731ff862d4844ab218404c1891a95e538dca68`; the direct-child handoff changes governance/review documents only.
-- If attempt 3 fails, route `NEEDS_USER_DECISION`; do not create attempt 4.
+- Attempt 1 uses the standard profile. Review candidate `9d577d809721af25eef4243088d2a88a4acf2d91` and tree `25ec4bfde700e7f3cfee5b831cab03147a1e3365` exactly.
+- Confirm that the handoff is the candidate's direct child, changes exactly the repository-native six governance/review paths, and has production diff 0.
 - Do not dispatch `distribution.yml` or create／move／delete tag、Release、asset、Pages、deployment、or repository visibility state during review.
-- Return an exact APPROVED、CHANGES_REQUESTED、BLOCKED、or NEEDS_USER_DECISION relay to Codex. Do not perform release、main integration、distribution、completion、or canonical sync.
+- Return an exact APPROVED、CHANGES_REQUESTED、or BLOCKED relay to Codex. Do not perform release、main integration、distribution、completion、or canonical sync.

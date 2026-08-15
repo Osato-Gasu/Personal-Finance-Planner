@@ -3,7 +3,7 @@
 - task_id: TASK-009
 - spec_revision: 2
 - phase: implementation
-- status: implementation_candidate_preparation
+- status: review_requested
 - origin_main_baseline: 0dbc4fb102c92a6df12331540c6cc11010258f54
 - origin_main_baseline_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
 - origin_main_workflow_run_id: 31758459149
@@ -21,14 +21,15 @@
 - corrected_relay_bundle: TASK-009_CHANGES_REQUESTED_RELAY_CCD324A5619B.json / 15380 bytes / CCD324A5619B7270FC0AE44210B0B4C8F760C06516A3A4A490176A145277AB63
 - corrected_relay_next_action_blob: 448dd41f3182b5b1adb721013f18b54226a44e8d
 - reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e / tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c / CI 31789154016 SUCCESS
-- implementation_candidate: pending revision 2 local commit
-- candidate_commit: pending revision 2 local commit
-- candidate_tree: pending revision 2 local commit
-- candidate_parent: 2851bf6a68fed7c762c462ea82bbb4850a863b0b
-- candidate_workflow_run_id: pending push
-- candidate_workflow_attempt: pending push
-- candidate_workflow_conclusion: pending push
-- candidate_workflow_identity: pending revision 2 candidate exact Governance CI
+- implementation_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
+- candidate_commit: 9d577d809721af25eef4243088d2a88a4acf2d91
+- candidate_tree: 25ec4bfde700e7f3cfee5b831cab03147a1e3365
+- candidate_parent: 818a3e462a7b80b5c075adcc24a12481d33f0704
+- candidate_workflow_run_id: 31908178646
+- candidate_workflow_attempt: 1
+- candidate_workflow_conclusion: success
+- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / 9d577d809721af25eef4243088d2a88a4acf2d91 / job 95069128427
+- retained_candidate_ci_failure: run 31907510795 / attempt 1 / job 95067528568 / source test FAILURE; corrected by normal commit without rerun, amend, or force push
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - candidate_shared_version: 0.12.25
@@ -129,17 +130,17 @@
 - candidate_to_handoff_production_diff: 0; exact six governance/review paths only, production diff 0
 - tests_failed: none
 - unresolved_findings: none in the revision 2 implementation candidate; FINDING-009-R3-01 is implemented without severity or scope relaxation; revision 1 findings and identities remain immutable audit
-- worktree: revision_2_candidate_build_in_progress
+- worktree: handoff_only_transition
 - actual_executor: Codex
 - provider_substitution: none
 - review_role: ORCHESTRATOR_AND_REVIEWER
 - execution_mode: separate_session
 - repository_access: true
-- review_status: not_requested
-- request_review_status: not_requested
+- review_status: requested
+- request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: none
+- reviewed_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
 - reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
@@ -155,9 +156,9 @@
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
 - execution_started_at: 2026-08-16 05:14:39 JST
-- candidate_ci_finished_at: pending
+- candidate_ci_finished_at: 2026-08-16 06:07:53 JST
 
-## Pending formal relay evidence — FINDING-009-R3-01
+## Revision 1 terminal finding incorporated into revision 2 — FINDING-009-R3-01
 
 - severity: MAJOR
 - review_scope: release_gate
@@ -167,7 +168,7 @@
   - tests/distribution.test.mjs
   - .github/workflows/distribution.yml
   - docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md
-- problem: `stageRelease`はpreflight後に取得した現在のRelease asset集合を、最初のwriteより前に全件exact検証しない。unexpected assetを無視でき、missing asset uploadと別asset mismatch検査が同じloop内で混在する。`publishRelease`はcurrent Releaseのassetsをexpected exactへ再検証せずPATCH publishするため、preflight／live verification後にassetが追加・削除・変更されたconflicting stateでもpublishへ到達し得る。
+- revision_1_problem: `stageRelease`がpreflight後のcurrent asset集合を最初のwriteより前に全件exact検証せず、`publishRelease`がcurrent assetsをexpected exactへ再検証せずPATCHできた。
 - evidence:
   - current asset集合がexpected assetsのexact subsetかをwrite前に検証しない
   - unexpected／duplicate asset拒否がない
@@ -184,7 +185,7 @@
   - publishReleaseはPATCH前に全expected asset集合を再取得してexact検証し、missing／extra／duplicate／digest mismatch／bytes mismatchはPATCH 0とする
   - stale audit/current stateのnegative testを追加する
   - 正常path、exact_published no-op、既存testを回帰させない
-- materialization_status: evidence only; canonical open findingは変更せず、formal source CHANGES_REQUESTED relay Import時にrepository-native materializeする
+- materialization_status: revision 2 R10／AC06／T06／F04へ非緩和でmaterialize済み。candidate `9d577d809721af25eef4243088d2a88a4acf2d91`でstage exact-subset／publish full-set gateとnegative mutation testsを実装し、open finding registryはnone。
 
 ## Requirement and acceptance evidence
 
@@ -195,7 +196,7 @@
 - R08 and AC05: canonical APPROVED proof and strict repository-native public exposure audit proof are required by preflight and Pages guard; wrong, stale, private, finding-bearing, or forged proof fails before writes with side_effects 0.
 - R09/R10 and AC06: ordered state machine and exact partial-state recovery are pure-tested; stage validates the whole fresh current asset subset before its first write, publish validates the exact full set before PATCH, exact_published is a revalidated success no-op, and all mutation/conflicting identities block without destructive rollback.
 - R11 and AC07: settings and release documentation align on version/hash/date/disclaimer/offline/storage boundaries; file:// and staged HTTP evidence passed, including all five raw files. Live Pages evidence remains intentionally deferred to authorized distribution.
-- R12 and AC08: attempt 2 candidate exact CI `31789154016` SUCCESS precedes this direct-child docs-only handoff; production candidate changes are complete and no release/main/distribution action was performed.
+- R12 and AC08: revision 2 candidate exact CI `31908178646` SUCCESS precedes this direct-child docs-only handoff; cycles 0／attempt 1／standardでproduction candidate changesは完了し、release/main/distribution actionは0。
 - R15 and AC09: no TASK-012 force delete was used and directory residue was not treated as a blocker.
 - AC10 and T08 completion-only identities are not claimed: release/main/distribution/live/completion/final CI were explicitly not performed at this handoff boundary.
 - F01～F08: no forbidden state/financial/publication/security/destructive/history-rewrite/test-weakening/generated-shared/TASK-012-force action occurred.
@@ -208,15 +209,16 @@
 - revision_2_activation_commit: `2851bf6a68fed7c762c462ea82bbb4850a863b0b`
 - revision_2_activation_tree: `7becd82c06fbf94a90fc44e28dda6e25f56411c5`
 - revision_2_activation_ci: run `31903813206`／attempt `1`／job `95058488867`／SUCCESS
-- revision_2_candidate_commit/tree/parent: recorded by the direct-child handoff-only transition after candidate exact CI SUCCESS
-- revision_2_candidate_ci: recorded by the direct-child handoff-only transition after candidate exact CI SUCCESS
+- revision_2_candidate_commit/tree/parent: `9d577d809721af25eef4243088d2a88a4acf2d91`／`25ec4bfde700e7f3cfee5b831cab03147a1e3365`／`818a3e462a7b80b5c075adcc24a12481d33f0704`; activation `2851bf6a68fed7c762c462ea82bbb4850a863b0b` is an ancestor
+- revision_2_candidate_ci: run `31908178646`／attempt `1`／job `95069128427`／SUCCESS; every required step including public audit and both browser gates passed
 - revision_2_candidate_changed_paths: `.github/workflows/ci.yml`; `.github/workflows/distribution.yml`; `Personal-Finance-Planner.html`; `README.md`; `docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`; `docs/product/RELEASE_CHECKLIST.md`; `docs/product/RELEASE_NOTES_v0.1.0.md`; `package.json`; `src/modules/settings/settings-view.ts`; `src/product-metadata.ts`; `tests/distribution-workflow.test.mjs`; `tests/distribution.test.mjs`; `tests/product-metadata.test.ts`; `tests/public-exposure-audit.test.mjs`; `tools/configure-pages-lib.mjs`; `tools/configure-pages.mjs`; `tools/distribution-preflight-lib.mjs`; `tools/distribution-preflight.mjs`; `tools/distribution-release.mjs`; `tools/public-exposure-audit-lib.mjs`; `tools/public-exposure-audit.mjs`
 - revision_2_handoff_commit/tree/parent/ci: recorded after the handoff commit and exact CI SUCCESS
 - shared_identity: v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`／tree `4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc`／manifest `ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE`
 - public_approval: `USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`／evidence SHA-256 `781A6207DC4031E36A6771048386981D13120CF35C6CDC421819ABFA697089D5`
 - immutable_public_visibility_audit: `C:\Users\owner\Development\personal\audit\TASK-009-public-visibility-20260816-022215`／PASS／118 commits／2091 objects／1005 blobs／finding 0
-- candidate_working_tree_audit: executed from completed implementation bytes before the local candidate commit; external directory, report SHA-256／bytes／scan counts are recorded by the handoff-only transition
-- candidate_exact_prepush_audit: executed against the exact local candidate commit before push; external directory, report SHA-256／bytes／scan counts are recorded by the handoff-only transition
+- candidate_working_tree_audit: `C:\Users\owner\Development\personal\audit\TASK-009-spec-r2-candidate-20260816-053621\working-tree-staged-public-exposure-audit.json`／1159 bytes／SHA-256 `C1EE5850FD697A809AC681B0772D8D9168CE66F0D885DF15FAB89577C62B3A13`／120 commits／987 trees／1023 blobs／25 refs／115 Actions logs／0 artifacts／finding 0／PASS
+- candidate_fix_working_tree_audit: same directory／`candidate-fix-working-tree-public-exposure-audit.json`／1164 bytes／SHA-256 `18669B5B0AF72607638013F198629B5E324954879FD2601AF3F9C981153026FF`／finding 0／PASS
+- candidate_exact_prepush_audit: same directory／`candidate-exact-final-prepush-public-exposure-audit.json`／1161 bytes／SHA-256 `50525F5CB06E9E7C5502B972A30A45C777442876ADA17BEDFDED998FB0EA4F0A`／122 commits／1002 trees／1046 blobs／25 refs／116 Actions logs／0 artifacts／finding 0／PASS／target candidate exact
 - public_visibility_contract: repository API requires `private === false` and `visibility === public`; npm publication guard `package.json.private === true` is unchanged; private repository and missing/stale/finding audit proofs return side_effects 0
 - public_exposure_audit_gate: `tools/public-exposure-audit-lib.mjs`／`tools/public-exposure-audit.mjs`; strict schema 1; full reachable commits/trees/blobs, refs/tags/LFS/submodules, working/staged bytes, obtainable Actions logs/artifacts, and release staging; external non-overwriting UTF-8 no BOM/LF/trailing-LF report; value-redacted fingerprint evidence only; API permission failure is BLOCKED; no ignore flag
 - finding_009_r3_01_stage_resolution: fresh tag and Release absence are both read before the first write; existing tag/Release metadata and every current asset are validated as a unique exact expected subset before upload; unexpected/duplicate/malformed/unavailable/wrong digest/wrong bytes/stale preflight identities produce POST 0／PATCH 0／upload 0
