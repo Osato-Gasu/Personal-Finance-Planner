@@ -1,41 +1,37 @@
 # RELAY IMPORT — TASK-009
 
-- source bundle: TASK-009_CHANGES_REQUESTED_R2_V01224_RELAY_CD87DC8DF74D.json
-- source SHA-256: CD87DC8DF74D649867B4FE73ED96DAD326BAFA195E30A13C13D3B5241FA3C32A
-- source bytes: 15657
+- source bundle: TASK-009_SPEC_REVISION_2_RESET_RELAY_91ED20651DE1.json
+- source SHA-256: 91ED20651DE1B6F3C4ECC2A8B1595E4B609C0A3430CF0E4824935F29A1E7D5BA
+- source bytes: 17845
 - identity verified: true
 - canonical bundle: docs/ai/reports/TASK-009/RELAY_BUNDLE.json
-- canonical SHA-256: CD87DC8DF74D649867B4FE73ED96DAD326BAFA195E30A13C13D3B5241FA3C32A
-- canonical bytes: 15657
+- canonical SHA-256: 91ED20651DE1B6F3C4ECC2A8B1595E4B609C0A3430CF0E4824935F29A1E7D5BA
+- canonical bytes: 17845
 - semantic round-trip: verified
-- decision: CHANGES_REQUESTED
+- decision: BLOCKED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
-- candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- handoff HEAD: f79a89e3bb2136bc5716a2c08dc17f1ebc3e518d
-- spec_revision_reset: false
+- candidate: 49a70b1500420320c566501505d6e70be044ef7c
+- handoff HEAD: 25be0b48699ef350bd72a60e3b564b7dd8c1d2a4
+- spec_revision_reset: true
 - review_stage: implementation
-- changes_requested_cycles: 2
-- implementation_review_attempt: 3
-- implementation_review_profile: terminal
-- implementation_review_final: true
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
 - implementation_review_terminated: false
-- attempt_4_forbidden: true
-- original_formal_review_handoff: 502d5ec0bf25a1f05ec49762c8e7d562830725a7
-- import_binding_head: f79a89e3bb2136bc5716a2c08dc17f1ebc3e518d
 - user_confirmation_required: false
 - user_confirmation_prompt: none
 - review_termination_reason: none
-- implementation_review_open_finding_ids: FINDING-009-R2-01, FINDING-009-R2-02
+- implementation_review_open_finding_ids: none
 - routing_mode: connector_read_only
 - route_repository: Osato-Gasu/Personal-Finance-Planner
 - requested_ref: refs/heads/codex/task-009-distribution
-- resolved_commit: f79a89e3bb2136bc5716a2c08dc17f1ebc3e518d
-- next_action_blob: 4261e9edc3eef988d91f03ec2ab5f1c3a512edca
-- handoff_blob: 7c976bed438fb7743f1a6aaeb9367fa8973cac62
+- resolved_commit: 25be0b48699ef350bd72a60e3b564b7dd8c1d2a4
+- next_action_blob: 682d88d90e051e4905e5ee04f8a2a1ed03e53552
+- handoff_blob: 94099622d8d3685f30c5520b71999940e47c5953
 - adapter_blob: 1feb586cdac2c612ca02fee3dc1b0addf6cfab94
-- implementation_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e
-- imported findings: 2
-- accepted findings: 2
+- implementation_candidate: 49a70b1500420320c566501505d6e70be044ef7c
+- imported findings: 1
+- accepted findings: 1
 - finding dispositions: 0

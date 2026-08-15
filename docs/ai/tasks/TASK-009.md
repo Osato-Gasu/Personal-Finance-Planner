@@ -1,23 +1,23 @@
 ---
 task_id: TASK-009
 title: 配布
-status: review_requested
+status: blocked
 route: TWO_SESSION_FAST
 priority: low
-spec_revision: 1
+spec_revision: 2
 spec_status: accepted
-current_phase: implementation_review
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
+current_phase: blocked
+current_role_id: IMPLEMENTER
+next_actor: Codex
+next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-009/BLOCKED_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
+return_to: ChatGPT
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -30,13 +30,13 @@ base_tree: 12bc199fdc1f76ab187c1604838ad9b475afc71e
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
 accepted_product_sha256: 9DBBD2D0590A3BCFBC3D4DA317E1AFC58A9BE7C18920E5910BD908A7AE0E6BBE
 review_stage: implementation
-changes_requested_cycles: 2
-implementation_review_attempt: 3
-implementation_review_profile: terminal
-implementation_review_final: true
+changes_requested_cycles: 0
+implementation_review_attempt: 1
+implementation_review_profile: standard
+implementation_review_final: false
 implementation_review_terminated: false
-attempt_4_forbidden: true
-spec_revision_reset: false
+attempt_4_forbidden: false
+spec_revision_reset: true
 user_confirmation_required: false
 user_confirmation_prompt: none
 review_termination_reason: none
@@ -61,7 +61,7 @@ actual_executor: ChatGPT
 provider_substitution: none
 
 shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-implementation_review_open_finding_ids: FINDING-009-R2-01, FINDING-009-R2-02
+implementation_review_open_finding_ids: none
 updated_at: 2026-08-15
 ---
 

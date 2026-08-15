@@ -3,11 +3,11 @@ updated_at: 2026-08-15
 active_tasks:
   - TASK-009
 review_stage: implementation
-changes_requested_cycles: 2
-implementation_review_attempt: 3
-implementation_review_profile: terminal
+changes_requested_cycles: 0
+implementation_review_attempt: 1
+implementation_review_profile: standard
 implementation_review_terminated: false
-next_action: ChatGPT generates the TASK-009 terminal CHANGES_REQUESTED relay after the v0.12.25 finding-ID parser recovery CI succeeds
+next_action: Codex resolves BLOCKED relay for TASK-009
 ---
 
 # Current state
