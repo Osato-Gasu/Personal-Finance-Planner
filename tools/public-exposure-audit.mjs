@@ -76,37 +76,58 @@ function batchBlobs(cwd, identities, spawnImpl = spawnSync) {
 }
 
 async function githubJson(url, token, fetchImpl = fetch) {
-  const response = await fetchImpl(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "personal-finance-planner-public-audit",
-    },
-  });
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "personal-finance-planner-public-audit",
+      },
+    });
+  } catch {
+    throw new Error(`BLOCKED: GitHub API request failure at ${url}`);
+  }
   if (!response.ok)
     throw new Error(
       `BLOCKED: GitHub API permission/read failure ${String(response.status)} at ${url}`,
     );
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`BLOCKED: GitHub API response body failure at ${url}`);
+  }
 }
 
 async function githubBytes(url, token, fetchImpl = fetch) {
-  const response = await fetchImpl(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "personal-finance-planner-public-audit",
-    },
-    redirect: "follow",
-  });
-  if (response.status === 404 || response.status === 410) return null;
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "personal-finance-planner-public-audit",
+      },
+      redirect: "follow",
+    });
+  } catch {
+    throw new Error(
+      `BLOCKED: GitHub log/artifact request or redirect failure at ${url}`,
+    );
+  }
   if (!response.ok)
     throw new Error(
       `BLOCKED: GitHub log/artifact read failure ${String(response.status)} at ${url}`,
     );
-  return Buffer.from(await response.arrayBuffer());
+  try {
+    return Buffer.from(await response.arrayBuffer());
+  } catch {
+    throw new Error(
+      `BLOCKED: GitHub log/artifact response body failure at ${url}`,
+    );
+  }
 }
 
 async function githubPages(url, token, key, fetchImpl = fetch) {
@@ -150,6 +171,13 @@ function splitLines(value) {
 
 function hashSet(values) {
   return sha256(Buffer.from(`${[...new Set(values)].sort().join("\n")}\n`));
+}
+
+function inventory(values, label) {
+  const unique = new Set(values);
+  if (unique.size !== values.length)
+    throw new Error(`BLOCKED: duplicate ${label} inventory identity`);
+  return { count: values.length, sha256: hashSet(values) };
 }
 
 function parseTreeEntries(bytes, commit) {
@@ -248,6 +276,7 @@ async function scanGithub({
   scans,
   fetchImpl,
   spawnImpl,
+  scanArtifactImpl,
 }) {
   if (!token)
     throw new Error("BLOCKED: GITHUB_TOKEN is required for Actions audit");
@@ -276,13 +305,32 @@ async function scanGithub({
       .filter((job) => job.status === "completed")
       .map((job) => ({ run, job })),
   );
+  const runInventory = inventory(
+    runs.map(
+      (run) =>
+        `${String(run.id)}\t${run.head_sha ?? ""}\t${run.status ?? ""}\t${run.conclusion ?? ""}\t${String(run.run_attempt ?? "")}`,
+    ),
+    "Actions run",
+  );
+  const jobInventory = inventory(
+    runJobs.flatMap(({ run, jobs }) =>
+      jobs.map(
+        (job) =>
+          `${String(run.id)}\t${String(job.id)}\t${job.status ?? ""}\t${job.conclusion ?? ""}`,
+      ),
+    ),
+    "Actions job",
+  );
+  const requiredJobLogInventory = inventory(
+    completedJobs.map(({ run, job }) => `${String(run.id)}\t${String(job.id)}`),
+    "required Actions job log",
+  );
   const logFindings = await mapLimit(completedJobs, 8, async ({ run, job }) => {
     const bytes = await githubBytes(
       `${base}/actions/jobs/${String(job.id)}/logs`,
       token,
       fetchImpl,
     );
-    if (bytes === null) return null;
     return scanPublicBytes({
       bytes,
       path: `actions/run-${String(run.id)}/job-${String(job.id)}.log`,
@@ -290,10 +338,11 @@ async function scanGithub({
     });
   });
   for (const current of logFindings) {
-    if (current === null) continue;
     findings.push(...current);
     scans.actions_run_logs += 1;
   }
+  if (scans.actions_run_logs !== requiredJobLogInventory.count)
+    throw new Error("BLOCKED: Actions job log scan inventory mismatch");
   const artifacts = await githubPages(
     `${base}/actions/artifacts`,
     token,
@@ -301,40 +350,47 @@ async function scanGithub({
     fetchImpl,
   );
   scans.actions_artifacts = 0;
+  let artifactRetrievals = 0;
+  const artifactInventory = inventory(
+    artifacts.map(
+      (artifact) =>
+        `${String(artifact.id)}\t${artifact.name ?? ""}\t${String(artifact.expired === true)}\t${artifact.workflow_run?.head_sha ?? ""}`,
+    ),
+    "Actions artifact",
+  );
   for (const artifact of artifacts) {
-    if (artifact.expired) continue;
+    if (artifact.expired)
+      throw new Error(
+        `BLOCKED: Actions artifact is expired or unavailable: ${String(artifact.id)}`,
+      );
     const bytes = await githubBytes(
       `${base}/actions/artifacts/${String(artifact.id)}/zip`,
       token,
       fetchImpl,
     );
-    if (bytes === null) continue;
+    artifactRetrievals += 1;
     const path = `actions/artifact-${String(artifact.id)}-${artifact.name}.zip`;
-    findings.push(...scanArtifactArchive(bytes, path, { spawnImpl }));
+    findings.push(...scanArtifactImpl(bytes, path, { spawnImpl }));
     scans.actions_artifacts += 1;
   }
+  if (
+    artifactRetrievals !== artifactInventory.count ||
+    scans.actions_artifacts !== artifactInventory.count
+  )
+    throw new Error("BLOCKED: Actions artifact scan inventory mismatch");
   return {
     visibility: repo.visibility,
-    runSetSha256: hashSet(
-      runs.map(
-        (run) =>
-          `${String(run.id)}\t${run.head_sha ?? ""}\t${run.status ?? ""}\t${run.conclusion ?? ""}\t${String(run.run_attempt ?? "")}`,
-      ),
-    ),
-    jobSetSha256: hashSet(
-      runJobs.flatMap(({ run, jobs }) =>
-        jobs.map(
-          (job) =>
-            `${String(run.id)}\t${String(job.id)}\t${job.status ?? ""}\t${job.conclusion ?? ""}`,
-        ),
-      ),
-    ),
-    artifactSetSha256: hashSet(
-      artifacts.map(
-        (artifact) =>
-          `${String(artifact.id)}\t${artifact.name ?? ""}\t${String(artifact.expired === true)}\t${artifact.workflow_run?.head_sha ?? ""}`,
-      ),
-    ),
+    runSetSha256: runInventory.sha256,
+    jobSetSha256: jobInventory.sha256,
+    artifactSetSha256: artifactInventory.sha256,
+    runInventoryCount: runInventory.count,
+    jobInventoryCount: jobInventory.count,
+    requiredJobLogCount: requiredJobLogInventory.count,
+    jobLogRetrievalCount: logFindings.length,
+    jobLogScanCount: scans.actions_run_logs,
+    artifactInventoryCount: artifactInventory.count,
+    artifactRetrievalCount: artifactRetrievals,
+    artifactScanCount: scans.actions_artifacts,
   };
 }
 
@@ -348,6 +404,7 @@ export async function runPublicExposureAudit({
   token,
   fetchImpl = fetch,
   spawnImpl = spawnSync,
+  scanArtifactImpl = scanArtifactArchive,
 }) {
   const root = String(
     git(cwd, ["rev-parse", "--show-toplevel"], undefined, spawnImpl),
@@ -575,6 +632,7 @@ export async function runPublicExposureAudit({
     scans,
     fetchImpl,
     spawnImpl,
+    scanArtifactImpl,
   });
   const provenance = {
     target_commit: targetCommit,
@@ -592,6 +650,14 @@ export async function runPublicExposureAudit({
     actions_run_set_sha256: github.runSetSha256,
     actions_job_set_sha256: github.jobSetSha256,
     actions_artifact_set_sha256: github.artifactSetSha256,
+    actions_run_inventory_count: github.runInventoryCount,
+    actions_job_inventory_count: github.jobInventoryCount,
+    actions_required_job_log_count: github.requiredJobLogCount,
+    actions_job_log_retrieval_count: github.jobLogRetrievalCount,
+    actions_job_log_scan_count: github.jobLogScanCount,
+    actions_artifact_inventory_count: github.artifactInventoryCount,
+    actions_artifact_retrieval_count: github.artifactRetrievalCount,
+    actions_artifact_scan_count: github.artifactScanCount,
     repository_scan_complete: true,
     actions_scan_complete: true,
   };

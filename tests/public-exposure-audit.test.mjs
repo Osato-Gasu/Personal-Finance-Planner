@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   PUBLIC_AUDIT_CATEGORIES,
+  PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS,
   PUBLIC_AUDIT_REQUIRED_SCANS,
   PUBLIC_AUDIT_SCAN_METHOD,
   buildPublicAuditReport,
@@ -41,6 +42,14 @@ const provenance = {
   actions_run_set_sha256: "F".repeat(64),
   actions_job_set_sha256: "1".repeat(64),
   actions_artifact_set_sha256: "2".repeat(64),
+  actions_run_inventory_count: 1,
+  actions_job_inventory_count: 1,
+  actions_required_job_log_count: 1,
+  actions_job_log_retrieval_count: 1,
+  actions_job_log_scan_count: 1,
+  actions_artifact_inventory_count: 1,
+  actions_artifact_retrieval_count: 1,
+  actions_artifact_scan_count: 1,
   repository_scan_complete: true,
   actions_scan_complete: true,
 };
@@ -51,6 +60,33 @@ function jsonResponse(value, status = 200) {
     status,
     json: async () => value,
   };
+}
+
+function bytesResponse(value, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    arrayBuffer: async () => Buffer.from(value),
+  };
+}
+
+async function createAuditRepository(prefix) {
+  const root = await mkdtemp(join(tmpdir(), prefix));
+  const repo = resolve(root, "repo");
+  await mkdir(repo);
+  execFileSync("git", ["init", "-b", "main"], { cwd: repo });
+  execFileSync("git", ["config", "user.name", "Audit Test"], { cwd: repo });
+  execFileSync("git", ["config", "user.email", "audit@example.invalid"], {
+    cwd: repo,
+  });
+  await writeFile(resolve(repo, "safe.txt"), "safe\n");
+  execFileSync("git", ["add", "safe.txt"], { cwd: repo });
+  execFileSync("git", ["commit", "-m", "safe"], { cwd: repo });
+  const head = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repo,
+    encoding: "utf8",
+  }).trim();
+  return { root, repo, head, output: resolve(root, "audit.json") };
 }
 
 function report(overrides = {}) {
@@ -250,6 +286,46 @@ describe("public exposure audit contract", () => {
     }
   });
 
+  it("rejects mismatched Actions inventory, retrieval, and scan counts", () => {
+    for (const name of PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS) {
+      const value = report({
+        provenance: { ...provenance, [name]: undefined },
+      });
+      const bytes = serializePublicAuditReport(value);
+      expect(
+        validatePublicExposureAudit(value, {
+          repository,
+          targetCommit,
+          phase: "release_preflight",
+          reportBytes: bytes,
+          expectedSha256: sha256(bytes),
+        }).ok,
+      ).toBe(false);
+    }
+    const mismatched = report({
+      provenance: {
+        ...provenance,
+        actions_job_log_retrieval_count: 0,
+        actions_artifact_scan_count: 0,
+      },
+    });
+    const bytes = serializePublicAuditReport(mismatched);
+    expect(
+      validatePublicExposureAudit(mismatched, {
+        repository,
+        targetCommit,
+        phase: "release_preflight",
+        reportBytes: bytes,
+        expectedSha256: sha256(bytes),
+      }).errors,
+    ).toEqual(
+      expect.arrayContaining([
+        "public audit Actions job log completeness mismatch",
+        "public audit Actions artifact completeness mismatch",
+      ]),
+    );
+  });
+
   it.each([
     ["parent traversal", ["../secret.txt"], ["-rw-r--r-- entry"]],
     ["symlink", ["linked.txt"], ["lrwxrwxrwx entry"]],
@@ -376,6 +452,225 @@ describe("public exposure audit contract", () => {
       ).rejects.toThrow("BLOCKED: GitHub API permission/read failure");
     } finally {
       await rm(root, { recursive: true });
+    }
+  });
+
+  it.each([
+    ["job log HTTP 404", "log", 404],
+    ["job log HTTP 410", "log", 410],
+    ["artifact ZIP HTTP 404", "artifact", 404],
+    ["artifact ZIP HTTP 410", "artifact", 410],
+  ])(
+    "fails closed without a PASS report for %s",
+    async (_label, kind, status) => {
+      const fixture = await createAuditRepository("public-audit-missing-");
+      const fetchImpl = async (url) => {
+        const value = String(url);
+        if (value.endsWith(`/${repository}`))
+          return jsonResponse({ private: false, visibility: "public" });
+        if (value.includes("/actions/runs?") && kind === "log")
+          return jsonResponse({
+            workflow_runs: [
+              {
+                id: 11,
+                head_sha: fixture.head,
+                status: "completed",
+                conclusion: "success",
+                run_attempt: 1,
+              },
+            ],
+          });
+        if (value.includes("/actions/runs?") && kind === "artifact")
+          return jsonResponse({ workflow_runs: [] });
+        if (value.includes("/actions/runs/11/jobs"))
+          return jsonResponse({
+            jobs: [{ id: 21, status: "completed", conclusion: "success" }],
+          });
+        if (value.includes("/actions/jobs/21/logs"))
+          return bytesResponse("", status);
+        if (value.includes("/actions/artifacts?") && kind === "artifact")
+          return jsonResponse({
+            artifacts: [
+              {
+                id: 31,
+                name: "proof",
+                expired: false,
+                workflow_run: { head_sha: fixture.head },
+              },
+            ],
+          });
+        if (value.includes("/actions/artifacts?") && kind === "log")
+          return jsonResponse({ artifacts: [] });
+        if (value.includes("/actions/artifacts/31/zip"))
+          return bytesResponse("", status);
+        throw new Error(`unexpected test URL: ${value}`);
+      };
+      try {
+        await expect(
+          runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            fetchImpl,
+          }),
+        ).rejects.toThrow(new RegExp(`BLOCKED:.*${String(status)}`, "u"));
+        await expect(readFile(fixture.output)).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
+
+  it.each([
+    ["HTTP 403", async () => bytesResponse("", 403), /read failure 403/u],
+    ["HTTP 5xx", async () => bytesResponse("", 503), /read failure 503/u],
+    [
+      "redirect or request failure",
+      async () => {
+        throw new Error("redirect");
+      },
+      /request or redirect failure/u,
+    ],
+    [
+      "response body failure",
+      async () => ({
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => {
+          throw new Error("body");
+        },
+      }),
+      /response body failure/u,
+    ],
+  ])(
+    "fails closed for Actions content %s",
+    async (_label, contentResponse, expected) => {
+      const fixture = await createAuditRepository("public-audit-content-");
+      const fetchImpl = async (url) => {
+        const value = String(url);
+        if (value.endsWith(`/${repository}`))
+          return jsonResponse({ private: false, visibility: "public" });
+        if (value.includes("/actions/runs?"))
+          return jsonResponse({
+            workflow_runs: [
+              {
+                id: 11,
+                head_sha: fixture.head,
+                status: "completed",
+                conclusion: "success",
+                run_attempt: 1,
+              },
+            ],
+          });
+        if (value.includes("/actions/runs/11/jobs"))
+          return jsonResponse({
+            jobs: [{ id: 21, status: "completed", conclusion: "success" }],
+          });
+        if (value.includes("/actions/jobs/21/logs")) return contentResponse();
+        throw new Error(`unexpected test URL: ${value}`);
+      };
+      try {
+        await expect(
+          runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            fetchImpl,
+          }),
+        ).rejects.toThrow(expected);
+        await expect(readFile(fixture.output)).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
+
+  it("binds successful Actions inventory, retrieval, set hashes, and scan counts", async () => {
+    const fixture = await createAuditRepository("public-audit-complete-");
+    let artifactScans = 0;
+    const fetchImpl = async (url) => {
+      const value = String(url);
+      if (value.endsWith(`/${repository}`))
+        return jsonResponse({ private: false, visibility: "public" });
+      if (value.includes("/actions/runs?"))
+        return jsonResponse({
+          workflow_runs: [
+            {
+              id: 11,
+              head_sha: fixture.head,
+              status: "completed",
+              conclusion: "success",
+              run_attempt: 1,
+            },
+          ],
+        });
+      if (value.includes("/actions/runs/11/jobs"))
+        return jsonResponse({
+          jobs: [{ id: 21, status: "completed", conclusion: "success" }],
+        });
+      if (value.includes("/actions/jobs/21/logs"))
+        return bytesResponse("safe log\n");
+      if (value.includes("/actions/artifacts?"))
+        return jsonResponse({
+          artifacts: [
+            {
+              id: 31,
+              name: "proof",
+              expired: false,
+              workflow_run: { head_sha: fixture.head },
+            },
+          ],
+        });
+      if (value.includes("/actions/artifacts/31/zip"))
+        return bytesResponse("safe archive");
+      throw new Error(`unexpected test URL: ${value}`);
+    };
+    try {
+      const value = await runPublicExposureAudit({
+        cwd: fixture.repo,
+        repository,
+        targetCommit: fixture.head,
+        phase: "candidate_ci",
+        output: fixture.output,
+        token: "test-token",
+        fetchImpl,
+        scanArtifactImpl: () => {
+          artifactScans += 1;
+          return [];
+        },
+      });
+      expect(value.result).toBe("PASS");
+      expect(value.scans.actions_run_logs).toBe(1);
+      expect(value.scans.actions_artifacts).toBe(1);
+      expect(artifactScans).toBe(1);
+      expect(value.provenance).toMatchObject({
+        actions_run_inventory_count: 1,
+        actions_job_inventory_count: 1,
+        actions_required_job_log_count: 1,
+        actions_job_log_retrieval_count: 1,
+        actions_job_log_scan_count: 1,
+        actions_artifact_inventory_count: 1,
+        actions_artifact_retrieval_count: 1,
+        actions_artifact_scan_count: 1,
+        actions_scan_complete: true,
+      });
+      expect(
+        validatePublicExposureAudit(value, {
+          repository,
+          targetCommit: fixture.head,
+          phase: "candidate_ci",
+          reportBytes: await readFile(fixture.output),
+          expectedSha256: sha256(await readFile(fixture.output)),
+        }).ok,
+      ).toBe(true);
+    } finally {
+      await rm(fixture.root, { recursive: true });
     }
   });
 

@@ -32,6 +32,16 @@ export const PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES = Object.freeze([
   "actions_job_set_sha256",
   "actions_artifact_set_sha256",
 ]);
+export const PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS = Object.freeze([
+  "actions_run_inventory_count",
+  "actions_job_inventory_count",
+  "actions_required_job_log_count",
+  "actions_job_log_retrieval_count",
+  "actions_job_log_scan_count",
+  "actions_artifact_inventory_count",
+  "actions_artifact_retrieval_count",
+  "actions_artifact_scan_count",
+]);
 export const PUBLIC_AUDIT_CATEGORIES = Object.freeze([
   "high_confidence_credential",
   "github_oauth_cloud_token",
@@ -272,6 +282,34 @@ export function validatePublicExposureAudit(
     if (!/^[0-9A-F]{64}$/u.test(hash) || /^0{64}$/u.test(hash))
       errors.push(`public audit provenance is missing: ${name}`);
   }
+  for (const name of PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS) {
+    const count = report?.provenance?.[name];
+    if (!Number.isSafeInteger(count) || count < 0)
+      errors.push(`public audit Actions provenance count is missing: ${name}`);
+  }
+  if (
+    report?.provenance?.actions_job_inventory_count <
+    report?.provenance?.actions_required_job_log_count
+  )
+    errors.push("public audit Actions job inventory count mismatch");
+  if (
+    report?.provenance?.actions_required_job_log_count !==
+      report?.provenance?.actions_job_log_retrieval_count ||
+    report?.provenance?.actions_job_log_retrieval_count !==
+      report?.provenance?.actions_job_log_scan_count ||
+    report?.provenance?.actions_job_log_scan_count !==
+      report?.scans?.actions_run_logs
+  )
+    errors.push("public audit Actions job log completeness mismatch");
+  if (
+    report?.provenance?.actions_artifact_inventory_count !==
+      report?.provenance?.actions_artifact_retrieval_count ||
+    report?.provenance?.actions_artifact_retrieval_count !==
+      report?.provenance?.actions_artifact_scan_count ||
+    report?.provenance?.actions_artifact_scan_count !==
+      report?.scans?.actions_artifacts
+  )
+    errors.push("public audit Actions artifact completeness mismatch");
   if (report?.provenance?.repository_scan_complete !== true)
     errors.push("public audit repository scan is incomplete");
   if (report?.provenance?.actions_scan_complete !== true)
