@@ -5,9 +5,9 @@
 - source: `docs/ai/CURRENT_STATE.md`, `docs/ai/BACKLOG.md`, `docs/product/`, user request
 - purpose: active TASKがない状態から次TASKの目的、scope、受入条件、禁止変更、test/build、review、model/effortを確定する
 - repository: Osato-Gasu/Personal-Finance-Planner
-- branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011はユーザー承認済みcarry-forwardのためtransition exact commitをbaseとする
+- branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011とTASK-013はユーザー承認済みcarry-forwardのため各transition exact commitをbaseとする
 - product_source: docs/product/
-- next_candidate: TASK-009
+- next_candidate: TASK-013
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
@@ -50,7 +50,13 @@
 - resolved_findings_TASK_012: FINDING-012-R1-01、FINDING-012-R1-02は解消済み。attempt 3とattempt 4は作成せず、tag、GitHub Release、distributionも行っていない
 - completion_evidence_TASK_012: PowerShell 7／5.1 completion各34 cases、462 Vitest、69 take-home、68 NISA、86 iDeCo、28 overview、284 portable checks、runtime requests 0、console errors 0、page errors 0をPASS
 - task_history_TASK_012: active TASK/handoff/report packetはrelease head `4e217b8d47cc955f3b3e3da54d97ead811346381`のGit履歴で完全に追跡可能で、git_only completion sync後のcurrent treeには残さない
-- next_requirements_TASK_009: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-009「配布」の正式要件を定義する
+- blocked_predecessor_TASK_009: TASK-009 spec revision 2はattempt 3／terminal／final、cycles 3で打ち切り、candidate 03825e58f61f95d2364f09246f202744e4617ba5（tree 934892b96eff8e5b66ddf67e71eefd29353a86a0）は未承認・未release、attempt 4禁止のまま維持する
+- required_carry_forward_TASK_009: FINDING-009-V2-R1-02（Actions run／job／artifact inventoryのstable IDとmutable metadataが分離されず、duplicate completenessを証明できない問題）をTASK-013の唯一の修復対象として要件・受入条件・testへ含める
+- successor_policy_TASK_013: TASK-013はTASK-009 attempt 4ではなく独立TASKとしてreview attempt 1／standard／cycles 0から開始し、TASK-009をretroactive APPROVEDまたはreleasedにしない
+- carry_forward_candidate_TASK_013: TASK-009 product candidate 03825e58f61f95d2364f09246f202744e4617ba5／tree 934892b96eff8e5b66ddf67e71eefd29353a86a0を未承認product baselineとして継承し、TASK-013で新candidate・handoff・reviewを作成する
+- transition_artifact_TASK_013: project-user-decision-separate-task-transition-v1／557C4E1B26F153025D04B8403F68D3594D647AF994FA458C17ADB4892A4CD23C／14795 bytes
+- user_decision_TASK_013: option A／CREATE_SEPARATE_TASK／approval USER-DECISION-TASK-009-REMEDIATION-20260816-202947。TASK-009はterminated、candidate unapproved／unreleased、attempt 4 forbiddenのまま保持する
+- next_requirements_TASK_013: ChatGPTがpermanent handoff、transition artifact、TASK-009 Git履歴からTASK-013「TASK-009公開監査stable ID修復」の正式要件を定義する
 
 ## TASK-011 requirements draft (lossless user-decision carry-forward)
 
@@ -91,3 +97,51 @@
 - Candidate exact GitHub Actions SUCCESS precedes review handoff.
 - TASK-011 implementation review starts attempt 1 standard, cycles 0, final false.
 - No main merge/tag/release or TASK-005 attempt 4.
+
+## TASK-013 requirements draft (lossless TASK-009 remediation carry-forward)
+
+### Purpose
+
+- Repair the public exposure audit Actions inventory identity model by separating canonical stable keys from mutable metadata, while carrying forward the unapproved TASK-009 product candidate without changing unrelated product behavior.
+
+### Scope
+
+- Use the post-transition commit as TASK-013 exact base, not origin/main.
+- Carry forward TASK-009 candidate `03825e58f61f95d2364f09246f202744e4617ba5`／tree `934892b96eff8e5b66ddf67e71eefd29353a86a0` as an unapproved product baseline only.
+- Use `run.id` as the canonical run stable key, `run.id + job.id`（or a formally justified globally unique `job.id`）as the job stable key, and `artifact.id` as the artifact stable key.
+- Require stable IDs to be valid non-empty integers and reject duplicate stable keys whether metadata is identical or conflicting.
+- Keep metadata outside the stable key and bind canonical metadata records to a separate deterministic record-set SHA-256.
+- Reject pagination overlap, duplicate API records, and conflicting metadata; do not silently deduplicate them.
+- Bind inventory, retrieval, scan, report counts and stable-key／record-set hashes to the same exact unique object set.
+- Add independent negative tests for duplicate `run.id`, `run.id/job.id`, `artifact.id`, identical-metadata duplicates, and conflicting-metadata duplicates.
+- Preserve HTTP fail-closed behavior, full reachable history／path-sensitive scanning, unsafe archive rejection, secret redaction, proof transfer, asset mutation gates, and canonical approval proof.
+- Create a new TASK-013 implementation candidate and attempt-1 standard review; TASK-009 is never retroactively approved or released.
+
+### Out of scope
+
+- TASK-009 attempt 4 or reopening TASK-009 review convergence.
+- Release or public distribution before TASK-013 approval.
+- AppState, migration, storage, backup/import/export, financial calculations, rule data, verifiedAt, or unrelated product behavior changes.
+- CI-lightening changes; Governance CI optimization remains a separate task candidate.
+- History rewrite, force push, reset, stash, clean, restore, rebase, amend, or squash.
+
+### Acceptance criteria
+
+- Duplicate canonical stable keys are rejected regardless of metadata equality.
+- Conflicting metadata for a stable key is `BLOCKED` without raw secret／PII disclosure.
+- All counts and set hashes are derived from the same canonical unique object set.
+- Pagination overlap cannot produce `actions_scan_complete=true` or a PASS report.
+- Existing public exposure audit, distribution, browser, governance, and non-regression gates are not reduced.
+- TASK-013 produces a new candidate, handoff, and attempt-1 standard review.
+- No release or public distribution side effect occurs before approval.
+
+### Tests
+
+- Duplicate `run.id` with identical metadata: reject.
+- Duplicate `run.id` with different metadata: reject as conflict.
+- Duplicate `run.id/job.id` with identical and different status／conclusion: reject.
+- Duplicate `artifact.id` with identical and different name／expired／head SHA: reject.
+- Pagination overlap across pages: reject rather than silently deduplicate.
+- Count or set-hash mismatch: reject.
+- HTTP／archive fail-closed, full-history／path scan, secret redaction, proof transfer, asset gates, and exact-published no-op remain passing.
+- PowerShell 7／5.1 governance and existing Node／browser counts are not reduced.
