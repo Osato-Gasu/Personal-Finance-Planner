@@ -134,8 +134,23 @@ async function githubBytes(url, token, fetchImpl = fetch) {
   }
 }
 
-async function githubPages(url, token, key, fetchImpl = fetch) {
+function githubListPage(response, key, label) {
+  if (!response || typeof response !== "object" || Array.isArray(response))
+    throw new Error(`BLOCKED: invalid ${label} pagination response`);
+  if (!Array.isArray(response[key]))
+    throw new Error(`BLOCKED: invalid ${label} pagination records`);
+  if (
+    typeof response.total_count !== "number" ||
+    !Number.isSafeInteger(response.total_count) ||
+    response.total_count < 0
+  )
+    throw new Error(`BLOCKED: invalid ${label} pagination total`);
+  return { records: response[key], totalCount: response.total_count };
+}
+
+async function githubPages(url, token, key, label, fetchImpl = fetch) {
   const values = [];
+  let expectedTotal;
   for (let page = 1; ; page += 1) {
     const separator = url.includes("?") ? "&" : "?";
     const response = await githubJson(
@@ -143,9 +158,16 @@ async function githubPages(url, token, key, fetchImpl = fetch) {
       token,
       fetchImpl,
     );
-    const current = response[key] ?? response;
-    values.push(...current);
-    if (current.length < 100) return values;
+    const { records, totalCount } = githubListPage(response, key, label);
+    if (expectedTotal === undefined) expectedTotal = totalCount;
+    else if (totalCount !== expectedTotal)
+      throw new Error(`BLOCKED: inconsistent ${label} pagination total`);
+    if (values.length + records.length > expectedTotal)
+      throw new Error(`BLOCKED: ${label} pagination exceeds total`);
+    values.push(...records);
+    if (values.length === expectedTotal) return values;
+    if (records.length < 100)
+      throw new Error(`BLOCKED: incomplete ${label} pagination inventory`);
   }
 }
 
@@ -285,6 +307,7 @@ async function scanGithub({
     `${base}/actions/runs`,
     token,
     "workflow_runs",
+    "Actions run",
     fetchImpl,
   );
   const runEntries = runs.map((run) => {
@@ -313,6 +336,7 @@ async function scanGithub({
       `${base}/actions/runs/${runEntry.runId}/jobs`,
       token,
       "jobs",
+      "Actions job",
       fetchImpl,
     ),
   }));
@@ -354,28 +378,11 @@ async function scanGithub({
     })),
     "required Actions job log",
   );
-  const logFindings = await mapLimit(completedJobs, 8, async (entry) => {
-    const bytes = await githubBytes(
-      `${base}/actions/jobs/${entry.jobId}/logs`,
-      token,
-      fetchImpl,
-    );
-    return scanPublicBytes({
-      bytes,
-      path: `actions/run-${entry.runId}/job-${entry.jobId}.log`,
-      commit: entry.run.head_sha ?? null,
-    });
-  });
-  for (const current of logFindings) {
-    findings.push(...current);
-    scans.actions_run_logs += 1;
-  }
-  if (scans.actions_run_logs !== requiredJobLogInventory.count)
-    throw new Error("BLOCKED: Actions job log scan inventory mismatch");
   const artifacts = await githubPages(
     `${base}/actions/artifacts`,
     token,
     "artifacts",
+    "Actions artifact",
     fetchImpl,
   );
   scans.actions_artifacts = 0;
@@ -404,10 +411,30 @@ async function scanGithub({
     artifactEntries,
     "Actions artifact",
   );
-  for (const entry of artifactEntries) {
-    const { artifact, artifactId } = entry;
+  for (const { artifact } of artifactEntries) {
     if (artifact.expired)
       throw new Error("BLOCKED: Actions artifact is expired or unavailable");
+  }
+  const logFindings = await mapLimit(completedJobs, 8, async (entry) => {
+    const bytes = await githubBytes(
+      `${base}/actions/jobs/${entry.jobId}/logs`,
+      token,
+      fetchImpl,
+    );
+    return scanPublicBytes({
+      bytes,
+      path: `actions/run-${entry.runId}/job-${entry.jobId}.log`,
+      commit: entry.run.head_sha ?? null,
+    });
+  });
+  for (const current of logFindings) {
+    findings.push(...current);
+    scans.actions_run_logs += 1;
+  }
+  if (scans.actions_run_logs !== requiredJobLogInventory.count)
+    throw new Error("BLOCKED: Actions job log scan inventory mismatch");
+  for (const entry of artifactEntries) {
+    const { artifactId } = entry;
     const bytes = await githubBytes(
       `${base}/actions/artifacts/${artifactId}/zip`,
       token,

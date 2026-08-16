@@ -7,11 +7,13 @@
 - branch: `codex/task-013-public-audit-stable-id`
 - activation commit／tree: `184d4da3f79443416f0570aec2b029d4c2c72202`／`86b0f2d9e9ded5618c80d2062ae1602b0f907e1c`
 - transition commit／tree: `30cc57b05ac49dc6afa587f9d70ade571e526d9c`／`2b3039cdd499b37f7ed2f8bace9bec7d43195a60`
+- attempt 1 review import commit／tree: `a0f8738396e9dfd1e6aefed5154f1d7e6732434e`／`f819b3f808711afecc3b03f70febf7e257a97c24`
 - activation CI: run `31947743040`／attempt `1`／job `95166339042`／`SUCCESS`
+- attempt 1 review import CI: run `31954202991`／attempt `1`／job `95182201338`／`SUCCESS`
 - shared version／commit: `0.12.25`／`f07571d3e8745b9a49a28b1ac77e211c210146a3`
 - started: `2026-08-16 22:29:43 JST`
-- implementation bytes finished: `2026-08-16 22:45:01 JST`
-- final handoff synchronization: candidate exact CI confirmed; review handoff prepared
+- implementation bytes finished: `2026-08-17 00:13:39 JST`
+- final handoff synchronization: pending candidate exact CI
 
 TASK-009 remains terminated at cycles 3／attempt 3／terminal／final. Attempt 4 is forbidden. Candidate `03825e58f61f95d2364f09246f202744e4617ba5`／tree `934892b96eff8e5b66ddf67e71eefd29353a86a0` remains unapproved and unreleased and is not reused as a TASK-013 approval or release identity.
 
@@ -23,6 +25,8 @@ TASK-009 remains terminated at cycles 3／attempt 3／terminal／final. Attempt 
 - Existing `actions_*_set_sha256` fields now mean sorted stable-key set hashes. `actions_*_record_set_sha256` fields and `actions_inventory_identity_version: stable-id-v1` bind deterministic metadata records.
 - Inventory, retrieval, scan, report counts, stable-key hashes, and record-set hashes derive from the same validated unique inventory. Duplicate／conflict is rejected before job-log or artifact retrieval and before report creation.
 - Artifact evidence paths use only canonical artifact IDs, so mutable names are not copied into report paths or error messages.
+- Actions list pagination now requires every response to be an object containing the target array and a nonnegative safe-integer `total_count`. The declared total must remain identical across pages, cumulative records may not exceed it, and completion requires an exact cumulative match.
+- Global run／artifact totals and each run-specific job total are validated before any job-log or artifact-content retrieval and before report creation. Missing, malformed, oversized, undersized, or page-changing totals fail closed without exposing raw metadata.
 
 ## Tests
 
@@ -31,10 +35,11 @@ TASK-009 remains terminated at cycles 3／attempt 3／terminal／final. Attempt 
 - Page-1 100-record／page-2 overlap simulations reject identical and conflicting run／job／artifact stable IDs before content retrieval or report creation.
 - Stable-key and record-set hashes are order-independent; metadata-only changes preserve the stable-key hash and change the record-set hash.
 - Missing record-set hashes and wrong inventory identity version are rejected with `side_effects: 0`.
+- Run response-shape and run／job／artifact `total_count` negative matrices cover missing, malformed, negative, non-integer, unsafe, oversized, undersized, and page-changing values. All pagination failures reject before content retrieval and report creation.
 - Existing HTTP, archive, history, redaction, release staging, proof-transfer, and completeness tests remain enabled.
-- full Vitest: `604` tests／`21` files
+- full Vitest: `621` tests／`21` files
 - focused rules／NISA／iDeCo／overview: `69`／`68`／`86`／`28`
-- distribution contract／public exposure audit: `77`／`65`
+- distribution contract／public exposure audit: `77`／`82`
 - audit normalization／completion simulation: PowerShell 7 and 5.1 each `21`／`34`
 - clean isolated requirements／product-identity smoke: PowerShell 7 and 5.1 both PASS
 - portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
@@ -43,21 +48,21 @@ TASK-009 remains terminated at cycles 3／attempt 3／terminal／final. Attempt 
 
 ## Working-tree public exposure audit
 
-- path: `C:\Users\owner\Development\personal\audit\TASK-013-stable-id-20260816-223814\working-tree-audit.json`
-- target／phase: `184d4da3f79443416f0570aec2b029d4c2c72202`／`candidate_ci`
-- bytes／SHA-256: `2990`／`F75A78251CD440E318FB8E9B2BB402A3DB40C141AED769BAB962D8A4972B8B8E`
+- path: `C:\Users\owner\Development\personal\audit\TASK-013-stable-id-20260816-223814\attempt-2-final-working-tree-audit.json`
+- target／phase: `a0f8738396e9dfd1e6aefed5154f1d7e6732434e`／`candidate_ci`
+- bytes／SHA-256: `2990`／`E16976E492A0CAC763CBA64ACFAC230BD79DB0713F9C77DE0B0F19DD7057C6E3`
 - result／findings: `PASS`／`0`
-- Actions inventory／retrieval／scan: runs `128`; jobs `128`／required logs `128`／retrieved `128`／scanned `128`; artifacts `0`／`0`／`0`
-- run stable-key／record hashes: `44E3A11558635D75332EEFC7EF04B9726136762A632F73269AC1A6E45E203952`／`A29636F4F46F29E52FCC74251B318DB128CE91ED3251B55A5AD008CCA08FCFB2`
-- job stable-key／record hashes: `68403B4A0833145DD0DCAEBE34F79C4B3E989EF533F82824CE3BB6A32B62A8E1`／`DDFE6397467DA6D1A1845678E6CE63111FF39108E55AB1C1F496AE3115C4D571`
+- Actions inventory／retrieval／scan: runs `131`; jobs `131`／required logs `131`／retrieved `131`／scanned `131`; artifacts `0`／`0`／`0`
+- run stable-key／record hashes: `F6A4FD091ACCA034218EBE51BDB7827F9B0658DAD7374D24D3E242A00D7206A5`／`47F8D2FC807651CC6ABBA9ADD7E03EB2CD7E7007BFB0ED749A4324D2FEC262DF`
+- job stable-key／record hashes: `4FC94B73D4C39137FF1557D39C8DD8ED25EDC5A8424719D117C8D6562ED140D8`／`E0732047DAD8EE3A5472B3A3A6A56564364CC4F7C51EC4F8B7BD1FEB69294665`
 - artifact stable-key／record hashes: `01BA4719C80B6FE911B091A7C05124B64EEECE964E09C058EF8F9805DACA546B`／`01BA4719C80B6FE911B091A7C05124B64EEECE964E09C058EF8F9805DACA546B`
 
 ## Candidate and CI
 
-- candidate commit／tree: `bf70d55f6e7649c4b80a64e3138f2d0385df34b2`／`521da3403ab9b603e8ff6bf1b198542a9ffc817b`
-- candidate parent: activation `184d4da3f79443416f0570aec2b029d4c2c72202`
-- candidate audit: `C:\Users\owner\Development\personal\audit\TASK-013-stable-id-20260816-223814\candidate-audit.json`／`2990` bytes／SHA-256 `F38F632FF33EA27DD618C6336A8B93762FDC914E70F040D2E430CEC5AAC7EC84`／finding `0`／PASS
-- candidate Governance CI: run `31951414720`／attempt `1`／job `95175329629`／SUCCESS; all workflow steps succeeded
+- candidate commit／tree: pending
+- candidate parent: attempt 1 review import `a0f8738396e9dfd1e6aefed5154f1d7e6732434e`
+- candidate audit: pending
+- candidate Governance CI: pending
 - handoff Governance CI: required exact push run after the governance-only handoff commit
 
 ## Non-regression and public state

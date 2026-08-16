@@ -505,11 +505,13 @@ describe("public exposure audit contract", () => {
         if (value.includes("/actions/runs?") && kind === "run") {
           if (!pageTwo)
             return jsonResponse({
+              total_count: 101,
               workflow_runs: Array.from({ length: 100 }, (_item, index) =>
                 run(index + 1),
               ),
             });
           return jsonResponse({
+            total_count: 101,
             workflow_runs: [
               { ...run(1), status: conflict ? secret : "completed" },
             ],
@@ -517,28 +519,34 @@ describe("public exposure audit contract", () => {
         }
         if (value.includes("/actions/runs?"))
           return jsonResponse({
+            total_count: kind === "job" ? 1 : 0,
             workflow_runs: kind === "job" ? [run(11)] : [],
           });
         if (value.includes("/actions/runs/11/jobs")) {
           if (!pageTwo)
             return jsonResponse({
+              total_count: 101,
               jobs: Array.from({ length: 100 }, (_item, index) =>
                 job(index + 1),
               ),
             });
           return jsonResponse({
+            total_count: 101,
             jobs: [{ ...job(1), status: conflict ? secret : "completed" }],
           });
         }
         if (value.includes("/actions/artifacts?")) {
-          if (kind !== "artifact") return jsonResponse({ artifacts: [] });
+          if (kind !== "artifact")
+            return jsonResponse({ total_count: 0, artifacts: [] });
           if (!pageTwo)
             return jsonResponse({
+              total_count: 101,
               artifacts: Array.from({ length: 100 }, (_item, index) =>
                 artifact(index + 1),
               ),
             });
           return jsonResponse({
+            total_count: 101,
             artifacts: [{ ...artifact(1), name: conflict ? secret : "proof" }],
           });
         }
@@ -570,6 +578,113 @@ describe("public exposure audit contract", () => {
             : /duplicate .* stable ID/u,
         );
         expect(error.message).not.toContain(secret);
+        expect(contentRequests).toBe(0);
+        await expect(readFile(fixture.output)).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
+
+  it.each([
+    ["run response is not an object", "run", "response_array"],
+    ["run records are missing", "run", "records_missing"],
+    ["run total is missing", "run", "missing"],
+    ["run total is malformed", "run", "malformed"],
+    ["run total is negative", "run", "negative"],
+    ["run total is non-integer", "run", "non_integer"],
+    ["run total is unsafe", "run", "unsafe"],
+    ["run total is too large", "run", "too_large"],
+    ["run total is too small", "run", "too_small"],
+    ["run total changes between pages", "run", "page_change"],
+    ["job total is too large", "job", "too_large"],
+    ["job total is too small", "job", "too_small"],
+    ["job total changes between pages", "job", "page_change"],
+    ["artifact total is missing", "artifact", "missing"],
+    ["artifact total is too large", "artifact", "too_large"],
+    ["artifact total is too small", "artifact", "too_small"],
+    ["artifact total changes between pages", "artifact", "page_change"],
+  ])(
+    "rejects incomplete Actions pagination before content retrieval: %s",
+    async (_label, kind, mode) => {
+      const fixture = await createAuditRepository("public-audit-total-");
+      let contentRequests = 0;
+      const run = (id) => ({
+        id,
+        head_sha: fixture.head,
+        status: "completed",
+        conclusion: "success",
+        run_attempt: 1,
+      });
+      const job = (id) => ({
+        id,
+        status: "completed",
+        conclusion: "success",
+      });
+      const artifact = (id) => ({
+        id,
+        name: "proof",
+        expired: false,
+        workflow_run: { head_sha: fixture.head },
+      });
+      const invalidListResponse = (key, createRecord, pageTwo) => {
+        if (mode === "response_array") return jsonResponse([]);
+        if (mode === "records_missing") return jsonResponse({ total_count: 0 });
+        const records =
+          mode === "page_change"
+            ? pageTwo
+              ? [createRecord(101)]
+              : Array.from({ length: 100 }, (_item, index) =>
+                  createRecord(index + 1),
+                )
+            : [createRecord(1)];
+        const response = { [key]: records };
+        if (mode === "malformed") response.total_count = "1";
+        else if (mode === "negative") response.total_count = -1;
+        else if (mode === "non_integer") response.total_count = 1.5;
+        else if (mode === "unsafe")
+          response.total_count = Number.MAX_SAFE_INTEGER + 1;
+        else if (mode === "too_large") response.total_count = 2;
+        else if (mode === "too_small") response.total_count = 0;
+        else if (mode === "page_change")
+          response.total_count = pageTwo ? 102 : 101;
+        return jsonResponse(response);
+      };
+      const fetchImpl = async (url) => {
+        const value = String(url);
+        const pageTwo = value.includes("page=2");
+        if (value.endsWith(`/${repository}`))
+          return jsonResponse({ private: false, visibility: "public" });
+        if (value.includes("/actions/runs?")) {
+          if (kind === "run")
+            return invalidListResponse("workflow_runs", run, pageTwo);
+          return jsonResponse({
+            total_count: kind === "job" ? 1 : 0,
+            workflow_runs: kind === "job" ? [run(11)] : [],
+          });
+        }
+        if (value.includes("/actions/runs/11/jobs"))
+          return invalidListResponse("jobs", job, pageTwo);
+        if (value.includes("/actions/artifacts?"))
+          return invalidListResponse("artifacts", artifact, pageTwo);
+        if (value.includes("/logs") || value.includes("/zip")) {
+          contentRequests += 1;
+          return bytesResponse("safe");
+        }
+        throw new Error(`unexpected test URL: ${value}`);
+      };
+      try {
+        await expect(
+          runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            fetchImpl,
+          }),
+        ).rejects.toThrow(/BLOCKED:.*pagination/u);
         expect(contentRequests).toBe(0);
         await expect(readFile(fixture.output)).rejects.toThrow();
       } finally {
@@ -617,9 +732,9 @@ describe("public exposure audit contract", () => {
       execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
     const fetchImpl = async (url) => {
       if (String(url).includes("/actions/runs"))
-        return jsonResponse({ workflow_runs: [] });
+        return jsonResponse({ total_count: 0, workflow_runs: [] });
       if (String(url).includes("/actions/artifacts"))
-        return jsonResponse({ artifacts: [] });
+        return jsonResponse({ total_count: 0, artifacts: [] });
       return jsonResponse({ private: false, visibility: "public" });
     };
     try {
@@ -722,6 +837,7 @@ describe("public exposure audit contract", () => {
           return jsonResponse({ private: false, visibility: "public" });
         if (value.includes("/actions/runs?") && kind === "log")
           return jsonResponse({
+            total_count: 1,
             workflow_runs: [
               {
                 id: 11,
@@ -733,15 +849,17 @@ describe("public exposure audit contract", () => {
             ],
           });
         if (value.includes("/actions/runs?") && kind === "artifact")
-          return jsonResponse({ workflow_runs: [] });
+          return jsonResponse({ total_count: 0, workflow_runs: [] });
         if (value.includes("/actions/runs/11/jobs"))
           return jsonResponse({
+            total_count: 1,
             jobs: [{ id: 21, status: "completed", conclusion: "success" }],
           });
         if (value.includes("/actions/jobs/21/logs"))
           return bytesResponse("", status);
         if (value.includes("/actions/artifacts?") && kind === "artifact")
           return jsonResponse({
+            total_count: 1,
             artifacts: [
               {
                 id: 31,
@@ -752,7 +870,7 @@ describe("public exposure audit contract", () => {
             ],
           });
         if (value.includes("/actions/artifacts?") && kind === "log")
-          return jsonResponse({ artifacts: [] });
+          return jsonResponse({ total_count: 0, artifacts: [] });
         if (value.includes("/actions/artifacts/31/zip"))
           return bytesResponse("", status);
         throw new Error(`unexpected test URL: ${value}`);
@@ -807,6 +925,7 @@ describe("public exposure audit contract", () => {
           return jsonResponse({ private: false, visibility: "public" });
         if (value.includes("/actions/runs?"))
           return jsonResponse({
+            total_count: 1,
             workflow_runs: [
               {
                 id: 11,
@@ -819,8 +938,11 @@ describe("public exposure audit contract", () => {
           });
         if (value.includes("/actions/runs/11/jobs"))
           return jsonResponse({
+            total_count: 1,
             jobs: [{ id: 21, status: "completed", conclusion: "success" }],
           });
+        if (value.includes("/actions/artifacts?"))
+          return jsonResponse({ total_count: 0, artifacts: [] });
         if (value.includes("/actions/jobs/21/logs")) return contentResponse();
         throw new Error(`unexpected test URL: ${value}`);
       };
@@ -852,6 +974,7 @@ describe("public exposure audit contract", () => {
         return jsonResponse({ private: false, visibility: "public" });
       if (value.includes("/actions/runs?"))
         return jsonResponse({
+          total_count: 1,
           workflow_runs: [
             {
               id: 11,
@@ -864,12 +987,14 @@ describe("public exposure audit contract", () => {
         });
       if (value.includes("/actions/runs/11/jobs"))
         return jsonResponse({
+          total_count: 1,
           jobs: [{ id: 21, status: "completed", conclusion: "success" }],
         });
       if (value.includes("/actions/jobs/21/logs"))
         return bytesResponse("safe log\n");
       if (value.includes("/actions/artifacts?"))
         return jsonResponse({
+          total_count: 1,
           artifacts: [
             {
               id: 31,
