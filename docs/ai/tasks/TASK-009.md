@@ -1,23 +1,23 @@
 ---
 task_id: TASK-009
 title: 配布
-status: review_requested
+status: needs_user_decision
 route: TWO_SESSION_FAST
 priority: low
 spec_revision: 2
 spec_status: accepted
-current_phase: implementation_review
+current_phase: user_decision
 current_role_id: ORCHESTRATOR_AND_REVIEWER
 next_actor: ChatGPT
 next_role: ORCHESTRATOR_AND_REVIEWER
-assigned_model: 5.6 Sol
-assigned_effort: high
+assigned_model: none
+assigned_effort: none
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-009/USER_DECISION_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: Codex
+return_to: ChatGPT
 browser_evidence_required: true
 claude_design_review_recommendation: optional
 claude_implementation_review_recommendation: optional
@@ -30,17 +30,17 @@ base_tree: eefa6dbb315753c625ebb65ee6e9fc82d637a48b
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*
 accepted_product_sha256: 98DC0649BB6232B61432EDDAEAC204CEAC763C6E530AF33272E3A3080FBC994B
 review_stage: implementation
-changes_requested_cycles: 2
+changes_requested_cycles: 3
 implementation_review_attempt: 3
 implementation_review_profile: terminal
 implementation_review_final: true
-implementation_review_terminated: false
+implementation_review_terminated: true
 attempt_4_forbidden: true
 spec_revision_reset: false
 implementation_review_open_finding_ids: FINDING-009-V2-R1-02
-user_confirmation_required: false
-user_confirmation_prompt: none
-review_termination_reason: none
+user_confirmation_required: true
+user_confirmation_prompt: Review unresolved blockers, choose release, remediation, or a new approved spec revision; no fourth implementation review is permitted.
+review_termination_reason: third implementation-review CHANGES_REQUESTED; explicit user confirmation required
 implementation_candidate: 03825e58f61f95d2364f09246f202744e4617ba5
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
