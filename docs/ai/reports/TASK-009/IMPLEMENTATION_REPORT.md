@@ -21,14 +21,14 @@
 - corrected_relay_bundle: TASK-009_CHANGES_REQUESTED_RELAY_CCD324A5619B.json / 15380 bytes / CCD324A5619B7270FC0AE44210B0B4C8F760C06516A3A4A490176A145277AB63
 - corrected_relay_next_action_blob: 448dd41f3182b5b1adb721013f18b54226a44e8d
 - reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e / tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c / CI 31789154016 SUCCESS
-- implementation_candidate: b169407cafcdf51627b0a51b43637411dbf6b3c7
-- candidate_commit: b169407cafcdf51627b0a51b43637411dbf6b3c7
-- candidate_tree: 2f99289bbc88e510ad4f877e14814b36d4cc2b3c
-- candidate_parent: d44910cdcd409e8e7666d6238a06b81522ae790f
-- candidate_workflow_run_id: 31916564833
+- implementation_candidate: 03825e58f61f95d2364f09246f202744e4617ba5
+- candidate_commit: 03825e58f61f95d2364f09246f202744e4617ba5
+- candidate_tree: 934892b96eff8e5b66ddf67e71eefd29353a86a0
+- candidate_parent: 0666c92f57f49022eb4f4348841ae5636b1c8d0d
+- candidate_workflow_run_id: 31920674868
 - candidate_workflow_attempt: 1
 - candidate_workflow_conclusion: success
-- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / b169407cafcdf51627b0a51b43637411dbf6b3c7 / job 95089202279
+- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / 03825e58f61f95d2364f09246f202744e4617ba5 / job 95099956679
 - retained_candidate_ci_failure: run 31907510795 / attempt 1 / job 95067528568 / source test FAILURE; corrected by normal commit without rerun, amend, or force push
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
@@ -140,7 +140,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: b169407cafcdf51627b0a51b43637411dbf6b3c7
+- reviewed_candidate: 03825e58f61f95d2364f09246f202744e4617ba5
 - reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
@@ -149,14 +149,15 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: narrowed
-- implementation_review_final: false
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: terminal
+- implementation_review_final: true
 - implementation_review_terminated: false
-- attempt_4_forbidden: false
+- attempt_4_forbidden: true
+- implementation_review_open_finding_ids: FINDING-009-V2-R1-02
 - execution_started_at: 2026-08-16 05:14:39 JST
-- candidate_ci_finished_at: 2026-08-16 09:20:03 JST
+- candidate_ci_finished_at: 2026-08-16 11:04:48 JST
 
 ## Revision 1 terminal finding incorporated into revision 2 — FINDING-009-R3-01
 
@@ -209,9 +210,9 @@
 - revision_2_activation_commit: `2851bf6a68fed7c762c462ea82bbb4850a863b0b`
 - revision_2_activation_tree: `7becd82c06fbf94a90fc44e28dda6e25f56411c5`
 - revision_2_activation_ci: run `31903813206`／attempt `1`／job `95058488867`／SUCCESS
-- revision_2_candidate_commit/tree/parent: `b169407cafcdf51627b0a51b43637411dbf6b3c7`／`2f99289bbc88e510ad4f877e14814b36d4cc2b3c`／`d44910cdcd409e8e7666d6238a06b81522ae790f`; activation `2851bf6a68fed7c762c462ea82bbb4850a863b0b` is an ancestor
-- revision_2_candidate_ci: run `31916564833`／attempt `1`／job `95089202279`／SUCCESS; every required step including public audit and both browser gates passed
-- revision_2_candidate_changed_paths: `.github/workflows/distribution.yml`; `docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`; `tests/distribution-workflow.test.mjs`; `tests/public-exposure-audit.test.mjs`; `tools/public-exposure-audit-lib.mjs`; `tools/public-exposure-audit.mjs`
+- revision_2_candidate_commit/tree/parent: `03825e58f61f95d2364f09246f202744e4617ba5`／`934892b96eff8e5b66ddf67e71eefd29353a86a0`／`0666c92f57f49022eb4f4348841ae5636b1c8d0d`; activation `2851bf6a68fed7c762c462ea82bbb4850a863b0b` is an ancestor
+- revision_2_candidate_ci: run `31920674868`／attempt `1`／job `95099956679`／SUCCESS; every required step including public audit and both browser gates passed
+- revision_2_candidate_changed_paths: `docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`; `tests/public-exposure-audit.test.mjs`; `tools/public-exposure-audit-lib.mjs`; `tools/public-exposure-audit.mjs`
 - revision_2_handoff_commit/tree/parent/ci: recorded after the handoff commit and exact CI SUCCESS
 - shared_identity: v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`／tree `4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc`／manifest `ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE`
 - public_approval: `USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`／evidence SHA-256 `781A6207DC4031E36A6771048386981D13120CF35C6CDC421819ABFA697089D5`
@@ -220,7 +221,7 @@
 - candidate_fix_working_tree_audit: same directory／`candidate-fix-working-tree-public-exposure-audit.json`／1164 bytes／SHA-256 `18669B5B0AF72607638013F198629B5E324954879FD2601AF3F9C981153026FF`／finding 0／PASS
 - candidate_exact_prepush_audit: same directory／`candidate-exact-final-prepush-public-exposure-audit.json`／1161 bytes／SHA-256 `50525F5CB06E9E7C5502B972A30A45C777442876ADA17BEDFDED998FB0EA4F0A`／122 commits／1002 trees／1046 blobs／25 refs／116 Actions logs／0 artifacts／finding 0／PASS／target candidate exact
 - public_visibility_contract: repository API requires `private === false` and `visibility === public`; npm publication guard `package.json.private === true` is unchanged; private repository and missing/stale/finding audit proofs return side_effects 0
-- public_exposure_audit_gate: `tools/public-exposure-audit-lib.mjs`／`tools/public-exposure-audit.mjs`; strict schema 1; full raw commit objects, per-commit tree entries and `commit,path,blob` associations, path-sensitive aliases, refs/tags/LFS/submodules, working/staged bytes, obtainable Actions logs/artifacts, and exact release staging; provenance hashes bind target and repository/Actions inventories; impossible zero counts and unsafe archive entries are rejected; external non-overwriting UTF-8 no BOM/LF/trailing-LF report; value-redacted fingerprint evidence only; API permission failure is BLOCKED; no ignore flag
+- public_exposure_audit_gate: `tools/public-exposure-audit-lib.mjs`／`tools/public-exposure-audit.mjs`; strict schema 1; full raw commit objects, per-commit tree entries and `commit,path,blob` associations, path-sensitive aliases, refs/tags/LFS/submodules, working/staged bytes, all required Actions logs/artifacts, and exact release staging; provenance hashes bind target, repository/Actions set identities, inventory, retrieval, and scan counts; HTTP 404／410を含む全content取得不能、expired artifact、unsafe archiveはBLOCKED; external non-overwriting UTF-8 no BOM/LF/trailing-LF report; value-redacted fingerprint evidence only; no ignore flag
 - finding_009_r3_01_stage_resolution: fresh tag and Release absence are both read before the first write; existing tag/Release metadata and every current asset are validated as a unique exact expected subset before upload; unexpected/duplicate/malformed/unavailable/wrong digest/wrong bytes/stale preflight identities produce POST 0／PATCH 0／upload 0
 - finding_009_r3_01_publish_resolution: tag target, Release ID/tag/title/draft/prerelease, and current assets are freshly read; exact unique full set with no missing/extra/digest/bytes mismatch is required before the single publish PATCH
 - asset_mutation_tests: stage extra/duplicate/wrong digest/wrong bytes/malformed digest/malformed bytes/stale fresh/tag/release metadata and publish missing/extra/duplicate/wrong digest/wrong bytes/tag/title/draft/prerelease cases assert write 0; normal fresh/tag-only/empty draft/subset/full/Pages/published/conflicting paths retain exact GET/POST/PATCH/upload order and identities
@@ -245,5 +246,7 @@
 - finding_009_v2_r1_02_fail_closed_resolution: GitHub Actions job log／artifact ZIPのHTTP 404／410を含む全non-success、request／redirect失敗、response body取得不能、API read failure、expired artifactをBLOCKEDとし、未取得contentをnull／skipしてPASS reportまたは`actions_scan_complete: true`へ到達する経路を除去した。
 - finding_009_v2_r1_02_completeness_proof: run／job／required job log／artifact inventoryを重複拒否付きset SHAとcountへ固定し、required log／artifactのinventory count、取得数、scan数、report scan数の全一致をstrict validatorで必須化した。raw secret／PII値は引き続きfingerprintだけを保持する。
 - finding_009_v2_r1_02_negative_regression: job log 404、job log 410、artifact ZIP 404、artifact ZIP 410を独立caseとして固定し、403／5xx／request・redirect／body failure、unsafe archive、full reachable history、FINDING-009-V2-R1-01 cross-job proof transferを維持した。focused public auditは28 tests PASS。
-- local_validation: PS7／PS5.1 governance validator PASS before candidate commit and full clean-source 7 gates each required before push; npm ci 137 packages／0 vulnerabilities; typecheck／lint／format PASS; Vitest 567; focused 69／68／86／28; distribution contract 77; public audit 28; launcher 216828 bytes; portable browser 284; staged HTTP 5 files／5 routes; runtime request／console／page errors 0
-- unresolved_revision_2_items: none; implementation review, review decision, relay, release, main integration, publication, and completion are intentionally not performed
+- attempt_3_working_tree_audit: `C:\Users\owner\Development\personal\audit\TASK-009-spec-r2-attempt3-20260816-1105\working-tree-final-public-exposure-audit.json`／2612 bytes／SHA-256 `4B93BB8D81E3048051974E58FE9360F06204FCF54449772C28CF3A5721A68240`／128 commits／1049 trees／1078 blobs／16037 associations／25 refs／123 Actions logs／0 artifacts／finding 0／PASS
+- attempt_3_candidate_exact_audit: same directory／`candidate-exact-public-exposure-audit.json`／2612 bytes／SHA-256 `5868617B52F3CCF6E478A564136C881BCC37000A12CCC53A3ECD6DB6C952A4FD`／129 commits／1056 trees／1082 blobs／16209 associations／25 refs／123 Actions logs／0 artifacts／finding 0／PASS
+- local_validation: PS7／PS5.1 full clean-source 7 gates each PASS; npm ci 137 packages／0 vulnerabilities; typecheck／lint／format PASS; Vitest 567; focused 69／68／86／28; distribution contract 77; public audit 28; launcher 216828 bytes; portable browser 284; staged HTTP 5 files／5 routes; runtime request／console／page errors 0
+- unresolved_revision_2_items: implementation review attempt 3／terminal／final is pending with open finding identity `FINDING-009-V2-R1-02` retained for reviewer verification; review decision, relay, release, main integration, publication, and completion are intentionally not performed
