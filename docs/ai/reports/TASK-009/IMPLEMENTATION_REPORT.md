@@ -21,14 +21,14 @@
 - corrected_relay_bundle: TASK-009_CHANGES_REQUESTED_RELAY_CCD324A5619B.json / 15380 bytes / CCD324A5619B7270FC0AE44210B0B4C8F760C06516A3A4A490176A145277AB63
 - corrected_relay_next_action_blob: 448dd41f3182b5b1adb721013f18b54226a44e8d
 - reviewed_attempt_2_candidate: bdf59b25e1f32866a9539af4c1918210440b0d8e / tree 8ab3ef5c71f156b2fcafa1aad4691be64e8c601c / CI 31789154016 SUCCESS
-- implementation_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
-- candidate_commit: 9d577d809721af25eef4243088d2a88a4acf2d91
-- candidate_tree: 25ec4bfde700e7f3cfee5b831cab03147a1e3365
-- candidate_parent: 818a3e462a7b80b5c075adcc24a12481d33f0704
-- candidate_workflow_run_id: 31908178646
+- implementation_candidate: b169407cafcdf51627b0a51b43637411dbf6b3c7
+- candidate_commit: b169407cafcdf51627b0a51b43637411dbf6b3c7
+- candidate_tree: 2f99289bbc88e510ad4f877e14814b36d4cc2b3c
+- candidate_parent: d44910cdcd409e8e7666d6238a06b81522ae790f
+- candidate_workflow_run_id: 31916564833
 - candidate_workflow_attempt: 1
 - candidate_workflow_conclusion: success
-- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / 9d577d809721af25eef4243088d2a88a4acf2d91 / job 95069128427
+- candidate_workflow_identity: Governance CI / codex/task-009-distribution / push / b169407cafcdf51627b0a51b43637411dbf6b3c7 / job 95089202279
 - retained_candidate_ci_failure: run 31907510795 / attempt 1 / job 95067528568 / source test FAILURE; corrected by normal commit without rerun, amend, or force push
 - shared_version: 0.12.20
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
@@ -118,9 +118,9 @@
 - startup_context_bytes: 41284 (target <=61440; maximum <=65536)
 - npm_ci: 137 packages; 0 vulnerabilities
 - typecheck_lint_format: PASS
-- vitest: 21 files; 548 tests PASS
+- vitest: 21 files; 557 tests PASS
 - focused_tests: take-home 69; NISA 68; iDeCo 86; overview 28 PASS
-- distribution_contract_tests: 3 files; 76 tests PASS; public exposure audit 10 tests PASS
+- distribution_contract_tests: 3 files; 77 tests PASS; public exposure audit 18 tests PASS
 - launcher_freshness: PASS; 216828 bytes
 - portable_browser: msedge; 284 checks; 5 routes; 360px; storage preserved; runtime requests 0; console errors 0; page errors 0
 - staged_http_browser: msedge; 5 routes; 5 raw files including empty .nojekyll; 360px; keyboard focus/settings metadata/storage/backup/import preview-cancel-success PASS; runtime external requests 0; console errors 0; page errors 0
@@ -140,7 +140,7 @@
 - request_review_status: requested
 - review_model: 5.6 Sol
 - review_effort: high
-- reviewed_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
+- reviewed_candidate: b169407cafcdf51627b0a51b43637411dbf6b3c7
 - reviewed_spec_revision: 2
 - review_request_id: none
 - review_started_at: none
@@ -149,14 +149,14 @@
 - review_findings_count: 0
 - review_finding_ids: none
 - review_stage: implementation
-- changes_requested_cycles: 0
-- implementation_review_attempt: 1
-- implementation_review_profile: standard
+- changes_requested_cycles: 1
+- implementation_review_attempt: 2
+- implementation_review_profile: narrowed
 - implementation_review_final: false
 - implementation_review_terminated: false
 - attempt_4_forbidden: false
 - execution_started_at: 2026-08-16 05:14:39 JST
-- candidate_ci_finished_at: 2026-08-16 06:07:53 JST
+- candidate_ci_finished_at: 2026-08-16 09:20:03 JST
 
 ## Revision 1 terminal finding incorporated into revision 2 — FINDING-009-R3-01
 
@@ -209,9 +209,9 @@
 - revision_2_activation_commit: `2851bf6a68fed7c762c462ea82bbb4850a863b0b`
 - revision_2_activation_tree: `7becd82c06fbf94a90fc44e28dda6e25f56411c5`
 - revision_2_activation_ci: run `31903813206`／attempt `1`／job `95058488867`／SUCCESS
-- revision_2_candidate_commit/tree/parent: `9d577d809721af25eef4243088d2a88a4acf2d91`／`25ec4bfde700e7f3cfee5b831cab03147a1e3365`／`818a3e462a7b80b5c075adcc24a12481d33f0704`; activation `2851bf6a68fed7c762c462ea82bbb4850a863b0b` is an ancestor
-- revision_2_candidate_ci: run `31908178646`／attempt `1`／job `95069128427`／SUCCESS; every required step including public audit and both browser gates passed
-- revision_2_candidate_changed_paths: `.github/workflows/ci.yml`; `.github/workflows/distribution.yml`; `Personal-Finance-Planner.html`; `README.md`; `docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`; `docs/product/RELEASE_CHECKLIST.md`; `docs/product/RELEASE_NOTES_v0.1.0.md`; `package.json`; `src/modules/settings/settings-view.ts`; `src/product-metadata.ts`; `tests/distribution-workflow.test.mjs`; `tests/distribution.test.mjs`; `tests/product-metadata.test.ts`; `tests/public-exposure-audit.test.mjs`; `tools/configure-pages-lib.mjs`; `tools/configure-pages.mjs`; `tools/distribution-preflight-lib.mjs`; `tools/distribution-preflight.mjs`; `tools/distribution-release.mjs`; `tools/public-exposure-audit-lib.mjs`; `tools/public-exposure-audit.mjs`
+- revision_2_candidate_commit/tree/parent: `b169407cafcdf51627b0a51b43637411dbf6b3c7`／`2f99289bbc88e510ad4f877e14814b36d4cc2b3c`／`d44910cdcd409e8e7666d6238a06b81522ae790f`; activation `2851bf6a68fed7c762c462ea82bbb4850a863b0b` is an ancestor
+- revision_2_candidate_ci: run `31916564833`／attempt `1`／job `95089202279`／SUCCESS; every required step including public audit and both browser gates passed
+- revision_2_candidate_changed_paths: `.github/workflows/distribution.yml`; `docs/ai/reports/TASK-009/IMPLEMENTATION_REPORT.md`; `tests/distribution-workflow.test.mjs`; `tests/public-exposure-audit.test.mjs`; `tools/public-exposure-audit-lib.mjs`; `tools/public-exposure-audit.mjs`
 - revision_2_handoff_commit/tree/parent/ci: recorded after the handoff commit and exact CI SUCCESS
 - shared_identity: v0.12.25／`f07571d3e8745b9a49a28b1ac77e211c210146a3`／tree `4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc`／manifest `ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE`
 - public_approval: `USER-APPROVAL-TASK-009-PUBLIC-20260816-022215`／evidence SHA-256 `781A6207DC4031E36A6771048386981D13120CF35C6CDC421819ABFA697089D5`
@@ -220,7 +220,7 @@
 - candidate_fix_working_tree_audit: same directory／`candidate-fix-working-tree-public-exposure-audit.json`／1164 bytes／SHA-256 `18669B5B0AF72607638013F198629B5E324954879FD2601AF3F9C981153026FF`／finding 0／PASS
 - candidate_exact_prepush_audit: same directory／`candidate-exact-final-prepush-public-exposure-audit.json`／1161 bytes／SHA-256 `50525F5CB06E9E7C5502B972A30A45C777442876ADA17BEDFDED998FB0EA4F0A`／122 commits／1002 trees／1046 blobs／25 refs／116 Actions logs／0 artifacts／finding 0／PASS／target candidate exact
 - public_visibility_contract: repository API requires `private === false` and `visibility === public`; npm publication guard `package.json.private === true` is unchanged; private repository and missing/stale/finding audit proofs return side_effects 0
-- public_exposure_audit_gate: `tools/public-exposure-audit-lib.mjs`／`tools/public-exposure-audit.mjs`; strict schema 1; full reachable commits/trees/blobs, refs/tags/LFS/submodules, working/staged bytes, obtainable Actions logs/artifacts, and release staging; external non-overwriting UTF-8 no BOM/LF/trailing-LF report; value-redacted fingerprint evidence only; API permission failure is BLOCKED; no ignore flag
+- public_exposure_audit_gate: `tools/public-exposure-audit-lib.mjs`／`tools/public-exposure-audit.mjs`; strict schema 1; full raw commit objects, per-commit tree entries and `commit,path,blob` associations, path-sensitive aliases, refs/tags/LFS/submodules, working/staged bytes, obtainable Actions logs/artifacts, and exact release staging; provenance hashes bind target and repository/Actions inventories; impossible zero counts and unsafe archive entries are rejected; external non-overwriting UTF-8 no BOM/LF/trailing-LF report; value-redacted fingerprint evidence only; API permission failure is BLOCKED; no ignore flag
 - finding_009_r3_01_stage_resolution: fresh tag and Release absence are both read before the first write; existing tag/Release metadata and every current asset are validated as a unique exact expected subset before upload; unexpected/duplicate/malformed/unavailable/wrong digest/wrong bytes/stale preflight identities produce POST 0／PATCH 0／upload 0
 - finding_009_r3_01_publish_resolution: tag target, Release ID/tag/title/draft/prerelease, and current assets are freshly read; exact unique full set with no missing/extra/digest/bytes mismatch is required before the single publish PATCH
 - asset_mutation_tests: stage extra/duplicate/wrong digest/wrong bytes/malformed digest/malformed bytes/stale fresh/tag/release metadata and publish missing/extra/duplicate/wrong digest/wrong bytes/tag/title/draft/prerelease cases assert write 0; normal fresh/tag-only/empty draft/subset/full/Pages/published/conflicting paths retain exact GET/POST/PATCH/upload order and identities
@@ -238,5 +238,7 @@
 - attempt_2_working_tree_audit_initial: `C:\Users\owner\Development\personal\audit\TASK-009-spec-r2-attempt2-20260816-0900\working-tree-staged-public-exposure-audit.json`／2282 bytes／SHA-256 `711A4712A0A8FDAC953FF9E603CBA3E29877BFBD1ADB2772B61D72F3C259F1EE`／125 commits and raw commit objects／1023 trees／1060 blobs／15521 historical associations／25 refs／120 Actions logs／0 artifacts／finding 0／PASS
 - attempt_2_profile: narrowed
 - attempt_2_candidate_commit_tree_parent_ci: recorded by the direct-child handoff-only transition after exact candidate Governance CI SUCCESS
-- local_validation: final exact counts and browser evidence are recorded by the handoff-only transition
+- attempt_2_working_tree_audit_final: same directory／`working-tree-final-public-exposure-audit.json`／2282 bytes／SHA-256 `8993A113A836E2C50484257C278253FC310EEE6A2E22260CE15C50C86B66A821`／finding 0／PASS
+- attempt_2_candidate_exact_audit: same directory／`candidate-exact-public-exposure-audit.json`／2282 bytes／SHA-256 `35FAA8286FE1F357DF6C3A6B65E3E269F16DA7F331855AD470D3E4A73D023F9F`／126 commits and raw commit objects／1032 trees／1066 blobs／15693 associations／25 refs／120 Actions logs／0 artifacts／finding 0／PASS
+- local_validation: PS7／PS5.1 governance 7 gates each PASS; npm ci 137 packages／0 vulnerabilities; typecheck／lint／format PASS; Vitest 557; focused 69／68／86／28; distribution contract 77; public audit 18; launcher 216828 bytes; portable browser 284; staged HTTP 5 files／5 routes; runtime request／console／page errors 0
 - unresolved_revision_2_items: none; implementation review, review decision, relay, release, main integration, publication, and completion are intentionally not performed

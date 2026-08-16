@@ -1,20 +1,20 @@
 schema_version: 1
 task_id: TASK-009
 feature: 配布
-phase: implementation
-status: changes_requested
-next_actor: Codex
-next_role: IMPLEMENTER
+phase: implementation_review
+status: review_requested
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 model: 5.6 Sol
 effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-009/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-009/IMPLEMENTATION_REVIEW_HANDOFF.md
 rules_version: 0.12.25
 rules_commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 actual_executor: Codex
 provider_substitution: none
 review_kind: implementation
@@ -25,7 +25,7 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: 9d577d809721af25eef4243088d2a88a4acf2d91
+reviewed_candidate: b169407cafcdf51627b0a51b43637411dbf6b3c7
 reviewed_spec_revision: 2
 review_request_id: none
 review_started_at: none
