@@ -4,6 +4,10 @@ import { dirname, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildPublicAuditReport,
+  buildStableInventory,
+  canonicalMetadataRecord,
+  canonicalPositiveIntegerId,
+  PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
   PUBLIC_AUDIT_SCAN_METHOD,
   assertNoLinkedPath,
   isPathInside,
@@ -173,13 +177,6 @@ function hashSet(values) {
   return sha256(Buffer.from(`${[...new Set(values)].sort().join("\n")}\n`));
 }
 
-function inventory(values, label) {
-  const unique = new Set(values);
-  if (unique.size !== values.length)
-    throw new Error(`BLOCKED: duplicate ${label} inventory identity`);
-  return { count: values.length, sha256: hashSet(values) };
-}
-
 function parseTreeEntries(bytes, commit) {
   const entries = [];
   for (const raw of Buffer.from(bytes).toString("utf8").split("\0")) {
@@ -290,51 +287,83 @@ async function scanGithub({
     "workflow_runs",
     fetchImpl,
   );
+  const runEntries = runs.map((run) => {
+    const runId = canonicalPositiveIntegerId(run.id, "Actions run");
+    return {
+      run,
+      runId,
+      stableKey: runId,
+      metadataRecord: canonicalMetadataRecord(
+        [
+          ["id", runId],
+          ["head_sha", run.head_sha],
+          ["status", run.status],
+          ["conclusion", run.conclusion],
+          ["run_attempt", run.run_attempt],
+        ],
+        "Actions run",
+      ),
+    };
+  });
+  const runInventory = buildStableInventory(runEntries, "Actions run");
   scans.actions_run_logs = 0;
-  const runJobs = await mapLimit(runs, 12, async (run) => ({
-    run,
+  const runJobs = await mapLimit(runEntries, 12, async (runEntry) => ({
+    runEntry,
     jobs: await githubPages(
-      `${base}/actions/runs/${String(run.id)}/jobs`,
+      `${base}/actions/runs/${runEntry.runId}/jobs`,
       token,
       "jobs",
       fetchImpl,
     ),
   }));
-  const completedJobs = runJobs.flatMap(({ run, jobs }) =>
-    jobs
-      .filter((job) => job.status === "completed")
-      .map((job) => ({ run, job })),
+  const jobEntries = runJobs.flatMap(({ runEntry, jobs }) =>
+    jobs.map((job) => {
+      const jobId = canonicalPositiveIntegerId(job.id, "Actions job");
+      return {
+        run: runEntry.run,
+        job,
+        runId: runEntry.runId,
+        jobId,
+        stableKey: `${runEntry.runId}\t${jobId}`,
+        metadataRecord: canonicalMetadataRecord(
+          [
+            ["run_id", runEntry.runId],
+            ["id", jobId],
+            ["status", job.status],
+            ["conclusion", job.conclusion],
+          ],
+          "Actions job",
+        ),
+      };
+    }),
   );
-  const runInventory = inventory(
-    runs.map(
-      (run) =>
-        `${String(run.id)}\t${run.head_sha ?? ""}\t${run.status ?? ""}\t${run.conclusion ?? ""}\t${String(run.run_attempt ?? "")}`,
-    ),
-    "Actions run",
+  const jobInventory = buildStableInventory(jobEntries, "Actions job");
+  const completedJobs = jobEntries.filter(
+    (entry) => entry.job.status === "completed",
   );
-  const jobInventory = inventory(
-    runJobs.flatMap(({ run, jobs }) =>
-      jobs.map(
-        (job) =>
-          `${String(run.id)}\t${String(job.id)}\t${job.status ?? ""}\t${job.conclusion ?? ""}`,
+  const requiredJobLogInventory = buildStableInventory(
+    completedJobs.map((entry) => ({
+      stableKey: entry.stableKey,
+      metadataRecord: canonicalMetadataRecord(
+        [
+          ["run_id", entry.runId],
+          ["id", entry.jobId],
+        ],
+        "required Actions job log",
       ),
-    ),
-    "Actions job",
-  );
-  const requiredJobLogInventory = inventory(
-    completedJobs.map(({ run, job }) => `${String(run.id)}\t${String(job.id)}`),
+    })),
     "required Actions job log",
   );
-  const logFindings = await mapLimit(completedJobs, 8, async ({ run, job }) => {
+  const logFindings = await mapLimit(completedJobs, 8, async (entry) => {
     const bytes = await githubBytes(
-      `${base}/actions/jobs/${String(job.id)}/logs`,
+      `${base}/actions/jobs/${entry.jobId}/logs`,
       token,
       fetchImpl,
     );
     return scanPublicBytes({
       bytes,
-      path: `actions/run-${String(run.id)}/job-${String(job.id)}.log`,
-      commit: run.head_sha ?? null,
+      path: `actions/run-${entry.runId}/job-${entry.jobId}.log`,
+      commit: entry.run.head_sha ?? null,
     });
   });
   for (const current of logFindings) {
@@ -351,25 +380,41 @@ async function scanGithub({
   );
   scans.actions_artifacts = 0;
   let artifactRetrievals = 0;
-  const artifactInventory = inventory(
-    artifacts.map(
-      (artifact) =>
-        `${String(artifact.id)}\t${artifact.name ?? ""}\t${String(artifact.expired === true)}\t${artifact.workflow_run?.head_sha ?? ""}`,
-    ),
+  const artifactEntries = artifacts.map((artifact) => {
+    const artifactId = canonicalPositiveIntegerId(
+      artifact.id,
+      "Actions artifact",
+    );
+    return {
+      artifact,
+      artifactId,
+      stableKey: artifactId,
+      metadataRecord: canonicalMetadataRecord(
+        [
+          ["id", artifactId],
+          ["name", artifact.name],
+          ["expired", artifact.expired],
+          ["workflow_run_head_sha", artifact.workflow_run?.head_sha],
+        ],
+        "Actions artifact",
+      ),
+    };
+  });
+  const artifactInventory = buildStableInventory(
+    artifactEntries,
     "Actions artifact",
   );
-  for (const artifact of artifacts) {
+  for (const entry of artifactEntries) {
+    const { artifact, artifactId } = entry;
     if (artifact.expired)
-      throw new Error(
-        `BLOCKED: Actions artifact is expired or unavailable: ${String(artifact.id)}`,
-      );
+      throw new Error("BLOCKED: Actions artifact is expired or unavailable");
     const bytes = await githubBytes(
-      `${base}/actions/artifacts/${String(artifact.id)}/zip`,
+      `${base}/actions/artifacts/${artifactId}/zip`,
       token,
       fetchImpl,
     );
     artifactRetrievals += 1;
-    const path = `actions/artifact-${String(artifact.id)}-${artifact.name}.zip`;
+    const path = `actions/artifact-${artifactId}.zip`;
     findings.push(...scanArtifactImpl(bytes, path, { spawnImpl }));
     scans.actions_artifacts += 1;
   }
@@ -380,9 +425,12 @@ async function scanGithub({
     throw new Error("BLOCKED: Actions artifact scan inventory mismatch");
   return {
     visibility: repo.visibility,
-    runSetSha256: runInventory.sha256,
-    jobSetSha256: jobInventory.sha256,
-    artifactSetSha256: artifactInventory.sha256,
+    runSetSha256: runInventory.stableKeySetSha256,
+    jobSetSha256: jobInventory.stableKeySetSha256,
+    artifactSetSha256: artifactInventory.stableKeySetSha256,
+    runRecordSetSha256: runInventory.recordSetSha256,
+    jobRecordSetSha256: jobInventory.recordSetSha256,
+    artifactRecordSetSha256: artifactInventory.recordSetSha256,
     runInventoryCount: runInventory.count,
     jobInventoryCount: jobInventory.count,
     requiredJobLogCount: requiredJobLogInventory.count,
@@ -647,9 +695,14 @@ export async function runPublicExposureAudit({
           `${entry.commit}\t${entry.mode}\t${entry.type}\t${entry.object}\t${entry.path}`,
       ),
     ),
+    actions_inventory_identity_version:
+      PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
     actions_run_set_sha256: github.runSetSha256,
     actions_job_set_sha256: github.jobSetSha256,
     actions_artifact_set_sha256: github.artifactSetSha256,
+    actions_run_record_set_sha256: github.runRecordSetSha256,
+    actions_job_record_set_sha256: github.jobRecordSetSha256,
+    actions_artifact_record_set_sha256: github.artifactRecordSetSha256,
     actions_run_inventory_count: github.runInventoryCount,
     actions_job_inventory_count: github.jobInventoryCount,
     actions_required_job_log_count: github.requiredJobLogCount,

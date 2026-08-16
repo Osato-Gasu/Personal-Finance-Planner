@@ -31,7 +31,11 @@ export const PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES = Object.freeze([
   "actions_run_set_sha256",
   "actions_job_set_sha256",
   "actions_artifact_set_sha256",
+  "actions_run_record_set_sha256",
+  "actions_job_record_set_sha256",
+  "actions_artifact_record_set_sha256",
 ]);
+export const PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION = "stable-id-v1";
 export const PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS = Object.freeze([
   "actions_run_inventory_count",
   "actions_job_inventory_count",
@@ -57,6 +61,80 @@ export const PUBLIC_AUDIT_CATEGORIES = Object.freeze([
 
 export function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex").toUpperCase();
+}
+
+export function canonicalPositiveIntegerId(value, label) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0)
+    return String(value);
+  if (
+    typeof value === "string" &&
+    /^[1-9][0-9]*$/u.test(value) &&
+    BigInt(value) > 0n &&
+    BigInt(value).toString() === value
+  )
+    return value;
+  throw new Error(`BLOCKED: invalid ${label} stable ID`);
+}
+
+function canonicalMetadataScalar(value, label) {
+  if (value === undefined) return "undefined";
+  if (value === null) return "null";
+  if (typeof value === "string") return `string:${JSON.stringify(value)}`;
+  if (typeof value === "boolean") return `boolean:${String(value)}`;
+  if (typeof value === "number" && Number.isFinite(value))
+    return `number:${Object.is(value, -0) ? "-0" : String(value)}`;
+  throw new Error(`BLOCKED: invalid ${label} metadata`);
+}
+
+export function canonicalMetadataRecord(fields, label) {
+  if (!Array.isArray(fields))
+    throw new Error(`BLOCKED: invalid ${label} metadata`);
+  const names = new Set();
+  return fields
+    .map((field) => {
+      if (
+        !Array.isArray(field) ||
+        field.length !== 2 ||
+        typeof field[0] !== "string" ||
+        !/^[a-z][a-z0-9_]*$/u.test(field[0]) ||
+        names.has(field[0])
+      )
+        throw new Error(`BLOCKED: invalid ${label} metadata`);
+      names.add(field[0]);
+      return `${field[0]}=${canonicalMetadataScalar(field[1], label)}`;
+    })
+    .join("\t");
+}
+
+function hashCanonicalSet(values) {
+  return sha256(Buffer.from(`${[...values].sort().join("\n")}\n`, "utf8"));
+}
+
+export function buildStableInventory(entries, label) {
+  if (!Array.isArray(entries))
+    throw new Error(`BLOCKED: invalid ${label} inventory`);
+  const seen = new Map();
+  for (const entry of entries) {
+    if (
+      !entry ||
+      typeof entry.stableKey !== "string" ||
+      entry.stableKey.length === 0 ||
+      typeof entry.metadataRecord !== "string" ||
+      entry.metadataRecord.length === 0
+    )
+      throw new Error(`BLOCKED: invalid ${label} inventory`);
+    if (seen.has(entry.stableKey)) {
+      if (seen.get(entry.stableKey) === entry.metadataRecord)
+        throw new Error(`BLOCKED: duplicate ${label} stable ID`);
+      throw new Error(`BLOCKED: conflicting ${label} stable ID metadata`);
+    }
+    seen.set(entry.stableKey, entry.metadataRecord);
+  }
+  return {
+    count: entries.length,
+    stableKeySetSha256: hashCanonicalSet(seen.keys()),
+    recordSetSha256: hashCanonicalSet(seen.values()),
+  };
 }
 
 function isFixturePath(path) {
@@ -277,6 +355,11 @@ export function validatePublicExposureAudit(
     errors.push("public audit provenance target mismatch");
   if (report?.provenance?.scan_method !== PUBLIC_AUDIT_SCAN_METHOD)
     errors.push("public audit provenance scan method mismatch");
+  if (
+    report?.provenance?.actions_inventory_identity_version !==
+    PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION
+  )
+    errors.push("public audit Actions inventory identity version mismatch");
   for (const name of PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES) {
     const hash = report?.provenance?.[name] ?? "";
     if (!/^[0-9A-F]{64}$/u.test(hash) || /^0{64}$/u.test(hash))

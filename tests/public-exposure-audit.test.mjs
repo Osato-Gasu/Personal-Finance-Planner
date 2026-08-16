@@ -14,10 +14,15 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   PUBLIC_AUDIT_CATEGORIES,
+  PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
   PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS,
+  PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES,
   PUBLIC_AUDIT_REQUIRED_SCANS,
   PUBLIC_AUDIT_SCAN_METHOD,
+  buildStableInventory,
   buildPublicAuditReport,
+  canonicalMetadataRecord,
+  canonicalPositiveIntegerId,
   readAuditProof,
   scanPublicBytes,
   serializePublicAuditReport,
@@ -42,6 +47,11 @@ const provenance = {
   actions_run_set_sha256: "F".repeat(64),
   actions_job_set_sha256: "1".repeat(64),
   actions_artifact_set_sha256: "2".repeat(64),
+  actions_run_record_set_sha256: "3".repeat(64),
+  actions_job_record_set_sha256: "4".repeat(64),
+  actions_artifact_record_set_sha256: "5".repeat(64),
+  actions_inventory_identity_version:
+    PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
   actions_run_inventory_count: 1,
   actions_job_inventory_count: 1,
   actions_required_job_log_count: 1,
@@ -110,6 +120,100 @@ function report(overrides = {}) {
 }
 
 describe("public exposure audit contract", () => {
+  it.each([
+    [1, "1"],
+    [Number.MAX_SAFE_INTEGER, String(Number.MAX_SAFE_INTEGER)],
+    ["1", "1"],
+    ["90071992547409931234567890", "90071992547409931234567890"],
+  ])("canonicalizes a positive Actions stable ID: %j", (value, expected) => {
+    expect(canonicalPositiveIntegerId(value, "Actions run")).toBe(expected);
+  });
+
+  it.each([
+    null,
+    undefined,
+    true,
+    false,
+    {},
+    [],
+    "",
+    0,
+    -1,
+    1.5,
+    1e21,
+    Number.MAX_SAFE_INTEGER + 1,
+    NaN,
+    Infinity,
+    "0",
+    "-1",
+    "1.5",
+    "1e3",
+    "+1",
+    " 1",
+    "1 ",
+    "01",
+  ])("rejects a non-canonical Actions stable ID: %j", (value) => {
+    expect(() => canonicalPositiveIntegerId(value, "Actions run")).toThrow(
+      "BLOCKED: invalid Actions run stable ID",
+    );
+  });
+
+  it("hashes stable keys and fixed-order records deterministically", () => {
+    const entry = (id, status) => ({
+      stableKey: id,
+      metadataRecord: canonicalMetadataRecord(
+        [
+          ["id", id],
+          ["status", status],
+          ["conclusion", null],
+          ["run_attempt", undefined],
+        ],
+        "Actions run",
+      ),
+    });
+    const first = buildStableInventory(
+      [entry("1", "completed"), entry("2", "queued")],
+      "Actions run",
+    );
+    const reordered = buildStableInventory(
+      [entry("2", "queued"), entry("1", "completed")],
+      "Actions run",
+    );
+    const metadataChanged = buildStableInventory(
+      [entry("1", "completed"), entry("2", "in_progress")],
+      "Actions run",
+    );
+    expect(reordered).toEqual(first);
+    expect(metadataChanged.stableKeySetSha256).toBe(first.stableKeySetSha256);
+    expect(metadataChanged.recordSetSha256).not.toBe(first.recordSetSha256);
+  });
+
+  it.each([
+    ["Actions run", "11"],
+    ["Actions job", "11\t21"],
+    ["Actions artifact", "31"],
+  ])("rejects duplicate and conflicting %s stable IDs", (label, stableKey) => {
+    const secret = ["gh", "p_", "duplicate", "S".repeat(30)].join("");
+    const base = { stableKey, metadataRecord: 'status=string:"completed"' };
+    expect(() => buildStableInventory([base, { ...base }], label)).toThrow(
+      new RegExp(`BLOCKED: duplicate ${label} stable ID`, "u"),
+    );
+    let error;
+    try {
+      buildStableInventory(
+        [base, { stableKey, metadataRecord: `status=string:${secret}` }],
+        label,
+      );
+    } catch (value) {
+      error = value;
+    }
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe(
+      `BLOCKED: conflicting ${label} stable ID metadata`,
+    );
+    expect(error.message).not.toContain(secret);
+  });
+
   it("serializes a deterministic strict PASS proof without BOM or secret values", () => {
     const value = report();
     const bytes = serializePublicAuditReport(value);
@@ -325,6 +429,154 @@ describe("public exposure audit contract", () => {
       ]),
     );
   });
+
+  it("requires stable-ID inventory version and all record-set hashes", () => {
+    for (const name of PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES.filter((name) =>
+      name.includes("record_set"),
+    )) {
+      const value = report({
+        provenance: { ...provenance, [name]: undefined },
+      });
+      const bytes = serializePublicAuditReport(value);
+      expect(
+        validatePublicExposureAudit(value, {
+          repository,
+          targetCommit,
+          phase: "release_preflight",
+          reportBytes: bytes,
+          expectedSha256: sha256(bytes),
+        }).ok,
+      ).toBe(false);
+    }
+    const wrongVersion = report({
+      provenance: {
+        ...provenance,
+        actions_inventory_identity_version: "metadata-key-v0",
+      },
+    });
+    const bytes = serializePublicAuditReport(wrongVersion);
+    expect(
+      validatePublicExposureAudit(wrongVersion, {
+        repository,
+        targetCommit,
+        phase: "release_preflight",
+        reportBytes: bytes,
+        expectedSha256: sha256(bytes),
+      }).errors,
+    ).toContain("public audit Actions inventory identity version mismatch");
+  });
+
+  it.each([
+    ["run", false],
+    ["run", true],
+    ["job", false],
+    ["job", true],
+    ["artifact", false],
+    ["artifact", true],
+  ])(
+    "rejects %s pagination overlap before report creation (conflict=%s)",
+    async (kind, conflict) => {
+      const fixture = await createAuditRepository("public-audit-overlap-");
+      const secret = ["gh", "p_", "overlap", "Z".repeat(30)].join("");
+      let contentRequests = 0;
+      const run = (id) => ({
+        id,
+        head_sha: fixture.head,
+        status: "completed",
+        conclusion: "success",
+        run_attempt: 1,
+      });
+      const job = (id) => ({
+        id,
+        status: "completed",
+        conclusion: "success",
+      });
+      const artifact = (id) => ({
+        id,
+        name: "proof",
+        expired: false,
+        workflow_run: { head_sha: fixture.head },
+      });
+      const fetchImpl = async (url) => {
+        const value = String(url);
+        if (value.endsWith(`/${repository}`))
+          return jsonResponse({ private: false, visibility: "public" });
+        const pageTwo = value.includes("page=2");
+        if (value.includes("/actions/runs?") && kind === "run") {
+          if (!pageTwo)
+            return jsonResponse({
+              workflow_runs: Array.from({ length: 100 }, (_item, index) =>
+                run(index + 1),
+              ),
+            });
+          return jsonResponse({
+            workflow_runs: [
+              { ...run(1), status: conflict ? secret : "completed" },
+            ],
+          });
+        }
+        if (value.includes("/actions/runs?"))
+          return jsonResponse({
+            workflow_runs: kind === "job" ? [run(11)] : [],
+          });
+        if (value.includes("/actions/runs/11/jobs")) {
+          if (!pageTwo)
+            return jsonResponse({
+              jobs: Array.from({ length: 100 }, (_item, index) =>
+                job(index + 1),
+              ),
+            });
+          return jsonResponse({
+            jobs: [{ ...job(1), status: conflict ? secret : "completed" }],
+          });
+        }
+        if (value.includes("/actions/artifacts?")) {
+          if (kind !== "artifact") return jsonResponse({ artifacts: [] });
+          if (!pageTwo)
+            return jsonResponse({
+              artifacts: Array.from({ length: 100 }, (_item, index) =>
+                artifact(index + 1),
+              ),
+            });
+          return jsonResponse({
+            artifacts: [{ ...artifact(1), name: conflict ? secret : "proof" }],
+          });
+        }
+        if (value.includes("/logs") || value.includes("/zip")) {
+          contentRequests += 1;
+          return bytesResponse("safe");
+        }
+        throw new Error(`unexpected test URL: ${value}`);
+      };
+      try {
+        let error;
+        try {
+          await runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            fetchImpl,
+          });
+        } catch (value) {
+          error = value;
+        }
+        expect(error).toBeInstanceOf(Error);
+        expect(error.message).toMatch(
+          conflict
+            ? /conflicting .* stable ID metadata/u
+            : /duplicate .* stable ID/u,
+        );
+        expect(error.message).not.toContain(secret);
+        expect(contentRequests).toBe(0);
+        await expect(readFile(fixture.output)).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
 
   it.each([
     ["parent traversal", ["../secret.txt"], ["-rw-r--r-- entry"]],
@@ -650,6 +902,12 @@ describe("public exposure audit contract", () => {
       expect(value.scans.actions_artifacts).toBe(1);
       expect(artifactScans).toBe(1);
       expect(value.provenance).toMatchObject({
+        actions_inventory_identity_version:
+          PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
+        actions_run_record_set_sha256: expect.stringMatching(/^[0-9A-F]{64}$/u),
+        actions_job_record_set_sha256: expect.stringMatching(/^[0-9A-F]{64}$/u),
+        actions_artifact_record_set_sha256:
+          expect.stringMatching(/^[0-9A-F]{64}$/u),
         actions_run_inventory_count: 1,
         actions_job_inventory_count: 1,
         actions_required_job_log_count: 1,
