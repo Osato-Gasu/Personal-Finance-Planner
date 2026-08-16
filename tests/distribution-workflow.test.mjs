@@ -6,6 +6,14 @@ const triggerBlock = workflow.slice(
   workflow.indexOf("on:"),
   workflow.indexOf("permissions:"),
 );
+const preflightBlock = workflow.slice(
+  workflow.indexOf("  preflight:"),
+  workflow.indexOf("  draft_release:"),
+);
+const liveVerificationBlock = workflow.slice(
+  workflow.indexOf("  live_verification:"),
+  workflow.indexOf("  publish_release:"),
+);
 const officialActions = new Set([
   "actions/checkout",
   "actions/setup-node",
@@ -136,6 +144,57 @@ describe("manual distribution workflow", () => {
       ),
     );
     expect(workflow).toContain("_audit/public-exposure-audit.json");
+  });
+
+  it("transfers the exact immutable public audit proof across jobs", () => {
+    const proof = "_audit/public-exposure-audit.json";
+    expect(preflightBlock).toContain(`$proof = '${proof}'`);
+    expect(preflightBlock).toContain("public_audit_sha256:");
+    expect(preflightBlock).toContain("public_audit_bytes:");
+    expect(preflightBlock).toContain(
+      "public audit proof destination already exists",
+    );
+    expect(preflightBlock).toContain(
+      "public audit proof copy SHA-256 mismatch",
+    );
+    expect(preflightBlock).toContain(
+      "public audit proof copy byte length mismatch",
+    );
+    expect(preflightBlock).toMatch(
+      /path: \|[\s\S]*?_distribution[\s\S]*?_audit\/preflight\.json[\s\S]*?_audit\/public-exposure-audit\.json/u,
+    );
+    expect(preflightBlock).not.toContain("Copy-Item -Force");
+
+    expect(liveVerificationBlock).toContain(
+      "Require unique public audit proof destination",
+    );
+    expect(liveVerificationBlock).toContain(
+      "Verify transferred public audit proof identity",
+    );
+    expect(liveVerificationBlock).toContain(
+      "public audit proof is missing after artifact download",
+    );
+    expect(liveVerificationBlock).toContain(
+      "needs.preflight.outputs.public_audit_sha256",
+    );
+    expect(liveVerificationBlock).toContain(
+      "needs.preflight.outputs.public_audit_bytes",
+    );
+    expect(liveVerificationBlock.indexOf("download-artifact@")).toBeLessThan(
+      liveVerificationBlock.indexOf(
+        "Verify transferred public audit proof identity",
+      ),
+    );
+    expect(
+      liveVerificationBlock.indexOf(
+        "Verify transferred public audit proof identity",
+      ),
+    ).toBeLessThan(
+      liveVerificationBlock.indexOf(
+        "Verify live raw bytes and browser evidence",
+      ),
+    );
+    expect(liveVerificationBlock).toContain(`--public-audit ${proof}`);
   });
 
   it("keeps the public audit read-only and asset validation inside repository-native tools", () => {

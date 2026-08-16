@@ -38,6 +38,7 @@ jobs:
       state: ${{ steps.state.outputs.state }}
       page_url: ${{ steps.state.outputs.page_url }}
       public_audit_sha256: ${{ steps.state.outputs.public_audit_sha256 }}
+      public_audit_bytes: ${{ steps.state.outputs.public_audit_bytes }}
     steps:
       - name: Validate explicit publication inputs
         shell: pwsh
@@ -96,10 +97,16 @@ jobs:
           node tools/public-exposure-audit.mjs --repository '${{ github.repository }}' --target-sha '${{ inputs.target_sha }}' --phase release_preflight --staging _distribution --output $path
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $sha = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+          $bytes = (Get-Item -LiteralPath $path).Length
           [IO.Directory]::CreateDirectory('_audit') | Out-Null
-          Copy-Item -LiteralPath $path -Destination '_audit/public-exposure-audit.json'
-          "path=$path" >> $env:GITHUB_OUTPUT
+          $proof = '_audit/public-exposure-audit.json'
+          if (Test-Path -LiteralPath $proof) { throw 'public audit proof destination already exists' }
+          Copy-Item -LiteralPath $path -Destination $proof
+          if ((Get-FileHash -LiteralPath $proof -Algorithm SHA256).Hash -cne $sha) { throw 'public audit proof copy SHA-256 mismatch' }
+          if ((Get-Item -LiteralPath $proof).Length -ne $bytes) { throw 'public audit proof copy byte length mismatch' }
+          "path=$proof" >> $env:GITHUB_OUTPUT
           "sha256=$sha" >> $env:GITHUB_OUTPUT
+          "bytes=$bytes" >> $env:GITHUB_OUTPUT
       - name: Exact side-effect-free preflight
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -126,12 +133,14 @@ jobs:
           "state=$($audit.preflight.classification.state)" >> $env:GITHUB_OUTPUT
           "page_url=$($audit.pages_url)" >> $env:GITHUB_OUTPUT
           "public_audit_sha256=${{ steps.public_audit.outputs.sha256 }}" >> $env:GITHUB_OUTPUT
+          "public_audit_bytes=${{ steps.public_audit.outputs.bytes }}" >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: distribution-preflight-${{ inputs.target_sha }}
           path: |
             _distribution
             _audit/preflight.json
+            _audit/public-exposure-audit.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
@@ -237,10 +246,23 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Require unique public audit proof destination
+        shell: pwsh
+        run: |
+          if (Test-Path -LiteralPath '_audit') { throw 'public audit download destination already exists' }
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: distribution-preflight-${{ inputs.target_sha }}
           path: .
+      - name: Verify transferred public audit proof identity
+        shell: pwsh
+        run: |
+          $proof = '_audit/public-exposure-audit.json'
+          if (-not (Test-Path -LiteralPath $proof -PathType Leaf)) { throw 'public audit proof is missing after artifact download' }
+          $sha = (Get-FileHash -LiteralPath $proof -Algorithm SHA256).Hash
+          if ($sha -cne '${{ needs.preflight.outputs.public_audit_sha256 }}') { throw 'public audit proof SHA-256 mismatch after artifact download' }
+          $bytes = (Get-Item -LiteralPath $proof).Length
+          if ($bytes -ne [int64]'${{ needs.preflight.outputs.public_audit_bytes }}') { throw 'public audit proof byte length mismatch after artifact download' }
       - name: Verify live raw bytes and browser evidence
         shell: pwsh
         run: |

@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { mkdir, lstat, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildPublicAuditReport,
+  PUBLIC_AUDIT_SCAN_METHOD,
   assertNoLinkedPath,
   isPathInside,
   scanPublicBytes,
@@ -19,8 +20,8 @@ function option(name, fallback) {
   return process.argv[index + 1];
 }
 
-function git(cwd, args, input) {
-  const result = spawnSync("git", args, {
+function git(cwd, args, input, spawnImpl = spawnSync) {
+  const result = spawnImpl("git", args, {
     cwd,
     input,
     encoding: input === undefined ? "utf8" : undefined,
@@ -31,7 +32,7 @@ function git(cwd, args, input) {
   return result.stdout;
 }
 
-function batchBlobs(cwd, identities) {
+function batchBlobs(cwd, identities, spawnImpl = spawnSync) {
   if (identities.length === 0) return new Map();
   const input = Buffer.from(`${identities.join("\n")}\n`);
   const check = String(
@@ -39,6 +40,7 @@ function batchBlobs(cwd, identities) {
       cwd,
       ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
       input,
+      spawnImpl,
     ),
   )
     .trim()
@@ -48,7 +50,12 @@ function batchBlobs(cwd, identities) {
     .filter((line) => line[1] === "blob")
     .map((line) => line[0]);
   const raw = Buffer.from(
-    git(cwd, ["cat-file", "--batch"], Buffer.from(`${blobIds.join("\n")}\n`)),
+    git(
+      cwd,
+      ["cat-file", "--batch"],
+      Buffer.from(`${blobIds.join("\n")}\n`),
+      spawnImpl,
+    ),
   );
   const values = new Map();
   let offset = 0;
@@ -68,8 +75,8 @@ function batchBlobs(cwd, identities) {
   return values;
 }
 
-async function githubJson(url, token) {
-  const response = await fetch(url, {
+async function githubJson(url, token, fetchImpl = fetch) {
+  const response = await fetchImpl(url, {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
@@ -84,8 +91,8 @@ async function githubJson(url, token) {
   return response.json();
 }
 
-async function githubBytes(url, token) {
-  const response = await fetch(url, {
+async function githubBytes(url, token, fetchImpl = fetch) {
+  const response = await fetchImpl(url, {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
@@ -102,13 +109,14 @@ async function githubBytes(url, token) {
   return Buffer.from(await response.arrayBuffer());
 }
 
-async function githubPages(url, token, key) {
+async function githubPages(url, token, key, fetchImpl = fetch) {
   const values = [];
   for (let page = 1; ; page += 1) {
     const separator = url.includes("?") ? "&" : "?";
     const response = await githubJson(
       `${url}${separator}per_page=100&page=${String(page)}`,
       token,
+      fetchImpl,
     );
     const current = response[key] ?? response;
     values.push(...current);
@@ -132,28 +140,89 @@ async function mapLimit(values, limit, callback) {
   return results;
 }
 
-function scanArtifactArchive(bytes, path) {
-  const list = spawnSync("tar", ["-tf", "-"], {
+function evidencePath(kind, value) {
+  return `${kind}/sha256-${sha256(Buffer.from(value, "utf8")).slice(0, 16)}`;
+}
+
+function splitLines(value) {
+  return String(value).trim().split("\n").filter(Boolean);
+}
+
+function hashSet(values) {
+  return sha256(Buffer.from(`${[...new Set(values)].sort().join("\n")}\n`));
+}
+
+function parseTreeEntries(bytes, commit) {
+  const entries = [];
+  for (const raw of Buffer.from(bytes).toString("utf8").split("\0")) {
+    if (!raw) continue;
+    const tab = raw.indexOf("\t");
+    const metadata = raw.slice(0, tab).split(" ");
+    if (tab < 0 || metadata.length !== 3)
+      throw new Error("BLOCKED: malformed git tree entry");
+    entries.push({
+      commit,
+      mode: metadata[0],
+      type: metadata[1],
+      object: metadata[2],
+      path: raw.slice(tab + 1),
+    });
+  }
+  return entries;
+}
+
+export function scanArtifactArchive(
+  bytes,
+  path,
+  { spawnImpl = spawnSync } = {},
+) {
+  const options = {
     input: bytes,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
-  });
+  };
+  const list = spawnImpl("tar", ["-tf", "-"], options);
   if (list.status !== 0)
     throw new Error(
       `BLOCKED: Actions artifact content is unavailable: ${path}`,
     );
-  const names = list.stdout.split(/\r?\n/u).filter(Boolean);
+  const verbose = spawnImpl("tar", ["-tvf", "-"], options);
+  if (verbose.status !== 0)
+    throw new Error(
+      `BLOCKED: Actions artifact metadata is unavailable: ${path}`,
+    );
+  const names = String(list.stdout).split(/\r?\n/u).filter(Boolean);
+  const metadata = String(verbose.stdout).split(/\r?\n/u).filter(Boolean);
+  if (names.length !== metadata.length)
+    throw new Error(`BLOCKED: Actions artifact inventory mismatch: ${path}`);
   const findings = [];
-  for (const name of names) {
+  const normalizedNames = new Set();
+  for (const [index, name] of names.entries()) {
+    const portable = name.replaceAll("\\", "/");
+    const normalized = posix.normalize(portable).replace(/\/$/u, "");
     if (
-      name.startsWith("/") ||
-      /^[A-Za-z]:/u.test(name) ||
-      name.split(/[\\/]/u).includes("..")
+      !normalized ||
+      normalized === "." ||
+      portable.startsWith("/") ||
+      /^[A-Za-z]:/u.test(portable) ||
+      portable.split("/").includes("..") ||
+      normalized.startsWith("../")
     )
       throw new Error(
         `BLOCKED: Actions artifact contains unsafe path: ${path}`,
       );
-    const content = spawnSync("tar", ["-xOf", "-", name], {
+    if (normalizedNames.has(normalized))
+      throw new Error(
+        `BLOCKED: Actions artifact contains duplicate normalized path: ${path}`,
+      );
+    normalizedNames.add(normalized);
+    const type = metadata[index][0];
+    if (type === "d") continue;
+    if (type !== "-")
+      throw new Error(
+        `BLOCKED: Actions artifact contains link or special entry: ${path}`,
+      );
+    const content = spawnImpl("tar", ["-xOf", "-", "--", name], {
       input: bytes,
       maxBuffer: 128 * 1024 * 1024,
     });
@@ -164,24 +233,33 @@ function scanArtifactArchive(bytes, path) {
     findings.push(
       ...scanPublicBytes({
         bytes: content.stdout,
-        path: `${path}/${name}`,
+        path: normalized,
+        evidencePath: `${path}/${evidencePath("entry", normalized)}`,
       }),
     );
   }
   return findings;
 }
 
-async function scanGithub({ repository, token, findings, scans }) {
+async function scanGithub({
+  repository,
+  token,
+  findings,
+  scans,
+  fetchImpl,
+  spawnImpl,
+}) {
   if (!token)
     throw new Error("BLOCKED: GITHUB_TOKEN is required for Actions audit");
   const base = `https://api.github.com/repos/${repository}`;
-  const repo = await githubJson(base, token);
+  const repo = await githubJson(base, token, fetchImpl);
   if (repo.private !== false || repo.visibility !== "public")
     throw new Error("BLOCKED: repository is not exactly public");
   const runs = await githubPages(
     `${base}/actions/runs`,
     token,
     "workflow_runs",
+    fetchImpl,
   );
   scans.actions_run_logs = 0;
   const runJobs = await mapLimit(runs, 12, async (run) => ({
@@ -190,6 +268,7 @@ async function scanGithub({ repository, token, findings, scans }) {
       `${base}/actions/runs/${String(run.id)}/jobs`,
       token,
       "jobs",
+      fetchImpl,
     ),
   }));
   const completedJobs = runJobs.flatMap(({ run, jobs }) =>
@@ -201,6 +280,7 @@ async function scanGithub({ repository, token, findings, scans }) {
     const bytes = await githubBytes(
       `${base}/actions/jobs/${String(job.id)}/logs`,
       token,
+      fetchImpl,
     );
     if (bytes === null) return null;
     return scanPublicBytes({
@@ -218,6 +298,7 @@ async function scanGithub({ repository, token, findings, scans }) {
     `${base}/actions/artifacts`,
     token,
     "artifacts",
+    fetchImpl,
   );
   scans.actions_artifacts = 0;
   for (const artifact of artifacts) {
@@ -225,13 +306,36 @@ async function scanGithub({ repository, token, findings, scans }) {
     const bytes = await githubBytes(
       `${base}/actions/artifacts/${String(artifact.id)}/zip`,
       token,
+      fetchImpl,
     );
     if (bytes === null) continue;
     const path = `actions/artifact-${String(artifact.id)}-${artifact.name}.zip`;
-    findings.push(...scanArtifactArchive(bytes, path));
+    findings.push(...scanArtifactArchive(bytes, path, { spawnImpl }));
     scans.actions_artifacts += 1;
   }
-  return repo.visibility;
+  return {
+    visibility: repo.visibility,
+    runSetSha256: hashSet(
+      runs.map(
+        (run) =>
+          `${String(run.id)}\t${run.head_sha ?? ""}\t${run.status ?? ""}\t${run.conclusion ?? ""}\t${String(run.run_attempt ?? "")}`,
+      ),
+    ),
+    jobSetSha256: hashSet(
+      runJobs.flatMap(({ run, jobs }) =>
+        jobs.map(
+          (job) =>
+            `${String(run.id)}\t${String(job.id)}\t${job.status ?? ""}\t${job.conclusion ?? ""}`,
+        ),
+      ),
+    ),
+    artifactSetSha256: hashSet(
+      artifacts.map(
+        (artifact) =>
+          `${String(artifact.id)}\t${artifact.name ?? ""}\t${String(artifact.expired === true)}\t${artifact.workflow_run?.head_sha ?? ""}`,
+      ),
+    ),
+  };
 }
 
 export async function runPublicExposureAudit({
@@ -242,12 +346,23 @@ export async function runPublicExposureAudit({
   output,
   staging,
   token,
+  fetchImpl = fetch,
+  spawnImpl = spawnSync,
 }) {
-  const root = String(git(cwd, ["rev-parse", "--show-toplevel"])).trim();
-  const resolvedTarget = String(
-    git(root, ["rev-parse", "--verify", `${targetCommit}^{commit}`]),
+  const root = String(
+    git(cwd, ["rev-parse", "--show-toplevel"], undefined, spawnImpl),
   ).trim();
-  const head = String(git(root, ["rev-parse", "HEAD"])).trim();
+  const resolvedTarget = String(
+    git(
+      root,
+      ["rev-parse", "--verify", `${targetCommit}^{commit}`],
+      undefined,
+      spawnImpl,
+    ),
+  ).trim();
+  const head = String(
+    git(root, ["rev-parse", "HEAD"], undefined, spawnImpl),
+  ).trim();
   if (resolvedTarget !== targetCommit || head !== targetCommit)
     throw new Error("audit target must be the exact checked-out HEAD commit");
   const outputPath = resolve(output);
@@ -258,60 +373,135 @@ export async function runPublicExposureAudit({
   const startedAt = new Date().toISOString();
   const findings = [];
   const scans = {};
-  const objectLines = String(git(root, ["rev-list", "--objects", "--all"]))
-    .trim()
-    .split("\n")
-    .filter(Boolean);
-  const paths = new Map();
-  for (const line of objectLines) {
-    const separator = line.indexOf(" ");
-    paths.set(
-      separator < 0 ? line : line.slice(0, separator),
-      separator < 0 ? "" : line.slice(separator + 1),
+  const reachableCommits = splitLines(
+    git(root, ["rev-list", "--all"], undefined, spawnImpl),
+  );
+  if (reachableCommits.length === 0)
+    throw new Error("BLOCKED: reachable commit inventory is empty");
+  scans.reachable_commits = reachableCommits.length;
+  scans.commit_objects = 0;
+  for (const commit of reachableCommits) {
+    const bytes = git(
+      root,
+      ["cat-file", "commit", commit],
+      undefined,
+      spawnImpl,
     );
+    findings.push(
+      ...scanPublicBytes({
+        bytes,
+        path: `git/commit/${commit}`,
+        commit,
+      }),
+    );
+    scans.commit_objects += 1;
   }
-  const objects = batchBlobs(root, [...paths.keys()]);
-  scans.reachable_commits = String(git(root, ["rev-list", "--all"]))
-    .trim()
-    .split("\n")
-    .filter(Boolean).length;
+
+  const objectLines = splitLines(
+    git(root, ["rev-list", "--objects", "--all"], undefined, spawnImpl),
+  );
+  const objectIds = [
+    ...new Set(objectLines.map((line) => line.split(" ", 1)[0])),
+  ];
   const types = String(
     git(
       root,
       ["cat-file", "--batch-check=%(objecttype)"],
-      Buffer.from(`${[...paths.keys()].join("\n")}\n`),
+      Buffer.from(`${objectIds.join("\n")}\n`),
+      spawnImpl,
     ),
   )
     .trim()
     .split("\n");
-  scans.reachable_trees = types.filter((type) => type === "tree").length;
-  scans.reachable_blobs = objects.size;
-  for (const [blob, bytes] of objects)
+  const treeIds = objectIds.filter((_id, index) => types[index] === "tree");
+  const blobIds = objectIds.filter((_id, index) => types[index] === "blob");
+  const objects = batchBlobs(root, blobIds, spawnImpl);
+  scans.reachable_trees = treeIds.length;
+  scans.reachable_blobs = blobIds.length;
+
+  const associations = [];
+  for (const commit of reachableCommits) {
+    associations.push(
+      ...parseTreeEntries(
+        git(
+          root,
+          ["ls-tree", "-rz", "--full-tree", "-r", commit],
+          undefined,
+          spawnImpl,
+        ),
+        commit,
+      ),
+    );
+  }
+  if (associations.length === 0)
+    throw new Error("BLOCKED: historical tree/path inventory is empty");
+  scans.tree_entries = associations.length;
+  scans.historical_path_associations = associations.length;
+  const scannedBlobPaths = new Set();
+  for (const association of associations) {
+    const associationIdentity = `${association.commit}\t${association.mode}\t${association.type}\t${association.object}\t${association.path}`;
+    findings.push(
+      ...scanPublicBytes({
+        bytes: association.path,
+        path: association.path,
+        evidencePath: evidencePath("git/tree-entry", associationIdentity),
+        commit: association.commit,
+        blob: association.type === "blob" ? association.object : null,
+      }),
+    );
+    if (association.type !== "blob") continue;
+    const scanIdentity = `${association.object}\0${association.path}`;
+    if (scannedBlobPaths.has(scanIdentity)) continue;
+    scannedBlobPaths.add(scanIdentity);
+    const bytes = objects.get(association.object);
+    if (!bytes)
+      throw new Error("BLOCKED: historical blob content is unavailable");
     findings.push(
       ...scanPublicBytes({
         bytes,
-        path: paths.get(blob) || "(unpathed reachable blob)",
-        commit: "reachable",
-        blob,
+        path: association.path,
+        evidencePath: evidencePath("git/blob-path", scanIdentity),
+        commit: association.commit,
+        blob: association.object,
       }),
     );
+  }
+
   const refs = String(
-    git(root, ["for-each-ref", "--format=%(refname) %(objectname)"]),
+    git(
+      root,
+      ["for-each-ref", "--format=%(refname)%09%(objectname)"],
+      undefined,
+      spawnImpl,
+    ),
   )
     .trim()
     .split("\n")
     .filter(Boolean);
   scans.refs = refs.length;
   scans.tags = refs.filter((line) => line.startsWith("refs/tags/")).length;
+  for (const line of refs) {
+    const [ref] = line.split("\t");
+    findings.push(
+      ...scanPublicBytes({
+        bytes: ref,
+        path: ref,
+        evidencePath: evidencePath("git/ref", ref),
+      }),
+    );
+  }
   scans.lfs_pointers = [...objects.values()].filter((bytes) =>
     bytes
       .subarray(0, 100)
       .toString("utf8")
       .includes("https://git-lfs.github.com/spec/v1"),
   ).length;
-  scans.submodules =
-    types.filter((type) => type === "commit").length - scans.reachable_commits;
-  const workPaths = String(git(root, ["ls-files", "-co", "--exclude-standard"]))
+  scans.submodules = associations.filter(
+    (entry) => entry.mode === "160000" || entry.type === "commit",
+  ).length;
+  const workPaths = String(
+    git(root, ["ls-files", "-co", "--exclude-standard"], undefined, spawnImpl),
+  )
     .trim()
     .split("\n")
     .filter(Boolean);
@@ -324,19 +514,22 @@ export async function runPublicExposureAudit({
     findings.push(
       ...scanPublicBytes({
         bytes: await readFile(full),
-        path: `working/${path}`,
+        path,
+        evidencePath: evidencePath("working", path),
       }),
     );
     scans.working_tree += 1;
   }
-  const stagedLines = String(git(root, ["ls-files", "-s"]))
+  const stagedLines = String(
+    git(root, ["ls-files", "-s"], undefined, spawnImpl),
+  )
     .trim()
     .split("\n")
     .filter(Boolean);
   const stagedIds = [
     ...new Set(stagedLines.map((line) => line.split(/\s+/u)[1])),
   ];
-  const staged = batchBlobs(root, stagedIds);
+  const staged = batchBlobs(root, stagedIds, spawnImpl);
   scans.staged_bytes = staged.size;
   for (const line of stagedLines) {
     const [metadata, path] = line.split("\t");
@@ -344,7 +537,8 @@ export async function runPublicExposureAudit({
     findings.push(
       ...scanPublicBytes({
         bytes: staged.get(blob),
-        path: `staged/${path}`,
+        path,
+        evidencePath: evidencePath("staged", `${blob}\0${path}`),
         blob,
       }),
     );
@@ -367,20 +561,48 @@ export async function runPublicExposureAudit({
       findings.push(
         ...scanPublicBytes({
           bytes: await readFile(full),
-          path: `staging/${name}`,
+          path: name,
+          evidencePath: `staging/${name}`,
         }),
       );
       scans.release_staging += 1;
     }
   }
-  const visibility = await scanGithub({ repository, token, findings, scans });
+  const github = await scanGithub({
+    repository,
+    token,
+    findings,
+    scans,
+    fetchImpl,
+    spawnImpl,
+  });
+  const provenance = {
+    target_commit: targetCommit,
+    scan_method: PUBLIC_AUDIT_SCAN_METHOD,
+    ref_set_sha256: hashSet(refs),
+    reachable_commit_set_sha256: hashSet(reachableCommits),
+    reachable_tree_set_sha256: hashSet(treeIds),
+    reachable_blob_set_sha256: hashSet(blobIds),
+    commit_path_blob_associations_sha256: hashSet(
+      associations.map(
+        (entry) =>
+          `${entry.commit}\t${entry.mode}\t${entry.type}\t${entry.object}\t${entry.path}`,
+      ),
+    ),
+    actions_run_set_sha256: github.runSetSha256,
+    actions_job_set_sha256: github.jobSetSha256,
+    actions_artifact_set_sha256: github.artifactSetSha256,
+    repository_scan_complete: true,
+    actions_scan_complete: true,
+  };
   const report = buildPublicAuditReport({
     repository,
     targetCommit,
-    repositoryVisibility: visibility,
+    repositoryVisibility: github.visibility,
     phase,
     scans,
     findings,
+    provenance,
     startedAt,
     completedAt: new Date().toISOString(),
   });
@@ -392,20 +614,22 @@ export async function runPublicExposureAudit({
     reportBytes: bytes,
     expectedSha256: sha256(bytes),
   });
-  if (!validation.ok)
+  const structuralErrors = validation.errors.filter(
+    (error) => error !== "public audit has findings or did not pass",
+  );
+  if (structuralErrors.length > 0)
     throw new Error(
-      `public audit report self-validation failed: ${validation.errors.join("; ")}`,
+      `public audit report self-validation failed: ${structuralErrors.join("; ")}`,
     );
   await writeFile(outputPath, bytes, { flag: "wx" });
   process.stdout.write(
     `${JSON.stringify({ result: report.result, findings: report.findings_count, output: outputPath, bytes: bytes.byteLength })}\n`,
   );
-  if (report.findings_count > 0) process.exitCode = 1;
   return report;
 }
 
 async function main() {
-  await runPublicExposureAudit({
+  const report = await runPublicExposureAudit({
     cwd: process.cwd(),
     repository: option("--repository"),
     targetCommit: option("--target-sha"),
@@ -414,6 +638,7 @@ async function main() {
     staging: option("--staging", undefined),
     token: process.env.GITHUB_TOKEN,
   });
+  if (report.findings_count > 0) process.exitCode = 1;
 }
 
 if (

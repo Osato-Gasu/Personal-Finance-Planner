@@ -1,9 +1,12 @@
+import { execFileSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
   readFile,
+  rename,
   rm,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import {
   PUBLIC_AUDIT_CATEGORIES,
   PUBLIC_AUDIT_REQUIRED_SCANS,
+  PUBLIC_AUDIT_SCAN_METHOD,
   buildPublicAuditReport,
   readAuditProof,
   scanPublicBytes,
@@ -19,9 +23,35 @@ import {
   sha256,
   validatePublicExposureAudit,
 } from "../tools/public-exposure-audit-lib.mjs";
+import {
+  runPublicExposureAudit,
+  scanArtifactArchive,
+} from "../tools/public-exposure-audit.mjs";
 
 const repository = "owner/repo";
 const targetCommit = "a".repeat(40);
+const provenance = {
+  target_commit: targetCommit,
+  scan_method: PUBLIC_AUDIT_SCAN_METHOD,
+  ref_set_sha256: "A".repeat(64),
+  reachable_commit_set_sha256: "B".repeat(64),
+  reachable_tree_set_sha256: "C".repeat(64),
+  reachable_blob_set_sha256: "D".repeat(64),
+  commit_path_blob_associations_sha256: "E".repeat(64),
+  actions_run_set_sha256: "F".repeat(64),
+  actions_job_set_sha256: "1".repeat(64),
+  actions_artifact_set_sha256: "2".repeat(64),
+  repository_scan_complete: true,
+  actions_scan_complete: true,
+};
+
+function jsonResponse(value, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => value,
+  };
+}
 
 function report(overrides = {}) {
   return buildPublicAuditReport({
@@ -29,10 +59,14 @@ function report(overrides = {}) {
     targetCommit,
     repositoryVisibility: "public",
     phase: "release_preflight",
-    scans: Object.fromEntries(
-      PUBLIC_AUDIT_REQUIRED_SCANS.map((name) => [name, 1]),
-    ),
+    scans: {
+      ...Object.fromEntries(
+        PUBLIC_AUDIT_REQUIRED_SCANS.map((name) => [name, 1]),
+      ),
+      release_staging: 5,
+    },
     findings: [],
+    provenance,
     startedAt: "2026-08-16T00:00:00.000Z",
     completedAt: "2026-08-16T00:00:01.000Z",
     ...overrides,
@@ -182,6 +216,167 @@ describe("public exposure audit contract", () => {
         expectedSha256: sha256(missing),
       }).ok,
     ).toBe(false);
+  });
+
+  it("rejects impossible zero scans, forged provenance, and non-exact release staging", () => {
+    for (const value of [
+      report({
+        scans: Object.fromEntries(
+          PUBLIC_AUDIT_REQUIRED_SCANS.map((name) => [name, 0]),
+        ),
+      }),
+      report({ provenance: { ...provenance, target_commit: "b".repeat(40) } }),
+      report({
+        provenance: { ...provenance, ref_set_sha256: "0".repeat(64) },
+      }),
+      report({ provenance: undefined }),
+      report({
+        scans: { ...report().scans, release_staging: 4 },
+      }),
+      report({
+        scans: { ...report().scans, release_staging: 6 },
+      }),
+    ]) {
+      const bytes = serializePublicAuditReport(value);
+      expect(
+        validatePublicExposureAudit(value, {
+          repository,
+          targetCommit,
+          phase: "release_preflight",
+          reportBytes: bytes,
+          expectedSha256: sha256(bytes),
+        }).ok,
+      ).toBe(false);
+    }
+  });
+
+  it.each([
+    ["parent traversal", ["../secret.txt"], ["-rw-r--r-- entry"]],
+    ["symlink", ["linked.txt"], ["lrwxrwxrwx entry"]],
+    ["hardlink", ["linked.txt"], ["hrw-r--r-- entry"]],
+    ["device", ["device"], ["brw-r--r-- entry"]],
+    ["duplicate normalized path", ["a\\b", "a/b"], ["- entry", "- entry"]],
+  ])(
+    "rejects unsafe Actions archive entries: %s",
+    (_label, names, metadata) => {
+      const spawnImpl = (_command, args) => {
+        if (args[0] === "-tf")
+          return { status: 0, stdout: `${names.join("\n")}\n`, stderr: "" };
+        if (args[0] === "-tvf")
+          return {
+            status: 0,
+            stdout: `${metadata.join("\n")}\n`,
+            stderr: "",
+          };
+        return { status: 0, stdout: Buffer.from("safe"), stderr: "" };
+      };
+      expect(() =>
+        scanArtifactArchive(Buffer.from("archive"), "artifact.zip", {
+          spawnImpl,
+        }),
+      ).toThrow(/BLOCKED/u);
+    },
+  );
+
+  it("scans raw commit messages, removed history, every blob path, and ref names without leaking raw secrets", async () => {
+    const root = await mkdtemp(join(tmpdir(), "public-audit-history-"));
+    const repo = resolve(root, "repo");
+    const output = resolve(root, "audit.json");
+    const oldSecret = ["gh", "p_", "oldcommit", "A".repeat(30)].join("");
+    const removedSecret = ["gh", "p_", "removed", "B".repeat(30)].join("");
+    const refSecret = ["gh", "p_", "refname", "C".repeat(30)].join("");
+    const runGit = (...args) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
+    const fetchImpl = async (url) => {
+      if (String(url).includes("/actions/runs"))
+        return jsonResponse({ workflow_runs: [] });
+      if (String(url).includes("/actions/artifacts"))
+        return jsonResponse({ artifacts: [] });
+      return jsonResponse({ private: false, visibility: "public" });
+    };
+    try {
+      await mkdir(repo);
+      runGit("init", "-b", "main");
+      runGit("config", "user.name", "Audit Test");
+      runGit("config", "user.email", "audit@example.invalid");
+      await writeFile(resolve(repo, "credentials.json"), '{"safe":true}\n');
+      runGit("add", "credentials.json");
+      runGit("commit", "-m", `historical ${oldSecret}`);
+      await rename(
+        resolve(repo, "credentials.json"),
+        resolve(repo, "safe.txt"),
+      );
+      await writeFile(resolve(repo, "removed.txt"), `${removedSecret}\n`);
+      runGit("add", "-A");
+      runGit("commit", "-m", "add historical bytes");
+      await unlink(resolve(repo, "removed.txt"));
+      runGit("add", "-A");
+      runGit("commit", "-m", "remove historical bytes");
+      const head = runGit("rev-parse", "HEAD");
+      runGit("update-ref", `refs/heads/audit-${refSecret}`, head);
+
+      const value = await runPublicExposureAudit({
+        cwd: repo,
+        repository,
+        targetCommit: head,
+        phase: "candidate_ci",
+        output,
+        token: "test-token",
+        fetchImpl,
+      });
+      expect(value.result).toBe("FAIL");
+      expect(value.scans.commit_objects).toBe(value.scans.reachable_commits);
+      expect(value.scans.historical_path_associations).toBe(
+        value.scans.tree_entries,
+      );
+      expect(
+        value.findings_by_category.github_oauth_cloud_token,
+      ).toBeGreaterThan(2);
+      expect(
+        value.findings_by_category.unintended_user_owned_file,
+      ).toBeGreaterThan(0);
+      const raw = await readFile(output, "utf8");
+      expect(raw).not.toContain(oldSecret);
+      expect(raw).not.toContain(removedSecret);
+      expect(raw).not.toContain(refSecret);
+    } finally {
+      await rm(root, { recursive: true });
+    }
+  });
+
+  it("fails closed when the Actions API cannot be read", async () => {
+    const root = await mkdtemp(join(tmpdir(), "public-audit-api-"));
+    const repo = resolve(root, "repo");
+    try {
+      await mkdir(repo);
+      execFileSync("git", ["init", "-b", "main"], { cwd: repo });
+      execFileSync("git", ["config", "user.name", "Audit Test"], {
+        cwd: repo,
+      });
+      execFileSync("git", ["config", "user.email", "audit@example.invalid"], {
+        cwd: repo,
+      });
+      await writeFile(resolve(repo, "safe.txt"), "safe\n");
+      execFileSync("git", ["add", "safe.txt"], { cwd: repo });
+      execFileSync("git", ["commit", "-m", "safe"], { cwd: repo });
+      const head = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: repo,
+        encoding: "utf8",
+      }).trim();
+      await expect(
+        runPublicExposureAudit({
+          cwd: repo,
+          repository,
+          targetCommit: head,
+          phase: "candidate_ci",
+          output: resolve(root, "audit.json"),
+          token: "test-token",
+          fetchImpl: async () => jsonResponse({}, 403),
+        }),
+      ).rejects.toThrow("BLOCKED: GitHub API permission/read failure");
+    } finally {
+      await rm(root, { recursive: true });
+    }
   });
 
   it("reads only an absolute regular non-link proof", async () => {

@@ -5,8 +5,11 @@ import { isAbsolute, parse, relative, resolve, sep } from "node:path";
 export const PUBLIC_AUDIT_SCHEMA_VERSION = 1;
 export const PUBLIC_AUDIT_REQUIRED_SCANS = Object.freeze([
   "reachable_commits",
+  "commit_objects",
   "reachable_trees",
   "reachable_blobs",
+  "tree_entries",
+  "historical_path_associations",
   "refs",
   "tags",
   "lfs_pointers",
@@ -16,6 +19,18 @@ export const PUBLIC_AUDIT_REQUIRED_SCANS = Object.freeze([
   "actions_run_logs",
   "actions_artifacts",
   "release_staging",
+]);
+export const PUBLIC_AUDIT_SCAN_METHOD =
+  "git-rev-list-all+cat-file-commit+ls-tree-rz-v1";
+export const PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES = Object.freeze([
+  "ref_set_sha256",
+  "reachable_commit_set_sha256",
+  "reachable_tree_set_sha256",
+  "reachable_blob_set_sha256",
+  "commit_path_blob_associations_sha256",
+  "actions_run_set_sha256",
+  "actions_job_set_sha256",
+  "actions_artifact_set_sha256",
 ]);
 export const PUBLIC_AUDIT_CATEGORIES = Object.freeze([
   "high_confidence_credential",
@@ -72,13 +87,19 @@ function luhn(value) {
   return sum % 10 === 0;
 }
 
-export function scanPublicBytes({ bytes, path, commit = null, blob = null }) {
+export function scanPublicBytes({
+  bytes,
+  path,
+  evidencePath = path,
+  commit = null,
+  blob = null,
+}) {
   const text = Buffer.from(bytes).toString("utf8");
   const matches = [];
   const add = (category, value) => {
     if (looksPlaceholder(value)) return;
     matches.push({
-      path,
+      path: evidencePath,
       commit,
       blob,
       category,
@@ -160,6 +181,7 @@ export function buildPublicAuditReport(input) {
       explicit_fixture_paths_only: true,
       live_looking_values_never_ignored: true,
     },
+    provenance: input.provenance,
     scans: Object.fromEntries(
       PUBLIC_AUDIT_REQUIRED_SCANS.map((name) => [name, input.scans[name] ?? 0]),
     ),
@@ -189,16 +211,71 @@ export function validatePublicExposureAudit(
   if (report?.repository_visibility !== "public")
     errors.push("public audit did not verify public repository visibility");
   if (report?.phase !== phase) errors.push("public audit phase mismatch");
+  if (phase !== "candidate_ci" && phase !== "release_preflight")
+    errors.push("public audit phase is unsupported");
   if (report?.result !== "PASS" || report?.findings_count !== 0)
     errors.push("public audit has findings or did not pass");
+  if (!Array.isArray(report?.findings))
+    errors.push("public audit findings are missing");
+  else if (report.findings.length !== report.findings_count)
+    errors.push("public audit finding count mismatch");
   for (const category of PUBLIC_AUDIT_CATEGORIES) {
-    if (!Number.isSafeInteger(report?.findings_by_category?.[category]))
+    if (
+      !Number.isSafeInteger(report?.findings_by_category?.[category]) ||
+      report.findings_by_category[category] < 0
+    )
       errors.push(`public audit category is missing: ${category}`);
+    else if (
+      Array.isArray(report?.findings) &&
+      report.findings_by_category[category] !==
+        report.findings.filter((finding) => finding?.category === category)
+          .length
+    )
+      errors.push(`public audit category count mismatch: ${category}`);
   }
   for (const scan of PUBLIC_AUDIT_REQUIRED_SCANS) {
     if (!Number.isSafeInteger(report?.scans?.[scan]) || report.scans[scan] < 0)
       errors.push(`public audit scan is incomplete: ${scan}`);
   }
+  for (const scan of [
+    "reachable_commits",
+    "commit_objects",
+    "reachable_trees",
+    "reachable_blobs",
+    "tree_entries",
+    "historical_path_associations",
+    "refs",
+    "working_tree",
+    "staged_bytes",
+  ]) {
+    if (!Number.isSafeInteger(report?.scans?.[scan]) || report.scans[scan] <= 0)
+      errors.push(`public audit scan has impossible zero count: ${scan}`);
+  }
+  if (report?.scans?.commit_objects !== report?.scans?.reachable_commits)
+    errors.push("public audit commit object scan count mismatch");
+  if (
+    report?.scans?.historical_path_associations !== report?.scans?.tree_entries
+  )
+    errors.push("public audit historical path association count mismatch");
+  if (phase === "release_preflight" && report?.scans?.release_staging !== 5)
+    errors.push(
+      "public audit release staging scan must contain exactly 5 files",
+    );
+  if (phase === "candidate_ci" && report?.scans?.release_staging !== 0)
+    errors.push("public audit candidate scan must not claim release staging");
+  if (report?.provenance?.target_commit !== targetCommit)
+    errors.push("public audit provenance target mismatch");
+  if (report?.provenance?.scan_method !== PUBLIC_AUDIT_SCAN_METHOD)
+    errors.push("public audit provenance scan method mismatch");
+  for (const name of PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES) {
+    const hash = report?.provenance?.[name] ?? "";
+    if (!/^[0-9A-F]{64}$/u.test(hash) || /^0{64}$/u.test(hash))
+      errors.push(`public audit provenance is missing: ${name}`);
+  }
+  if (report?.provenance?.repository_scan_complete !== true)
+    errors.push("public audit repository scan is incomplete");
+  if (report?.provenance?.actions_scan_complete !== true)
+    errors.push("public audit Actions scan is incomplete");
   if (
     report?.fixture_policy?.explicit_fixture_paths_only !== true ||
     report?.fixture_policy?.live_looking_values_never_ignored !== true
