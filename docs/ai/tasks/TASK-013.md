@@ -1,19 +1,19 @@
 ---
 task_id: TASK-013
 title: TASK-009公開監査stable ID修復
-status: changes_requested
+status: review_requested
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 1
 spec_status: accepted
-current_phase: implementation
-current_role_id: IMPLEMENTER
-next_actor: Codex
-next_role: IMPLEMENTER
+current_phase: implementation_review
+current_role_id: ORCHESTRATOR_AND_REVIEWER
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-013/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-013/IMPLEMENTATION_REVIEW_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -42,7 +42,7 @@ implementation_review_open_finding_ids: FINDING-013-R1-01
 user_confirmation_required: false
 user_confirmation_prompt: none
 review_termination_reason: none
-implementation_candidate: bf70d55f6e7649c4b80a64e3138f2d0385df34b2
+implementation_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
 review_kind: implementation
 review_role: ORCHESTRATOR_AND_REVIEWER
 execution_mode: separate_session
@@ -51,7 +51,7 @@ review_status: requested
 request_review_status: requested
 review_model: 5.6 Sol
 review_effort: high
-reviewed_candidate: bf70d55f6e7649c4b80a64e3138f2d0385df34b2
+reviewed_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
 reviewed_spec_revision: 1
 review_request_id: none
 review_started_at: none
@@ -63,7 +63,7 @@ actual_executor: Codex
 provider_substitution: none
 
 shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-updated_at: 2026-08-16
+updated_at: 2026-08-17
 ---
 
 # TASK-013 — TASK-009公開監査stable ID修復
