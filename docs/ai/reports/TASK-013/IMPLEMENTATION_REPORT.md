@@ -11,7 +11,7 @@
 - shared version／commit: `0.12.25`／`f07571d3e8745b9a49a28b1ac77e211c210146a3`
 - started: `2026-08-16 22:29:43 JST`
 - implementation bytes finished: `2026-08-16 22:45:01 JST`
-- final handoff synchronization: pending candidate exact CI
+- final handoff synchronization: candidate exact CI confirmed; review handoff prepared
 
 TASK-009 remains terminated at cycles 3／attempt 3／terminal／final. Attempt 4 is forbidden. Candidate `03825e58f61f95d2364f09246f202744e4617ba5`／tree `934892b96eff8e5b66ddf67e71eefd29353a86a0` remains unapproved and unreleased and is not reused as a TASK-013 approval or release identity.
 
@@ -54,10 +54,11 @@ TASK-009 remains terminated at cycles 3／attempt 3／terminal／final. Attempt 
 
 ## Candidate and CI
 
-- candidate commit／tree: resolved by the single candidate commit after all local gates
-- candidate audit: generated for the exact local candidate before push and recorded in the handoff-only descendant
-- candidate Governance CI: required exact push run; pending candidate creation
-- handoff Governance CI: pending candidate success and handoff-only transition
+- candidate commit／tree: `bf70d55f6e7649c4b80a64e3138f2d0385df34b2`／`521da3403ab9b603e8ff6bf1b198542a9ffc817b`
+- candidate parent: activation `184d4da3f79443416f0570aec2b029d4c2c72202`
+- candidate audit: `C:\Users\owner\Development\personal\audit\TASK-013-stable-id-20260816-223814\candidate-audit.json`／`2990` bytes／SHA-256 `F38F632FF33EA27DD618C6336A8B93762FDC914E70F040D2E430CEC5AAC7EC84`／finding `0`／PASS
+- candidate Governance CI: run `31951414720`／attempt `1`／job `95175329629`／SUCCESS; all workflow steps succeeded
+- handoff Governance CI: required exact push run after the governance-only handoff commit
 
 ## Non-regression and public state
 
