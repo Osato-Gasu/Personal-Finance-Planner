@@ -226,9 +226,19 @@ function approvedHistoricalFetch(fixture, mode = "happy") {
             id: nonAllowlisted ? 95018938493 : Number(approved.job_id),
             status: mode === "non_completed" ? "in_progress" : "completed",
             conclusion: "failure",
+            ...(mode === "missing_job_attempt"
+              ? {}
+              : { run_attempt: mode === "wrong_job_attempt" ? 2 : 1 }),
           },
           ...(second
-            ? [{ id: 95018938493, status: "completed", conclusion: "failure" }]
+            ? [
+                {
+                  id: 95018938493,
+                  status: "completed",
+                  conclusion: "failure",
+                  run_attempt: 1,
+                },
+              ]
             : []),
         ].map((job) =>
           wrongIdentity
@@ -281,6 +291,7 @@ function approvedHistoricalFetch(fixture, mode = "happy") {
           "non_allowlisted_missing",
           "post_adoption_missing",
           "wrong_static_identity",
+          "wrong_job_attempt",
         ].includes(mode)
       )
         return bytesResponse("missing", 404);
@@ -1045,6 +1056,7 @@ describe("public exposure audit contract", () => {
         id,
         status: "completed",
         conclusion: "success",
+        run_attempt: 1,
       });
       const artifact = (id) => ({
         id,
@@ -1175,6 +1187,7 @@ describe("public exposure audit contract", () => {
         id,
         status: "completed",
         conclusion: "success",
+        run_attempt: 1,
       });
       const artifact = (id) => ({
         id,
@@ -1374,6 +1387,12 @@ describe("public exposure audit contract", () => {
     ["post-adoption missing job", "post_adoption_missing", /read failure 404/u],
     ["wrong static identity", "wrong_static_identity", /read failure 404/u],
     ["non-completed job", "non_completed", /job is not completed/u],
+    [
+      "missing per-job attempt",
+      "missing_job_attempt",
+      /Actions job run attempt/u,
+    ],
+    ["wrong per-job attempt", "wrong_job_attempt", /read failure 404/u],
   ])(
     "keeps all non-approved unavailable evidence fail-closed: %s",
     async (_label, mode, expected) => {
@@ -1559,7 +1578,14 @@ describe("public exposure audit contract", () => {
         if (value.includes("/actions/runs/11/jobs"))
           return jsonResponse({
             total_count: 1,
-            jobs: [{ id: 21, status: "completed", conclusion: "success" }],
+            jobs: [
+              {
+                id: 21,
+                status: "completed",
+                conclusion: "success",
+                run_attempt: 1,
+              },
+            ],
           });
         if (value.includes("/actions/jobs/21/logs"))
           return bytesResponse("", status);
@@ -1645,7 +1671,14 @@ describe("public exposure audit contract", () => {
         if (value.includes("/actions/runs/11/jobs"))
           return jsonResponse({
             total_count: 1,
-            jobs: [{ id: 21, status: "completed", conclusion: "success" }],
+            jobs: [
+              {
+                id: 21,
+                status: "completed",
+                conclusion: "success",
+                run_attempt: 1,
+              },
+            ],
           });
         if (value.includes("/actions/artifacts?"))
           return jsonResponse({ total_count: 0, artifacts: [] });
@@ -1694,7 +1727,14 @@ describe("public exposure audit contract", () => {
       if (value.includes("/actions/runs/11/jobs"))
         return jsonResponse({
           total_count: 1,
-          jobs: [{ id: 21, status: "completed", conclusion: "success" }],
+          jobs: [
+            {
+              id: 21,
+              status: "completed",
+              conclusion: "success",
+              run_attempt: 1,
+            },
+          ],
         });
       if (value.includes("/actions/jobs/21/logs"))
         return bytesResponse("safe log\n");

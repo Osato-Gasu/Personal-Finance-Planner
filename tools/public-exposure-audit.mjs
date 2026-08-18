@@ -444,7 +444,7 @@ async function scanGithub({
     jobs.map((job) => {
       const jobId = canonicalPositiveIntegerId(job.id, "Actions job");
       const runAttempt = canonicalPositiveIntegerId(
-        job.run_attempt ?? runEntry.run.run_attempt,
+        job.run_attempt,
         "Actions job run attempt",
       );
       return {

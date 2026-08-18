@@ -30,11 +30,11 @@
 
 ### Test matrix
 
-- public exposure audit contract suite: `158` tests PASS, increased from `82` without deleting or weakening existing tests
+- public exposure audit contract suite: `160` tests PASS, increased from `82` without deleting or weakening existing tests
 - covers the accepted Design Revision 3 44-category matrix, including exact happy path, mandatory observation failures, 302/404 mutations, 410/403/5xx, MIME／BlobNotFound／body failures, static/runtime identity and set-hash mutation, raw SHA/bytes binding, count equations, second/non-allowlisted/post-adoption exception rejection, non-completed job rejection, empty/one-record hashes, field order／EOL／final-LF／scalar／extra/omitted field rejection, truth contradictions, legacy alias rejection, and all prior regressions
-- full Vitest: `697` tests／`21` files PASS
+- full Vitest: `699` tests／`21` files PASS
 - focused rules／NISA／iDeCo／overview: `69／68／86／28` PASS
-- distribution contract／public exposure audit: `77／158` PASS
+- distribution contract／public exposure audit: `77／160` PASS
 - npm ci／typecheck／lint／format check: PASS／vulnerabilities `0`
 - build app／launcher freshness: PASS／`216828` bytes
 - portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
@@ -61,8 +61,16 @@
 
 ### Candidate, high-risk VERIFY, and handoff
 
-- implementation candidate: pending
-- high-risk read-only VERIFY: pending; requested `Sol／XHigh`, actual `未確認／未確認`
+- first implementation candidate: `fde8a1a14785af6576604deb2cadd944f7160a2a`／tree `d7ec7c401c707978111a7a7d85606515f15e6a5d`; not pushed
+- first high-risk read-only VERIFY: `FAIL`; requested／actual `Sol／XHigh`; no edits, push, or public-state mutation
+- first VERIFY finding: the job attempt parser used `job.run_attempt ?? runEntry.run.run_attempt`, so a missing job-specific attempt could incorrectly inherit the run endpoint's attempt and become eligible for the historical exception
+- correction: require `job.run_attempt` directly; normal fixtures now carry the per-job field; missing per-job attempt and wrong per-job attempt each have an explicit fail-closed regression
+- corrected pre-commit audit: repository-external `corrected-precommit-audit.json`／`5668` bytes／SHA-256 `CAC2DF36E666A3F859CC02808CC65020CF3C9B7B79E3375592DD317A00B34AB2`／PASS／finding `0`
+- corrected audit Actions jobs inventory／required／retrieved／scanned／historical unavailable／runtime observations: `142／142／141／141／1／1`; scan complete／evidence gate `false／true`
+- corrected audit static/runtime set SHA-256: `08794AC59619ECD91E9E5AA81441222D8EDB2248BB6CFA9098D20DDA4E8F887B`／`6E0B3586224D0EC27C3925AAC275FB4469C661CAE73D6B630A72ABD4EC0C2A41`
+- corrected raw runtime response: `215` bytes／SHA-256 `E6B8CA3D042D46AEEF5F260D38F5B9B1FD85190A8A0D033040BE6C9DB840657E`
+- corrected implementation candidate: pending; created as a descendant commit without amend or history rewrite
+- corrected high-risk read-only VERIFY: pending; requested `Sol／XHigh`
 - candidate exact Governance CI: pending
 - implementation-review handoff-only commit and exact CI: pending
 - release/public distribution side effects: `0`
