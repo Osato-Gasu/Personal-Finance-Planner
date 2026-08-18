@@ -1,17 +1,17 @@
 ---
 review_stage: implementation
-changes_requested_cycles: 3
-implementation_review_attempt: 3
-implementation_review_profile: terminal
-implementation_review_terminated: true
-updated_at: 2026-08-17
+changes_requested_cycles: 0
+implementation_review_attempt: 1
+implementation_review_profile: standard
+implementation_review_terminated: false
+updated_at: 2026-08-18
 active_tasks:
   - TASK-013
-next_action: ChatGPT reviews NEEDS_USER_DECISION relay for TASK-013 with user confirmation
+next_action: Codex implements accepted TASK-013 spec revision 2
 ---
 
 # Current state
 
-TASK-013 spec revision 1 corrected implementation candidate is `b38d0182d62053a25e17c6a32853d1112d9084eb`／tree `57eaf1f4a9a088f37bd3cf39c5ededa29e670a2f`. It is the direct child of attempt 1 review import `a0f8738396e9dfd1e6aefed5154f1d7e6732434e`; exact candidate Governance CI run `31955360058` attempt 1／job `95185062836` succeeded after every required step. Review is requested at cycles 1／attempt 2／narrowed／final false／terminated false with open finding `FINDING-013-R1-01`; next actor is ChatGPT／ORCHESTRATOR_AND_REVIEWER in a new separate session.
+TASK-013 Spec Revision 2／Design Revision 3 is formally adopted from terminal transition commit `dc8f87c319ff4fe5162854b9d12f1a6f3cf4a008`／tree `ae9dd6064a9dfda5238e40752cd4b036c172546c`. User approval `USER-APPROVAL-TASK-013-SPEC-REV2-20260818-151500` selected option 3, the independent design re-review passed with 0 findings, implementation authority is true, and release authority is false. The current lifecycle is ready／implementation／cycles 0／attempt 1／standard／final false／terminated false with no current-revision open finding. Codex implements the exact known-job 404 evidence-policy exception and mandatory fresh runtime proof binding after exact adoption Governance CI success.
 
-TASK-009 remains terminated at cycles 3／attempt 3／terminal／final, attempt 4 is forbidden, and candidate `03825e58f61f95d2364f09246f202744e4617ba5`／tree `934892b96eff8e5b66ddf67e71eefd29353a86a0` remains unapproved and unreleased. TASK-013 attempt 2 working-tree and exact candidate public exposure audits passed with finding 0; evidence remains outside the repository at `C:\Users\owner\Development\personal\audit\TASK-013-stable-id-20260816-223814`. Tag、GitHub Release、Pages、deployment、Distribution workflow dispatch、origin/main remain unchanged, and candidate-to-handoff production diff must remain 0.
+Revision 1 remains terminated at cycles 3／attempt 3／terminal／final, and revision 1 attempt 4 remains forbidden. Its candidate `b38d0182d62053a25e17c6a32853d1112d9084eb`, USER_DECISION_HANDOFF, canonical relay/import history, and original R3 evidence limitation remain historical evidence only. TASK-009 also remains terminated and unreleased. Tags, GitHub Releases, Pages, deployments, Distribution workflow dispatch, origin/main, and open PRs remain unchanged; public distribution side effects are 0.

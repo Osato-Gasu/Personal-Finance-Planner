@@ -1,19 +1,19 @@
 ---
 task_id: TASK-013
 title: TASK-009公開監査stable ID修復
-status: needs_user_decision
+status: ready
 route: TWO_SESSION_FAST
 priority: high
-spec_revision: 1
+spec_revision: 2
 spec_status: accepted
-current_phase: user_decision
-current_role_id: ORCHESTRATOR_AND_REVIEWER
-next_actor: ChatGPT
-next_role: ORCHESTRATOR_AND_REVIEWER
-assigned_model: none
-assigned_effort: none
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-013/USER_DECISION_HANDOFF.md
+current_phase: implementation
+current_role_id: IMPLEMENTER
+next_actor: Codex
+next_role: IMPLEMENTER
+assigned_model: 5.6 Sol
+assigned_effort: high
+session_mode: existing
+handoff_file: docs/ai/handoffs/TASK-013/CODEX_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -31,28 +31,28 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#delivery_pla
 accepted_product_sha256: 98DC0649BB6232B61432EDDAEAC204CEAC763C6E530AF33272E3A3080FBC994B
 
 review_stage: implementation
-changes_requested_cycles: 3
-implementation_review_attempt: 3
-implementation_review_profile: terminal
-implementation_review_final: true
-implementation_review_terminated: true
+changes_requested_cycles: 0
+implementation_review_attempt: 1
+implementation_review_profile: standard
+implementation_review_final: false
+implementation_review_terminated: false
 attempt_4_forbidden: true
-spec_revision_reset: false
-implementation_review_open_finding_ids: FINDING-013-R2-01, FINDING-013-R2-02, FINDING-013-R3-01
-user_confirmation_required: true
-user_confirmation_prompt: Review unresolved blockers, choose release, remediation, or a new approved spec revision; no fourth implementation review is permitted.
-review_termination_reason: third implementation-review CHANGES_REQUESTED; explicit user confirmation required
-implementation_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
-review_kind: implementation
-review_role: ORCHESTRATOR_AND_REVIEWER
-execution_mode: separate_session
+spec_revision_reset: true
+implementation_review_open_finding_ids: none
+user_confirmation_required: false
+user_confirmation_prompt: none
+review_termination_reason: none
+implementation_candidate: none
+review_kind: none
+review_role: none
+execution_mode: existing_session
 repository_access: true
-review_status: requested
-request_review_status: requested
-review_model: 5.6 Sol
-review_effort: high
-reviewed_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
-reviewed_spec_revision: 1
+review_status: not_requested
+request_review_status: none
+review_model: none
+review_effort: none
+reviewed_candidate: none
+reviewed_spec_revision: none
 review_request_id: none
 review_started_at: none
 review_completed_at: none
@@ -63,7 +63,7 @@ actual_executor: Codex
 provider_substitution: none
 
 shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-updated_at: 2026-08-17
+updated_at: 2026-08-18
 ---
 
 # TASK-013 — TASK-009公開監査stable ID修復
@@ -71,6 +71,42 @@ updated_at: 2026-08-17
 ## Purpose
 
 TASK-009の未承認・未release product candidateをbaselineとして継承しつつ、public exposure auditのActions run／job／artifact inventoryでcanonical stable IDとmutable metadataを分離する。同一stable IDのduplicate／metadata conflict、pagination overlap、inventory／retrieval／scan／report countまたはset-hash不整合をfail-closedで拒否し、TASK-013の新candidate・新handoff・implementation review attempt 1／standardを経てのみ承認可能にする。
+
+Spec Revision 2は、revision 1で回収不能と確認された既知のActions job 1件だけに対し、immutableな承認済みhistorical policy evidenceと、例外を利用する各auditでのfresh mandatory runtime direct-log observationを同時に要求する。回収不能なhistorical log bytesをscan済みとは扱わず、その他の欠落・失敗は引き続きfail-closedとする。
+
+## Spec Revision 2 adoption authority
+
+- User approval: `USER-APPROVAL-TASK-013-SPEC-REV2-20260818-151500`／option 3／`2026-08-18 15:15:00 JST`。
+- Accepted design: `TASK-013_SPEC_REVISION_2_EVIDENCE_POLICY_DESIGN_REVISION_3.md`／19101 bytes／SHA-256 `C9E3FE09CA12A111967BA8809EC1DC2BE99ADFDB1CDDE43638AC0A75039CA117`。
+- User approval source: `TASK-013_SPEC_REVISION_2_USER_APPROVAL.json`／497 bytes／SHA-256 `C1B3ACA192636115CCF2E7D58FE57D498DCF15D844CE4E4ED5544BC323B8347A`。
+- Final disposition: `TASK-013_SPEC_REVISION_2_FINAL_DESIGN_DISPOSITION.json`／1697 bytes／SHA-256 `383F104934386DB48378C53A1BF6BC0174AB863915E60EC0BE93D5D4F78EB3D5`。
+- Independent Design Revision 3 re-review: `PASS`、blocking findings 0。Prior findings `FINDING-013-R2-IDR-01`、`FINDING-013-R2-IDR-02`、`FINDING-013-R2-IDR-03` は全てresolved。
+- Scope of approval: known irretrievable jobへのexact historical Actions evidence exceptionだけであり、generic missing-evidence risk acceptanceではない。
+- Implementation authority: true。Release authority: false。
+- Revision 1のcycles 3／attempt 3／terminal／final／terminatedとopen findings、USER_DECISION_HANDOFF、relay/import historyは監査履歴として保持する。Revision 1 attempt 4は引き続き禁止し、revision 2 attempt 1とは別物とする。
+
+## Spec Revision 2 evidence-policy contract
+
+- Exact static policy identityは `policy_id=task-013-spec-rev2-exact-v1`、repository `Osato-Gasu/Personal-Finance-Planner`、run `31887544173`、attempt `1`、job `95018938492`、head `25be0b48699ef350bd72a60e3b564b7dd8c1d2a4`、job status `completed`、conclusion `failure` に固定する。
+- Preserved direct-log evidenceは initial `302`、final `404`、content type `application/xml`、215 bytes、SHA-256 `1CCCE68DDD68C8BD055419F893169F9C311D4F242CC957F9DC9F2CB1447C9C21` に固定する。
+- Attempt jobs evidenceは status `200`、952 bytes、SHA-256 `F4AEBF5D31E457DF360008FB0384B104524D98B9859390A2D668F38BBB0ABABE`、total/count `1`、sole job `95018938492` に固定する。
+- Attempt archive evidenceは `302 -> 200`、`application/zip`、22 bytes、SHA-256 `8739C76E681F900923B900C9DF0EF75CF421D39CABB54650C4B9AD19B6A76D85`、ZIP entries `0`、regular entries `0` に固定する。
+- `APPROVED_HISTORICAL_UNAVAILABLE` は上記static recordが完全一致し、`filter=all` inventoryにexactly once存在し、かつそのaudit中にfresh direct-log requestを実行した場合だけ許可する。
+- Runtime observationは必須であり、`runtime_observation_performed=true`、initial `302`、final `404`、content type `application/xml`、parsed error code `BlobNotFound`、body bytes `> 0`、そのexact response bytesのuppercase SHA-256を要求する。
+- Fresh runtime bodyのSHA-256は2026-08-18のpreserved body SHAと一致する必要はない。Static proofとruntime proofは別々に検証・hash bindingする。
+- Runtime final `410`、`403`、`5xx`、request／redirect／body read failure、empty body、MIME mismatch、error-code mismatch、hash計算不能は常にBLOCKED。Static allowlistはruntime failureを上書きしない。
+- 別job、別run/attempt/head、2件目のunavailable job、non-completed job、missing artifact、unsafe archive、current/post-adoption unavailable jobには例外を適用しない。
+- Canonical public fieldsは `actions_scan_complete`、`actions_evidence_gate_pass`、`actions_historical_unavailable_count`、`actions_historical_unavailable_set_sha256`、`actions_historical_unavailable_policy`、`actions_historical_runtime_observation_count`、`actions_historical_runtime_observation_set_sha256` とする。独立alias `historical_unavailable_count` はstrict proofで拒否する。
+- 例外なしでは両count `0`、両set hashはempty SHA-256 `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`、`actions_scan_complete=true`、`actions_evidence_gate_pass=true` とする。
+- 例外利用時はunavailable count `1`、runtime observation count `1`、`actions_scan_complete=false` とし、全static/runtime/count/proof gateが成立した場合だけ `actions_evidence_gate_pass=true` とする。
+- Inventory countはrequired job log countと一致し、retrieval count + unavailable countはrequired countと一致し、scan countはretrieval countと一致し、runtime observation countはunavailable countと一致しなければならない。
+- Static/runtime canonical recordはUTF-8 no BOM、LF only、exact field order、`<field>=<value>\n`、mandatory final LF、blank/extra/omitted fieldなし、canonical unsigned integer／lowercase boolean／uppercase 64-hex SHA／exact lowercase MIMEでserializeする。
+- Set bytesはcanonical sort後のrecord bytesのdirect concatenationとし、hash-of-hashesを禁止する。Static recordとruntime recordはDesign Revision 3 section 10/11のexact field orderを使用する。
+- Proof consumerはstatic record/set hashとruntime record/set hashを再構成・検証し、count equality、fixed runtime values、body SHA/bytes shape、scan/evidence-gate semanticsを検証する。
+- Candidate audit producerだけがfresh runtime responseを取得する。Raw runtime final-response bytesはrepository外部evidenceへ保存し、repository reportへXML bodyを複製しない。
+- Release/preflight consumerはexact candidate audit proof identityを利用し、別のfresh observationでcandidate-bound proofを置換しない。別auditを実行する場合はそのaudit固有のfresh observationとproofを作る。
+- High-risk read-only VERIFYはcandidate proofのruntime response SHA/bytesをrepository-external raw responseと照合し、static/runtime proof、stable IDs、`filter=all`、non-completed fail-closed、artifact/archive/history/redaction/proof-transfer/asset gateを確認する。
+- Reportはhistorical logをscanしたと表現せず、1件がpolicyによりunavailableとして受理され、`actions_scan_complete=false` であることを明示する。
 
 ## Scope
 
@@ -110,6 +146,11 @@ TASK-009の未承認・未release product candidateをbaselineとして継承し
 - AC08 Non-regression: AppState、migration、storage、backup/import/export、financial results、rule data、package-lock、launcher、generated sharedの目的外diffが0で、既存test countを下げない。
 - AC09 Candidate／review: TASK-013の新candidateと新handoffを作成し、candidate exact CI SUCCESS、candidate→handoff production diff 0、handoff exact CI SUCCESS後にattempt 1／standard reviewを依頼する。
 - AC10 Public side effects: implementation／review中はtag、Release、asset、Pages、deployment、Distribution dispatch、origin/main、repository visibilityを変更せず、public distribution side effect 0を維持する。
+- AC11 Exact exception: exact approved run/attempt/job/headだけをhistorical unavailableとして許可し、static direct-log／attempt-jobs／attempt-archive identityの任意のmutation、2件目、別job、post-adoption missing jobをBLOCKEDにする。
+- AC12 Mandatory runtime proof: exception利用auditごとにfresh `302 -> 404`／`application/xml`／`BlobNotFound`／non-empty body observationを必須化し、そのactual response SHA-256／bytesとruntime canonical record/set hashをproofへbindingする。
+- AC13 Truthful completeness: exception利用時は `actions_scan_complete=false`、unavailable/runtime counts `1/1` とし、全static/runtime/count gate成立時だけ `actions_evidence_gate_pass=true` とする。Historical unavailable logをscan済みと表現しない。
+- AC14 Deterministic proof: static/runtime canonical recordsをexact field order、UTF-8 no BOM、LF、final LF、canonical scalarでserializeし、sorted direct-concatenation set hashをproof consumerが再構成できる。Unknown legacy alias、field omission/addition/order/EOL/scalar mutationを拒否する。
+- AC15 Verification boundary: raw runtime responseはrepository外部evidenceにのみ保持し、high-risk read-only VERIFYがcandidate proof SHA/bytesとexact照合する。Candidate exact CIとhandoff exact CI成功後もrelease authorityは付与されず、ChatGPT implementation reviewへ返す。
 
 ## Tests
 
@@ -121,6 +162,7 @@ TASK-009の未承認・未release product candidateをbaselineとして継承し
 - T06 History／redaction regression: historical commit message、removed blob、same-blob multi-path、sensitive ref／pathをscanし、raw matched secretを出力しない。
 - T07 Distribution regression: public audit proof transfer、release staging exact 5、stage／publish mutation matrix、exact_published no-op、canonical APPROVED proof、portable 284、staged HTTP 5 files／5 routesを維持する。
 - T08 Full gates: Vitest 567以上、focused 69／68／86／28以上、distribution contract 77以上、public exposure audit 28以上＋新規test、normalization各21、completion各34、runtime requests／console errors／page errors 0をcandidate／handoff exact CIで確認する。
+- T09 Spec Revision 2 matrix: Design Revision 3 section 18の44カテゴリを全てcoverする。Exact happy path、runtime omission/performed false、initial/final status、410/403/5xx、MIME/error code、empty body、request/redirect/read failure、runtime SHA/bytes/set hash mutation、missing runtime fields、count mismatch、wrong static/runtime stable identity、static direct/attempt-jobs/attempt-archive mutation、second/non-allowlisted/post-adoption missing job、non-completed job、count equations、empty/one-record hashes、field order/separator/CRLF/final-LF/scalar/extra/omitted field、scan/evidence gate contradiction、legacy alias、raw-runtime VERIFY binding、既存全regressionを独立caseで検証する。
 
 ## Build
 

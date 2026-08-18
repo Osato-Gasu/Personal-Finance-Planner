@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "task_id": "TASK-013",
+  "spec_revision": 2,
+  "design_revision": 3,
+  "recorded_at": "2026-08-18 16:39:07 JST",
+  "external_sources": [
+    {
+      "logical_name": "TASK-013_SPEC_REVISION_2_EVIDENCE_POLICY_DESIGN_REVISION_3.md",
+      "supplied_name": "TASK-013_SPEC_REVISION_2_EVIDENCE_POLICY_DESIGN_REVISION_3 (1).md",
+      "bytes": 19101,
+      "sha256": "C9E3FE09CA12A111967BA8809EC1DC2BE99ADFDB1CDDE43638AC0A75039CA117",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 628,
+      "trailing_lf": true
+    },
+    {
+      "logical_name": "TASK-013_SPEC_REVISION_2_USER_APPROVAL.json",
+      "supplied_name": "TASK-013_SPEC_REVISION_2_USER_APPROVAL (4).json",
+      "bytes": 497,
+      "sha256": "C1B3ACA192636115CCF2E7D58FE57D498DCF15D844CE4E4ED5544BC323B8347A",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 14,
+      "trailing_lf": true
+    },
+    {
+      "logical_name": "TASK-013_SPEC_REVISION_2_FINAL_DESIGN_DISPOSITION.json",
+      "supplied_name": "TASK-013_SPEC_REVISION_2_FINAL_DESIGN_DISPOSITION.json",
+      "bytes": 1697,
+      "sha256": "383F104934386DB48378C53A1BF6BC0174AB863915E60EC0BE93D5D4F78EB3D5",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 45,
+      "trailing_lf": true
+    },
+    {
+      "logical_name": "TASK-013_CODEX_MAIN_SPEC_REVISION_2_ADOPTION_IMPLEMENTATION_PROMPT.md",
+      "supplied_name": "TASK-013_CODEX_MAIN_SPEC_REVISION_2_ADOPTION_IMPLEMENTATION_PROMPT.md",
+      "bytes": 18253,
+      "sha256": "0F8FD97EC700C1B3E6C0430A578D68720AA76AF71405C0E563E6C52BE85C5C46",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 618,
+      "trailing_lf": true
+    }
+  ]
+}
