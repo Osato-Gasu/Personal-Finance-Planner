@@ -8,20 +8,22 @@
 - result_return_to: ChatGPT
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch: codex/task-013-public-audit-stable-id
-- reviewed_candidate: bf70d55f6e7649c4b80a64e3138f2d0385df34b2
-- candidate_commit: bf70d55f6e7649c4b80a64e3138f2d0385df34b2
-- reviewed_handoff_head: 8a10bde5859d24e35d32e119d0ba668a29f5c4ea
+- reviewed_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
+- candidate_commit: b38d0182d62053a25e17c6a32853d1112d9084eb
+- reviewed_handoff_head: 94a2be9ae2ddb1d85e8ed7db89f5ecce3287c708
 - shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
 - spec_revision_reset: false
 - review_stage: implementation
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: narrowed
+- changes_requested_cycles: 2
+- implementation_review_attempt: 3
+- implementation_review_profile: terminal
+- implementation_review_final: true
 - implementation_review_terminated: false
+- attempt_4_forbidden: true
 - user_confirmation_required: false
 - user_confirmation_prompt: none
 - review_termination_reason: none
-- implementation_review_open_finding_ids: FINDING-013-R1-01
+- implementation_review_open_finding_ids: FINDING-013-R2-01, FINDING-013-R2-02
 - next_phase: implementation
 - next_actor: Codex
 - next_role: IMPLEMENTER
@@ -30,41 +32,43 @@
 - routing_mode: connector_read_only
 - route_repository: Osato-Gasu/Personal-Finance-Planner
 - requested_ref: refs/heads/codex/task-013-public-audit-stable-id
-- resolved_commit: 8a10bde5859d24e35d32e119d0ba668a29f5c4ea
-- next_action_blob: 0315cdebee708cc3e68e85cdf6fb37c61e223bc6
-- handoff_blob: 5b3ab183e643fe8ad4001d3482d1aee8d02407ec
+- resolved_commit: 94a2be9ae2ddb1d85e8ed7db89f5ecce3287c708
+- next_action_blob: 1e72caf2024fe1c581a367b9c6c316cf8112caa3
+- handoff_blob: e65229ac83946c8572991a4654df0f0a387d8808
 - adapter_blob: 1feb586cdac2c612ca02fee3dc1b0addf6cfab94
-- implementation_candidate: bf70d55f6e7649c4b80a64e3138f2d0385df34b2
+- implementation_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
 
 ## Purpose
 
-TASK-013 spec revision 1 implementation review attempt 1／standardでcandidate bf70d55f6e7649c4b80a64e3138f2d0385df34b2をexact reviewし、canonical stable-ID inventory修復は成立している一方、Actions list APIのtotal_countをpagination completenessへ結合していない残存MAJOR security／release-gate違反をCHANGES_REQUESTEDとしてCodexへ返す。attempt 2／narrowedではaccepted findingを非緩和で修正し、新candidateとproduction diff 0のreview handoffを作成する。
+Replacement relay for TASK-013 spec revision 1 implementation review attempt 2/narrowed. The original attempt-2 raw relay artifact is unavailable and must not be reconstructed under its old hash. This replacement is freshly bound to the same reviewed candidate b38d0182d62053a25e17c6a32853d1112d9084eb and handoff 94a2be9ae2ddb1d85e8ed7db89f5ecce3287c708, preserves the recorded CHANGES_REQUESTED decision and finding IDs, and records the non-relaxable security/release-gate issues re-verified from the exact remote candidate.
 
 ## Scope
 
-- review対象はactivation 184d4da3f79443416f0570aec2b029d4c2c72202／tree 86b0f2d9e9ded5618c80d2062ae1602b0f907e1cからcandidate bf70d55f6e7649c4b80a64e3138f2d0385df34b2／tree 521da3403ab9b603e8ff6bf1b198542a9ffc817bまでの4-path実装diffへ固定する。candidateはactivationの直系子である。
-- formal review handoffは8a10bde5859d24e35d32e119d0ba668a29f5c4ea／tree 8300019f0a04cbcdbf8cb9d5dc6f9ce5920b5c58／direct parent candidateで、candidate→handoffはrepository-native 6 governance／review pathsだけ、production diff 0である。
-- activation CI 31947743040／attempt 1／job 95166339042、candidate CI 31951414720／attempt 1／job 95175329629、handoff CI 31952103640／attempt 1／job 95177057677は各exact SHA、branch、push event、Governance CI、SUCCESSへ一致する。
-- canonical positive integer ID、run ID／run+job ID／artifact ID stable key、fixed-order typed metadata record、duplicate／conflict拒否、stable-key／record-set hashは要件へ整合する。
-- page 1の100件とpage 2のsame stable-ID overlap、HTTP 403／404／410／5xx、request／redirect／body failure、unsafe archive、full-history／path-sensitive scan、secret redactionは動的testでPASSしている。
-- Vitest 604、focused 69／68／86／28、distribution contract 77、public audit 65、normalization各21、completion各34、portable 284、staged HTTP 5 files／5 routes、runtime／console／page errors 0を確認する。
-- working-tree audit 2990 bytes／F75A78251CD440E318FB8E9B2BB402A3DB40C141AED769BAB962D8A4972B8B8E、candidate audit 2990 bytes／F38F632FF33EA27DD618C6336A8B93762FDC914E70F040D2E430CEC5AAC7EC84はfindings 0／PASSとして監査保持する。
-- TASK-009はcycles 3／attempt 3／terminal／final／terminated、attempt 4 forbidden、candidate未承認・未releaseのまま保持され、TASK-013 approval／release identityへ流用されていない。
-- repositoryはpublic、origin/mainは0dbc4fb102c92a6df12331540c6cc11010258f54のまま、tag／Release／deployment／workflow_dispatch／PRは0、Pagesは未構成である。
-- CHANGES_REQUESTED Import後はcycles 1／attempt 2／narrowed／final false／terminated falseへ進み、FINDING-013-R1-01を唯一のopen findingとして保存する。
+- reviewed candidate: b38d0182d62053a25e17c6a32853d1112d9084eb / tree 57eaf1f4a9a088f37bd3cf39c5ededa29e670a2f / parent a0f8738396e9dfd1e6aefed5154f1d7e6732434e.
+- reviewed handoff: 94a2be9ae2ddb1d85e8ed7db89f5ecce3287c708 / tree 625e89805c9ce4812151b54a4d12ca472d8afa0c / direct parent candidate; candidate-to-handoff production diff 0.
+- attempt 2 review profile is narrowed; only accepted prior finding scope, regressions caused by its repair, requirement violations, security, required tests, backward compatibility, and explicit release gates are blocking.
+- candidate CI 31955360058 attempt 1 job 95185062836 SUCCESS; handoff CI 31955979840 attempt 1 job 95186572699 SUCCESS.
+- attempt-2 baseline validation remains 621 Vitest / 82 public-audit / 69/68/86/28 focused / 77 distribution / normalization 21 each / completion 34 each / portable 284 / staged HTTP 5 routes / runtime-console-page errors 0.
+- working-tree audit: 2990 bytes / E16976E492A0CAC763CBA64ACFAC230BD79DB0713F9C77DE0B0F19DD7057C6E3 / PASS / findings 0.
+- candidate exact audit: 2990 bytes / 7D15B62E6BA688EC8E77B3C16E267278E4BA0E2F01CC7E55D7748414B441950C / PASS / findings 0.
+- origin/main remains 0dbc4fb102c92a6df12331540c6cc11010258f54; repository public; tag/Release/deployment/workflow_dispatch/open PR 0; Pages not configured.
+- TASK-009 remains terminated/final, attempt 4 forbidden, candidate unapproved and unreleased.
+- superseded lost artifact identity: TASK-013_IMPLEMENTATION_REVIEW_ATTEMPT_2_CHANGES_REQUESTED_RELAY.json / 14491 bytes / SHA-256 83E3A79D4A8D47F564375BF951D185F3ADC5C62474239865258E97B53F9671EA; do not Validate, Import, recreate, or claim raw equivalence to it.
+- Import of this replacement should move TASK-013 to changes_requested_cycles 2 / implementation review attempt 3 / terminal profile / final true / terminated false / attempt 4 forbidden true, with both findings open.
 
 ## Out of scope
 
-- TASK-013 spec revision 1のPurpose、R02～R15、AC02～AC10、T02～T08、F01～F08の変更、削除、要約、緩和。
-- FINDING-013-R1-01のID、本文、severity、review_scope、prior_finding_idの変更、deferred／accepted-risk／optional化。
-- 既に合格したstable-ID duplicate／conflict、hash provenance、HTTP／archive／history／proof／asset gateの再設計または弱体化。
-- AppState、migration、storage、backup/import/export、金融計算、rule値、package version、launcher等の目的外変更。
-- origin/main統合、tag、Release、asset、Pages、deployment、Distribution dispatch、completion、TASK-009のreopen／attempt 4。
-- CI軽量化、required gate削減、test削除／skip／弱体化。
+- Reconstructing or claiming byte identity with the lost original attempt-2 relay.
+- Changing TASK-013 spec revision 1 requirements or relaxing security/release gates.
+- Re-reviewing unrelated MINOR/QUESTION/optimization/scope-expansion issues.
+- TASK-009 reopen, attempt 4, retroactive approval, or release.
+- origin/main integration, tag, Release, asset, Pages, deployment, Distribution dispatch, completion.
+- CI-lightening changes or required-test reductions.
 
 ## Required changes
 
-- FINDING-013-R1-01 [MAJOR] tools/public-exposure-audit.mjs; tools/public-exposure-audit-lib.mjs; tests/public-exposure-audit.test.mjs; docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md: GitHub Actions list応答のAPI total_countがpagination／inventory completenessへ結合されていない。githubPagesは対象配列だけをpage順に連結し、page lengthが100未満になった時点で返すため、APIが宣言したtotal_countと実際の取得件数が不一致でも、取得済みsubsetを完全なcanonical inventoryとしてstable-key hash、record-set hash、retrieval／scan count、actions_scan_complete=trueへ進められる。 Evidence: candidate bf70d55f6e7649c4b80a64e3138f2d0385df34b2のtools/public-exposure-audit.mjs::githubPagesは、`const current = response[key] ?? response; values.push(...current); if (current.length < 100) return values;`だけで、workflow runs、各runのjobs、artifactsが返す`total_count`の存在、型、page間一致、累積取得件数とのexact一致を確認しない。tests/public-exposure-audit.test.mjsはstable-ID page overlapを検証するが、total_count欠落／malformed／過大／過小／page間変更の動的negative testを持たない。 Impact: GitHub APIのpagination欠落、partial response、stale page、proxy／mock不整合等でActions run、job、artifactの一部が取得されなくても、取得済みsubsetについてcountとhashが整合したPASS proofを生成できる。未取得log／artifactにcredential、PII、private financial exportが存在してもcandidate_ci／release_preflightが見逃し得るため、R07、AC04、T04、F03／F04に反する非緩和security／release gate違反である。 Required: Actions list response専用のfail-closed pagination helperを実装し、各pageがobject、対象array、nonnegative safe integer total_countを持つこと、page間でtotal_countが不変であること、累積件数がtotal_countを超えないこと、終了時の累積件数がtotal_countへexact一致することを検証する。runs／artifactsはglobal total_count、jobsはrunごとのtotal_countを検証し、mismatch、missing、malformed、page間変更をjob log／artifact content retrievalおよびreport write前にBLOCKEDとする。run／job／artifactそれぞれについてtotal_count欠落、malformed、過大、過小、page間変更の動的negative testを追加し、既存のstable-ID duplicate／conflict、record-set hash、HTTP／archive／history／redaction／proof-transfer／asset gateを回帰させない。
+- FINDING-013-R2-01 [MAJOR] tools/public-exposure-audit.mjs::scanGithub/githubPages; tests/public-exposure-audit.test.mjs; docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md: Actions jobs inventory is fetched from `/actions/runs/{run_id}/jobs` without `filter=all`. GitHub's endpoint defaults to the latest execution, so jobs from older executions of the same workflow run can be omitted from the canonical job inventory and therefore from log retrieval, scan counts, and provenance. Evidence: candidate b38d0182d62053a25e17c6a32853d1112d9084eb calls `githubPages(`${base}/actions/runs/${runEntry.runId}/jobs`, ...)` without a `filter=all` query parameter. GitHub documents the default filter as `latest`, while `all` includes jobs from old executions of the workflow run. Existing pagination tests validate duplicate/total_count behavior but do not prove rerun-attempt job coverage. Impact: A rerun can leave publicly exposed logs from an older execution outside the audited job set while the audit still reports a complete Actions scan. Credentials, PII, or private financial exports present only in an older execution could therefore be missed by candidate/release public-exposure gates. Required: Fetch jobs with `filter=all` while preserving existing `per_page`/`page` pagination and total_count validation. Bind all returned execution jobs to the canonical run+job stable-key inventory and provenance. Add deterministic negative/regression tests showing that an old-execution job is included and scanned, and that omitting it or returning inconsistent pagination fails before PASS/report creation. Preserve all existing stable-ID, total_count, HTTP, archive, history, redaction, proof-transfer, and asset-gate tests.
+- FINDING-013-R2-02 [MAJOR] tools/public-exposure-audit.mjs::scanGithub; tests/public-exposure-audit.test.mjs; docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md: The canonical job inventory includes every returned job, but the required log inventory and log retrieval are built only from `job.status === "completed"`. Non-completed canonical jobs are silently excluded while the final report can still set `actions_scan_complete: true`. Evidence: candidate b38d0182d62053a25e17c6a32853d1112d9084eb builds `jobInventory` from all `jobEntries`, then derives `completedJobs = jobEntries.filter((entry) => entry.job.status === "completed")`; `requiredJobLogInventory` and log downloads use `completedJobs`. The final provenance sets `actions_scan_complete: true` after comparing only that completed subset, so `actions_job_inventory_count` is not required to equal the set whose logs were retrieved/scanned. Impact: Queued, in-progress, waiting, requested, or otherwise non-completed jobs can be present in the canonical inventory without their logs being scanned, yet the proof can claim a complete Actions scan. This violates the requirement that the required job-log set be exactly bound to the canonical job set and weakens the release/security gate. Required: Fail closed whenever a canonical job is not in a state whose complete log can be retrieved and scanned; do not silently exclude it from the required log set. For a PASS proof, require every canonical job to be represented in the required job-log set and require job inventory count == required log count == retrieval count == scan count. Add independent tests for queued/in_progress/waiting/requested (and any other supported non-completed status) proving BLOCKED, no PASS report, and no `actions_scan_complete: true`. Preserve redaction and all previously passed regressions.
 
 ## User decisions required
 
@@ -76,36 +80,36 @@ TASK-013 spec revision 1 implementation review attempt 1／standardでcandidate 
 
 ## Acceptance criteria
 
-- CHANGES_REQUESTED Import後、TASK-013はimplementation／changes_requested、Codex／IMPLEMENTER、cycles 1／attempt 2／narrowed／terminated false、open finding FINDING-013-R1-01へrepository-nativeに同期する。
-- runs、各runのjobs、artifactsのlist responseでtotal_countを必須のnonnegative safe integerとして検証し、page間で不変とする。
-- 累積page record数がtotal_countを超えた時点、または最終page後にtotal_countへ一致しない場合、content retrieval／report write前にBLOCKEDとする。
-- validated API total count、inventory count、retrieval count、scan count、report count、stable-key set hash、record-set hashが同じcanonical inventoryへ結合される。
-- total_count missing、malformed、過大、過小、page間変更の各caseでactions_scan_complete true／finding 0／PASS reportを生成しない。
-- 既存のstable-ID duplicate／conflict、pagination overlap、HTTP／archive／history／redaction、proof transfer、asset mutation、canonical approval proofを維持する。
-- 全local gateと新規attempt 2 candidate exact Governance CI SUCCESS後だけ直系子handoffを作り、candidate→handoff production diffを0にする。
-- 実装／handoff中もrepository visibility、origin/main、tag、Release、Pages、deployment、Distribution dispatchを変更しない。
+- Replacement relay Validate/Import is exact-bound to current handoff and routing blobs before any repository write.
+- After Import: cycles 2, attempt 3, profile terminal, final true, terminated false, attempt_4_forbidden true, and both R2 findings are open.
+- Jobs listing uses `filter=all` and includes jobs from all executions/reruns of each workflow run.
+- Every canonical job must be included in the required log set for a PASS proof; non-completed/unscannable jobs fail closed.
+- For PASS: actions_job_inventory_count == actions_required_job_log_count == retrieval count == scan count.
+- No incomplete Actions state can produce actions_scan_complete=true, findings 0, or PASS.
+- Existing stable-ID/metadata separation, total_count validation, hash provenance, HTTP/archive/history/redaction/proof-transfer/asset-mutation/canonical-approval regressions remain passing.
+- Attempt-3 candidate exact CI must succeed before a direct-child handoff-only commit; candidate-to-handoff production diff 0.
+- No release/public distribution/main/completion side effect occurs during repair and handoff.
 
 ## Tests
 
-- run list: total_count missing／negative／non-integer／unsafe、actual recordsより大きい／小さい、page 1とpage 2で変更するresponseをそれぞれBLOCKEDにする。
-- job list: runごとのtotal_countと取得jobs件数の過大／過小／page間変更をBLOCKEDにし、job log request数0、report file不存在を確認する。
-- artifact list: total_count mismatch／missing／page間変更をBLOCKEDにし、artifact ZIP request数0、report file不存在を確認する。
-- pagination overlap: same stable ID identical metadata／conflicting metadataのrun／job／artifact caseを引き続きcontent retrieval前に拒否する。
-- proof validation: API total provenance fieldを追加する場合、missing／wrong countをside_effects 0で拒否する。
-- hash／ID regression: canonical ID matrix、stable-key／record-set hash determinism、metadata conflict時のraw secret非出力を維持する。
-- full regression: Vitest 604以上＋新規test、focused 69／68／86／28、distribution 77以上、public audit 65以上＋新規test、normalization各21、completion各34、portable 284、staged HTTP 5／5、runtime／console／page errors 0。
-- candidate／handoffの新規exact Governance CIで全required stepsをSUCCESSにする。
+- Rerun coverage: same workflow run with old and latest execution jobs; verify all-execution jobs are in canonical inventory and their logs are requested/scanned; test must fail if `filter=all` is absent.
+- Non-completed job matrix: queued, in_progress, waiting, requested and any supported non-completed status => BLOCKED, no PASS report, actions_scan_complete true absent.
+- Completeness: canonical job count must equal required log/retrieval/scan counts for PASS.
+- Keep run/job/artifact stable-ID duplicate/conflict and page-overlap tests.
+- Keep total_count missing/malformed/negative/unsafe/too-large/too-small/page-change tests.
+- Keep HTTP 403/404/410/5xx, request/redirect/body failure and unsafe archive tests.
+- Keep full-history/path-sensitive scan, secret redaction, proof transfer, release-staging and asset mutation regressions.
+- Full suite at or above current counts; exact candidate and handoff Governance CI SUCCESS.
 
 ## Forbidden changes
 
-- total_countを無視、optional、warning、best-effortとして扱うこと。
-- page lengthだけでpagination completeと判定し、API totalと最終inventory countを比較しないこと。
-- total_count mismatch時にjob log／artifact ZIPを取得、actions_scan_complete true、finding 0、PASS reportを生成すること。
-- duplicate recordsを黙ってdeduplicate／merge／last-write-winsすること。
-- raw secret／PII／token、unbounded mutable metadataをerror、report、artifact、relayへ複製すること。
-- 既存のstable-ID、HTTP／archive／history／proof／asset／approval gateを弱体化すること。
-- existing test削除／skip／assertion弱体化／count低下、CI軽量化の混在。
-- TASK-009 attempt 4／reopen／retroactive approval／release、origin/main統合、tag、Release、Pages、deployment、Distribution dispatch、completion。
-- reset、restore、stash、git clean、rebase、amend、squash、history rewrite、force push、filesystem force削除。
+- Using the old lost relay hash/bytes for this replacement.
+- Listing workflow jobs with the default/latest-only filter while claiming full Actions completeness.
+- Excluding non-completed canonical jobs from the required log set while claiming actions_scan_complete=true.
+- Silent deduplication, warning-only, best-effort, or optional treatment of incomplete Actions evidence.
+- Raw credential/PII/private financial data leakage in errors, reports, artifacts, relays, or logs.
+- Existing test deletion/skip/weakening or CI-lightening changes.
+- TASK-009 attempt 4/reopen/approval/release; TASK-013 release/main integration before approval.
+- reset/restore/stash/git clean/rebase/amend/squash/history rewrite/force push.
 
 Validated full bundle: docs/ai/reports/TASK-013/RELAY_BUNDLE.json
