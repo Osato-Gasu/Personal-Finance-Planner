@@ -34,6 +34,8 @@ export const PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES = Object.freeze([
   "actions_run_record_set_sha256",
   "actions_job_record_set_sha256",
   "actions_artifact_record_set_sha256",
+  "actions_historical_unavailable_set_sha256",
+  "actions_historical_runtime_observation_set_sha256",
 ]);
 export const PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION = "stable-id-v1";
 export const PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS = Object.freeze([
@@ -45,6 +47,8 @@ export const PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS = Object.freeze([
   "actions_artifact_inventory_count",
   "actions_artifact_retrieval_count",
   "actions_artifact_scan_count",
+  "actions_historical_unavailable_count",
+  "actions_historical_runtime_observation_count",
 ]);
 export const PUBLIC_AUDIT_CATEGORIES = Object.freeze([
   "high_confidence_credential",
@@ -61,6 +65,374 @@ export const PUBLIC_AUDIT_CATEGORIES = Object.freeze([
 
 export function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex").toUpperCase();
+}
+
+export const PUBLIC_AUDIT_EMPTY_SET_SHA256 = sha256(Buffer.alloc(0));
+export const ACTIONS_HISTORICAL_POLICY_ID = "task-013-spec-rev2-exact-v1";
+
+export const ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD = Object.freeze({
+  policy_id: ACTIONS_HISTORICAL_POLICY_ID,
+  repository: "Osato-Gasu/Personal-Finance-Planner",
+  run_id: "31887544173",
+  run_attempt: "1",
+  job_id: "95018938492",
+  run_head_sha: "25be0b48699ef350bd72a60e3b564b7dd8c1d2a4",
+  job_status: "completed",
+  job_conclusion: "failure",
+  direct_log_initial_status: "302",
+  direct_log_final_status: "404",
+  direct_log_final_content_type: "application/xml",
+  direct_log_response_sha256:
+    "1CCCE68DDD68C8BD055419F893169F9C311D4F242CC957F9DC9F2CB1447C9C21",
+  direct_log_response_bytes: "215",
+  attempt_jobs_status: "200",
+  attempt_jobs_response_sha256:
+    "F4AEBF5D31E457DF360008FB0384B104524D98B9859390A2D668F38BBB0ABABE",
+  attempt_jobs_response_bytes: "952",
+  attempt_jobs_total_count: "1",
+  attempt_jobs_length: "1",
+  attempt_jobs_sole_job_id: "95018938492",
+  attempt_archive_initial_status: "302",
+  attempt_archive_final_status: "200",
+  attempt_archive_content_type: "application/zip",
+  attempt_archive_sha256:
+    "8739C76E681F900923B900C9DF0EF75CF421D39CABB54650C4B9AD19B6A76D85",
+  attempt_archive_bytes: "22",
+  attempt_archive_zip_entries: "0",
+  attempt_archive_regular_entry_count: "0",
+});
+
+export const ACTIONS_HISTORICAL_STATIC_FIELDS = Object.freeze([
+  "policy_id",
+  "repository",
+  "run_id",
+  "run_attempt",
+  "job_id",
+  "run_head_sha",
+  "job_status",
+  "job_conclusion",
+  "direct_log_initial_status",
+  "direct_log_final_status",
+  "direct_log_final_content_type",
+  "direct_log_response_sha256",
+  "direct_log_response_bytes",
+  "attempt_jobs_status",
+  "attempt_jobs_response_sha256",
+  "attempt_jobs_response_bytes",
+  "attempt_jobs_total_count",
+  "attempt_jobs_length",
+  "attempt_jobs_sole_job_id",
+  "attempt_archive_initial_status",
+  "attempt_archive_final_status",
+  "attempt_archive_content_type",
+  "attempt_archive_sha256",
+  "attempt_archive_bytes",
+  "attempt_archive_zip_entries",
+  "attempt_archive_regular_entry_count",
+]);
+
+export const ACTIONS_HISTORICAL_RUNTIME_FIELDS = Object.freeze([
+  "policy_id",
+  "repository",
+  "run_id",
+  "run_attempt",
+  "job_id",
+  "run_head_sha",
+  "runtime_observation_performed",
+  "observed_direct_log_initial_status",
+  "observed_direct_log_final_status",
+  "observed_direct_log_final_content_type",
+  "observed_direct_log_error_code",
+  "observed_direct_log_response_sha256",
+  "observed_direct_log_response_bytes",
+]);
+
+const HISTORICAL_UNSIGNED_FIELDS = new Set([
+  "run_id",
+  "run_attempt",
+  "job_id",
+  "direct_log_initial_status",
+  "direct_log_final_status",
+  "direct_log_response_bytes",
+  "attempt_jobs_status",
+  "attempt_jobs_response_bytes",
+  "attempt_jobs_total_count",
+  "attempt_jobs_length",
+  "attempt_jobs_sole_job_id",
+  "attempt_archive_initial_status",
+  "attempt_archive_final_status",
+  "attempt_archive_bytes",
+  "attempt_archive_zip_entries",
+  "attempt_archive_regular_entry_count",
+  "observed_direct_log_initial_status",
+  "observed_direct_log_final_status",
+  "observed_direct_log_response_bytes",
+]);
+const HISTORICAL_SHA256_FIELDS = new Set([
+  "direct_log_response_sha256",
+  "attempt_jobs_response_sha256",
+  "attempt_archive_sha256",
+  "observed_direct_log_response_sha256",
+]);
+const HISTORICAL_BOOLEAN_FIELDS = new Set(["runtime_observation_performed"]);
+const HISTORICAL_MIME_FIELDS = new Set([
+  "direct_log_final_content_type",
+  "attempt_archive_content_type",
+  "observed_direct_log_final_content_type",
+]);
+
+function canonicalHistoricalValue(name, value, label) {
+  if (HISTORICAL_UNSIGNED_FIELDS.has(name)) {
+    const text = typeof value === "number" ? String(value) : value;
+    if (
+      typeof text !== "string" ||
+      !/^(?:0|[1-9][0-9]*)$/u.test(text) ||
+      (typeof value === "number" && !Number.isSafeInteger(value))
+    )
+      throw new Error(`invalid ${label} canonical integer: ${name}`);
+    return text;
+  }
+  if (HISTORICAL_SHA256_FIELDS.has(name)) {
+    if (typeof value !== "string" || !/^[0-9A-F]{64}$/u.test(value))
+      throw new Error(`invalid ${label} canonical SHA-256: ${name}`);
+    return value;
+  }
+  if (HISTORICAL_BOOLEAN_FIELDS.has(name)) {
+    if (typeof value !== "boolean")
+      throw new Error(`invalid ${label} canonical boolean: ${name}`);
+    return value ? "true" : "false";
+  }
+  if (HISTORICAL_MIME_FIELDS.has(name)) {
+    if (
+      typeof value !== "string" ||
+      !/^[a-z0-9][a-z0-9!#$&^_.+\x2F-]*$/u.test(value)
+    )
+      throw new Error(`invalid ${label} canonical MIME: ${name}`);
+    return value;
+  }
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.trim() !== value ||
+    /[^\x20-\x7E]/u.test(value) ||
+    /[\r\n]/u.test(value)
+  )
+    throw new Error(`invalid ${label} canonical string: ${name}`);
+  return value;
+}
+
+export function serializeActionsHistoricalRecord(record, kind) {
+  const fields =
+    kind === "static"
+      ? ACTIONS_HISTORICAL_STATIC_FIELDS
+      : kind === "runtime"
+        ? ACTIONS_HISTORICAL_RUNTIME_FIELDS
+        : null;
+  if (!fields || !record || typeof record !== "object" || Array.isArray(record))
+    throw new Error(`invalid Actions historical ${String(kind)} record`);
+  const keys = Object.keys(record);
+  if (
+    keys.length !== fields.length ||
+    fields.some((field, index) => keys[index] !== field)
+  )
+    throw new Error(`invalid Actions historical ${kind} record schema`);
+  const text = fields
+    .map(
+      (field) =>
+        `${field}=${canonicalHistoricalValue(field, record[field], `${kind} record`)}`,
+    )
+    .join("\n");
+  return Buffer.from(`${text}\n`, "utf8");
+}
+
+function historicalRecordSort(left, right) {
+  const repository = Buffer.from(left.repository, "utf8").compare(
+    Buffer.from(right.repository, "utf8"),
+  );
+  if (repository !== 0) return repository;
+  for (const name of ["run_id", "run_attempt", "job_id"]) {
+    const difference = BigInt(left[name]) - BigInt(right[name]);
+    if (difference < 0n) return -1;
+    if (difference > 0n) return 1;
+  }
+  return 0;
+}
+
+export function actionsHistoricalSetSha256(records, kind) {
+  if (!Array.isArray(records))
+    throw new Error(`invalid Actions historical ${kind} set`);
+  const sorted = [...records].sort(historicalRecordSort);
+  return sha256(
+    Buffer.concat(
+      sorted.map((record) => serializeActionsHistoricalRecord(record, kind)),
+    ),
+  );
+}
+
+function exactApprovedStaticRecord(record) {
+  return ACTIONS_HISTORICAL_STATIC_FIELDS.every(
+    (field) =>
+      record[field] === ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD[field],
+  );
+}
+
+function exactRuntimeIdentity(record) {
+  const approved = ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD;
+  return (
+    record.policy_id === approved.policy_id &&
+    record.repository === approved.repository &&
+    record.run_id === approved.run_id &&
+    record.run_attempt === approved.run_attempt &&
+    record.job_id === approved.job_id &&
+    record.run_head_sha === approved.run_head_sha
+  );
+}
+
+export function buildActionsHistoricalEvidence(runtimeObservation = null) {
+  const staticRecords = runtimeObservation
+    ? [{ ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD }]
+    : [];
+  const runtimeRecords = runtimeObservation ? [{ ...runtimeObservation }] : [];
+  if (runtimeObservation) {
+    serializeActionsHistoricalRecord(runtimeObservation, "runtime");
+    if (
+      !exactRuntimeIdentity(runtimeObservation) ||
+      runtimeObservation.runtime_observation_performed !== true ||
+      runtimeObservation.observed_direct_log_initial_status !== "302" ||
+      runtimeObservation.observed_direct_log_final_status !== "404" ||
+      runtimeObservation.observed_direct_log_final_content_type !==
+        "application/xml" ||
+      runtimeObservation.observed_direct_log_error_code !== "BlobNotFound" ||
+      BigInt(runtimeObservation.observed_direct_log_response_bytes) <= 0n
+    )
+      throw new Error("BLOCKED: invalid historical runtime observation");
+  }
+  return {
+    actions_historical_unavailable_count: staticRecords.length,
+    actions_historical_unavailable_set_sha256: actionsHistoricalSetSha256(
+      staticRecords,
+      "static",
+    ),
+    actions_historical_unavailable_policy: runtimeObservation
+      ? ACTIONS_HISTORICAL_POLICY_ID
+      : "none",
+    actions_historical_unavailable_records: staticRecords,
+    actions_historical_runtime_observation_count: runtimeRecords.length,
+    actions_historical_runtime_observation_set_sha256:
+      actionsHistoricalSetSha256(runtimeRecords, "runtime"),
+    actions_historical_runtime_observations: runtimeRecords,
+    actions_scan_complete: !runtimeObservation,
+    actions_evidence_gate_pass: true,
+  };
+}
+
+export function validateActionsHistoricalEvidence(provenance) {
+  const errors = [];
+  if (
+    !provenance ||
+    typeof provenance !== "object" ||
+    Array.isArray(provenance)
+  )
+    return ["public audit Actions historical proof is missing"];
+  if (Object.hasOwn(provenance, "historical_unavailable_count"))
+    errors.push(
+      "public audit legacy historical unavailable alias is forbidden",
+    );
+  const staticCount = provenance.actions_historical_unavailable_count;
+  const runtimeCount = provenance.actions_historical_runtime_observation_count;
+  const staticRecords = provenance.actions_historical_unavailable_records;
+  const runtimeRecords = provenance.actions_historical_runtime_observations;
+  if (!Number.isSafeInteger(staticCount) || staticCount < 0)
+    errors.push("public audit historical unavailable count is invalid");
+  if (!Number.isSafeInteger(runtimeCount) || runtimeCount < 0)
+    errors.push("public audit historical runtime observation count is invalid");
+  if (!Array.isArray(staticRecords))
+    errors.push("public audit historical unavailable records are missing");
+  if (!Array.isArray(runtimeRecords))
+    errors.push("public audit historical runtime observations are missing");
+  if (Array.isArray(staticRecords) && staticRecords.length !== staticCount)
+    errors.push("public audit historical unavailable record count mismatch");
+  if (Array.isArray(runtimeRecords) && runtimeRecords.length !== runtimeCount)
+    errors.push("public audit historical runtime record count mismatch");
+  if (staticCount !== runtimeCount)
+    errors.push("public audit historical runtime observation count mismatch");
+  if (staticCount > 1)
+    errors.push("public audit historical unavailable count exceeds policy");
+  try {
+    if (
+      Array.isArray(staticRecords) &&
+      provenance.actions_historical_unavailable_set_sha256 !==
+        actionsHistoricalSetSha256(staticRecords, "static")
+    )
+      errors.push("public audit historical unavailable set hash mismatch");
+  } catch {
+    errors.push("public audit historical unavailable canonical record invalid");
+  }
+  try {
+    if (
+      Array.isArray(runtimeRecords) &&
+      provenance.actions_historical_runtime_observation_set_sha256 !==
+        actionsHistoricalSetSha256(runtimeRecords, "runtime")
+    )
+      errors.push(
+        "public audit historical runtime observation set hash mismatch",
+      );
+  } catch {
+    errors.push("public audit historical runtime canonical record invalid");
+  }
+  if (staticCount === 0) {
+    if (provenance.actions_historical_unavailable_policy !== "none")
+      errors.push("public audit historical unavailable policy mismatch");
+    if (provenance.actions_scan_complete !== true)
+      errors.push("public audit Actions scan completeness mismatch");
+  } else if (staticCount === 1) {
+    if (
+      provenance.actions_historical_unavailable_policy !==
+      ACTIONS_HISTORICAL_POLICY_ID
+    )
+      errors.push("public audit historical unavailable policy mismatch");
+    if (
+      !Array.isArray(staticRecords) ||
+      !exactApprovedStaticRecord(staticRecords[0])
+    )
+      errors.push("public audit approved historical policy record mismatch");
+    const runtime = Array.isArray(runtimeRecords) ? runtimeRecords[0] : null;
+    if (
+      !runtime ||
+      !exactRuntimeIdentity(runtime) ||
+      runtime.runtime_observation_performed !== true ||
+      runtime.observed_direct_log_initial_status !== "302" ||
+      runtime.observed_direct_log_final_status !== "404" ||
+      runtime.observed_direct_log_final_content_type !== "application/xml" ||
+      runtime.observed_direct_log_error_code !== "BlobNotFound" ||
+      !/^[0-9A-F]{64}$/u.test(
+        runtime.observed_direct_log_response_sha256 ?? "",
+      ) ||
+      !/^[1-9][0-9]*$/u.test(runtime.observed_direct_log_response_bytes ?? "")
+    )
+      errors.push("public audit historical runtime observation mismatch");
+    if (provenance.actions_scan_complete !== false)
+      errors.push("public audit Actions scan completeness mismatch");
+  }
+  if (provenance.actions_evidence_gate_pass !== true)
+    errors.push("public audit Actions evidence gate did not pass");
+  return errors;
+}
+
+export function validateActionsHistoricalRuntimeBytes(provenance, bytes) {
+  const errors = validateActionsHistoricalEvidence(provenance);
+  const records = provenance?.actions_historical_runtime_observations;
+  if (!Buffer.isBuffer(bytes))
+    errors.push("public audit historical runtime raw bytes are missing");
+  else if (Array.isArray(records) && records.length === 1) {
+    if (records[0].observed_direct_log_response_sha256 !== sha256(bytes))
+      errors.push("public audit historical runtime raw SHA-256 mismatch");
+    if (records[0].observed_direct_log_response_bytes !== String(bytes.length))
+      errors.push("public audit historical runtime raw byte count mismatch");
+  } else {
+    errors.push("public audit historical runtime proof is not singular");
+  }
+  return { ok: errors.length === 0, errors, side_effects: 0 };
 }
 
 export function canonicalPositiveIntegerId(value, label) {
@@ -371,13 +743,14 @@ export function validatePublicExposureAudit(
       errors.push(`public audit Actions provenance count is missing: ${name}`);
   }
   if (
-    report?.provenance?.actions_job_inventory_count <
+    report?.provenance?.actions_job_inventory_count !==
     report?.provenance?.actions_required_job_log_count
   )
     errors.push("public audit Actions job inventory count mismatch");
   if (
-    report?.provenance?.actions_required_job_log_count !==
-      report?.provenance?.actions_job_log_retrieval_count ||
+    report?.provenance?.actions_job_log_retrieval_count +
+      report?.provenance?.actions_historical_unavailable_count !==
+      report?.provenance?.actions_required_job_log_count ||
     report?.provenance?.actions_job_log_retrieval_count !==
       report?.provenance?.actions_job_log_scan_count ||
     report?.provenance?.actions_job_log_scan_count !==
@@ -395,8 +768,7 @@ export function validatePublicExposureAudit(
     errors.push("public audit Actions artifact completeness mismatch");
   if (report?.provenance?.repository_scan_complete !== true)
     errors.push("public audit repository scan is incomplete");
-  if (report?.provenance?.actions_scan_complete !== true)
-    errors.push("public audit Actions scan is incomplete");
+  errors.push(...validateActionsHistoricalEvidence(report?.provenance));
   if (
     report?.fixture_policy?.explicit_fixture_paths_only !== true ||
     report?.fixture_policy?.live_looking_values_never_ignored !== true
@@ -433,6 +805,26 @@ export async function readAuditProof({ path, expectedSha256, ...identity }) {
       reportBytes: bytes,
       expectedSha256,
     }),
+  };
+}
+
+export async function readActionsHistoricalRuntimeEvidence({ path, report }) {
+  if (!isAbsolute(path))
+    throw new Error("historical runtime evidence path must be absolute");
+  const resolved = resolve(path);
+  await assertNoLinkedPath(resolved);
+  const stat = await lstat(resolved);
+  if (!stat.isFile() || stat.isSymbolicLink())
+    throw new Error(
+      "historical runtime evidence path must be a regular non-link file",
+    );
+  const bytes = await readFile(resolved);
+  return {
+    bytes,
+    validation: validateActionsHistoricalRuntimeBytes(
+      report?.provenance,
+      bytes,
+    ),
   };
 }
 

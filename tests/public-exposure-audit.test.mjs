@@ -19,17 +19,26 @@ import {
   PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES,
   PUBLIC_AUDIT_REQUIRED_SCANS,
   PUBLIC_AUDIT_SCAN_METHOD,
+  ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+  ACTIONS_HISTORICAL_POLICY_ID,
+  PUBLIC_AUDIT_EMPTY_SET_SHA256,
+  actionsHistoricalSetSha256,
+  buildActionsHistoricalEvidence,
   buildStableInventory,
   buildPublicAuditReport,
   canonicalMetadataRecord,
   canonicalPositiveIntegerId,
   readAuditProof,
+  readActionsHistoricalRuntimeEvidence,
   scanPublicBytes,
+  serializeActionsHistoricalRecord,
   serializePublicAuditReport,
   sha256,
   validatePublicExposureAudit,
+  validateActionsHistoricalRuntimeBytes,
 } from "../tools/public-exposure-audit-lib.mjs";
 import {
+  historicalRuntimeEvidencePath,
   runPublicExposureAudit,
   scanArtifactArchive,
 } from "../tools/public-exposure-audit.mjs";
@@ -60,8 +69,8 @@ const provenance = {
   actions_artifact_inventory_count: 1,
   actions_artifact_retrieval_count: 1,
   actions_artifact_scan_count: 1,
+  ...buildActionsHistoricalEvidence(),
   repository_scan_complete: true,
-  actions_scan_complete: true,
 };
 
 function jsonResponse(value, status = 200) {
@@ -72,11 +81,54 @@ function jsonResponse(value, status = 200) {
   };
 }
 
-function bytesResponse(value, status = 200) {
+function responseHeaders(values = {}) {
+  const entries = Object.fromEntries(
+    Object.entries(values).map(([name, value]) => [name.toLowerCase(), value]),
+  );
+  return { get: (name) => entries[String(name).toLowerCase()] ?? null };
+}
+
+function bytesResponse(value, status = 200, headers = {}) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: responseHeaders(headers),
     arrayBuffer: async () => Buffer.from(value),
+  };
+}
+
+const historicalRuntimeBody = Buffer.from(
+  '<?xml version="1.0" encoding="utf-8"?><Error><Code>BlobNotFound</Code><Message>The specified blob does not exist.</Message></Error>',
+  "utf8",
+);
+
+function historicalRuntimeRecord(body = historicalRuntimeBody) {
+  const approved = ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD;
+  return {
+    policy_id: approved.policy_id,
+    repository: approved.repository,
+    run_id: approved.run_id,
+    run_attempt: approved.run_attempt,
+    job_id: approved.job_id,
+    run_head_sha: approved.run_head_sha,
+    runtime_observation_performed: true,
+    observed_direct_log_initial_status: "302",
+    observed_direct_log_final_status: "404",
+    observed_direct_log_final_content_type: "application/xml",
+    observed_direct_log_error_code: "BlobNotFound",
+    observed_direct_log_response_sha256: sha256(body),
+    observed_direct_log_response_bytes: String(body.length),
+  };
+}
+
+function exceptionProvenance(body = historicalRuntimeBody) {
+  return {
+    ...provenance,
+    actions_job_inventory_count: 1,
+    actions_required_job_log_count: 1,
+    actions_job_log_retrieval_count: 0,
+    actions_job_log_scan_count: 0,
+    ...buildActionsHistoricalEvidence(historicalRuntimeRecord(body)),
   };
 }
 
@@ -117,6 +169,131 @@ function report(overrides = {}) {
     completedAt: "2026-08-16T00:00:01.000Z",
     ...overrides,
   });
+}
+
+function exceptionReport(provenanceOverride = exceptionProvenance()) {
+  const base = report();
+  return report({
+    provenance: provenanceOverride,
+    scans: { ...base.scans, actions_run_logs: 0 },
+  });
+}
+
+function validateReport(value) {
+  const bytes = serializePublicAuditReport(value);
+  return validatePublicExposureAudit(value, {
+    repository,
+    targetCommit,
+    phase: "release_preflight",
+    reportBytes: bytes,
+    expectedSha256: sha256(bytes),
+  });
+}
+
+function approvedHistoricalFetch(fixture, mode = "happy") {
+  const approved = ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD;
+  const seen = [];
+  const redirectUrl = "https://runtime.example.invalid/job-log.xml";
+  const fetchImpl = async (url, options = {}) => {
+    const value = String(url);
+    seen.push({ url: value, redirect: options.redirect ?? null });
+    if (value.endsWith(`/${approved.repository}`))
+      return jsonResponse({ private: false, visibility: "public" });
+    if (value.includes("/actions/runs?")) {
+      const postAdoption = mode === "post_adoption_missing";
+      return jsonResponse({
+        total_count: 1,
+        workflow_runs: [
+          {
+            id: postAdoption ? 31887544174 : Number(approved.run_id),
+            head_sha: postAdoption ? fixture.head : approved.run_head_sha,
+            status: "completed",
+            conclusion: "failure",
+            run_attempt: 1,
+          },
+        ],
+      });
+    }
+    if (value.includes("/jobs?")) {
+      const second = mode === "second_unavailable";
+      const nonAllowlisted =
+        mode === "non_allowlisted_missing" || mode === "post_adoption_missing";
+      const wrongIdentity = mode === "wrong_static_identity";
+      return jsonResponse({
+        total_count: second ? 2 : 1,
+        jobs: [
+          {
+            id: nonAllowlisted ? 95018938493 : Number(approved.job_id),
+            status: mode === "non_completed" ? "in_progress" : "completed",
+            conclusion: "failure",
+          },
+          ...(second
+            ? [{ id: 95018938493, status: "completed", conclusion: "failure" }]
+            : []),
+        ].map((job) =>
+          wrongIdentity
+            ? { ...job, id: Number(approved.job_id), conclusion: "success" }
+            : job,
+        ),
+      });
+    }
+    if (value.includes("/actions/artifacts?"))
+      return jsonResponse({ total_count: 0, artifacts: [] });
+    if (value === redirectUrl) {
+      if (mode === "redirect_failure") throw new Error("redirect failed");
+      const status =
+        mode === "final_410"
+          ? 410
+          : mode === "final_403"
+            ? 403
+            : mode === "final_500"
+              ? 500
+              : mode === "final_200"
+                ? 200
+                : 404;
+      const contentType =
+        mode === "content_type" ? "text/xml" : "application/xml";
+      const body =
+        mode === "empty_body"
+          ? Buffer.alloc(0)
+          : mode === "error_code"
+            ? Buffer.from("<Error><Code>ContainerNotFound</Code></Error>")
+            : historicalRuntimeBody;
+      if (mode === "body_failure")
+        return {
+          status,
+          headers: responseHeaders({ "content-type": contentType }),
+          arrayBuffer: async () => {
+            throw new Error("body failed");
+          },
+        };
+      return bytesResponse(body, status, { "content-type": contentType });
+    }
+    if (value.includes("/logs")) {
+      const exact = value.endsWith(`/actions/jobs/${approved.job_id}/logs`);
+      if (
+        mode === "second_unavailable" &&
+        value.endsWith("/actions/jobs/95018938493/logs")
+      )
+        return bytesResponse("missing", 404);
+      if (
+        [
+          "non_allowlisted_missing",
+          "post_adoption_missing",
+          "wrong_static_identity",
+        ].includes(mode)
+      )
+        return bytesResponse("missing", 404);
+      if (!exact) return bytesResponse("safe log");
+      if (mode === "request_failure") throw new Error("request failed");
+      if (mode === "initial_status") return bytesResponse("", 301);
+      const location =
+        mode === "redirect_missing" ? {} : { location: redirectUrl };
+      return bytesResponse("", 302, location);
+    }
+    throw new Error(`unexpected test URL: ${value}`);
+  };
+  return { fetchImpl, seen };
 }
 
 describe("public exposure audit contract", () => {
@@ -186,6 +363,384 @@ describe("public exposure audit contract", () => {
     expect(reordered).toEqual(first);
     expect(metadataChanged.stableKeySetSha256).toBe(first.stableKeySetSha256);
     expect(metadataChanged.recordSetSha256).not.toBe(first.recordSetSha256);
+  });
+
+  it("serializes the exact approved static policy record canonically", () => {
+    const bytes = serializeActionsHistoricalRecord(
+      ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+      "static",
+    );
+    const text = bytes.toString("utf8");
+    expect(bytes.subarray(0, 3)).not.toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
+    expect(text).not.toContain("\r");
+    expect(text.endsWith("\n")).toBe(true);
+    expect(text.endsWith("\n\n")).toBe(false);
+    expect(
+      text
+        .split("\n")
+        .slice(0, -1)
+        .map((line) => line.split("=")[0]),
+    ).toEqual([
+      "policy_id",
+      "repository",
+      "run_id",
+      "run_attempt",
+      "job_id",
+      "run_head_sha",
+      "job_status",
+      "job_conclusion",
+      "direct_log_initial_status",
+      "direct_log_final_status",
+      "direct_log_final_content_type",
+      "direct_log_response_sha256",
+      "direct_log_response_bytes",
+      "attempt_jobs_status",
+      "attempt_jobs_response_sha256",
+      "attempt_jobs_response_bytes",
+      "attempt_jobs_total_count",
+      "attempt_jobs_length",
+      "attempt_jobs_sole_job_id",
+      "attempt_archive_initial_status",
+      "attempt_archive_final_status",
+      "attempt_archive_content_type",
+      "attempt_archive_sha256",
+      "attempt_archive_bytes",
+      "attempt_archive_zip_entries",
+      "attempt_archive_regular_entry_count",
+    ]);
+  });
+
+  it("uses the exact empty-set hash and direct record concatenation", () => {
+    expect(PUBLIC_AUDIT_EMPTY_SET_SHA256).toBe(
+      "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    );
+    expect(actionsHistoricalSetSha256([], "static")).toBe(
+      PUBLIC_AUDIT_EMPTY_SET_SHA256,
+    );
+    expect(actionsHistoricalSetSha256([], "runtime")).toBe(
+      PUBLIC_AUDIT_EMPTY_SET_SHA256,
+    );
+    const staticBytes = serializeActionsHistoricalRecord(
+      ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+      "static",
+    );
+    expect(
+      actionsHistoricalSetSha256(
+        [{ ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD }],
+        "static",
+      ),
+    ).toBe(sha256(staticBytes));
+    expect(sha256(Buffer.from(sha256(staticBytes), "utf8"))).not.toBe(
+      sha256(staticBytes),
+    );
+  });
+
+  it("builds a strict valid exception proof with truthful completeness", () => {
+    const value = exceptionReport();
+    expect(validateReport(value)).toEqual({
+      ok: true,
+      errors: [],
+      side_effects: 0,
+    });
+    expect(value.provenance).toMatchObject({
+      actions_historical_unavailable_count: 1,
+      actions_historical_runtime_observation_count: 1,
+      actions_historical_unavailable_policy: ACTIONS_HISTORICAL_POLICY_ID,
+      actions_scan_complete: false,
+      actions_evidence_gate_pass: true,
+    });
+  });
+
+  it.each([
+    [
+      "field order",
+      () => {
+        const source = ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD;
+        return {
+          repository: source.repository,
+          policy_id: source.policy_id,
+          ...source,
+        };
+      },
+    ],
+    [
+      "omitted field",
+      () => {
+        const value = { ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD };
+        delete value.attempt_archive_regular_entry_count;
+        return value;
+      },
+    ],
+    [
+      "extra field",
+      () => ({
+        ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+        extra: "forbidden",
+      }),
+    ],
+  ])(
+    "rejects a static canonical record schema mutation: %s",
+    (_label, mutate) => {
+      expect(() =>
+        serializeActionsHistoricalRecord(mutate(), "static"),
+      ).toThrow(/record schema/u);
+    },
+  );
+
+  it.each([
+    ["leading-zero integer", "run_attempt", "01"],
+    ["lowercase SHA", "direct_log_response_sha256", "a".repeat(64)],
+    ["uppercase MIME", "direct_log_final_content_type", "Application/XML"],
+    ["non-ASCII string", "job_status", "完了"],
+  ])("rejects a non-canonical static scalar: %s", (_label, field, value) => {
+    expect(() =>
+      serializeActionsHistoricalRecord(
+        { ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD, [field]: value },
+        "static",
+      ),
+    ).toThrow(/canonical/u);
+  });
+
+  it("rejects a non-boolean runtime performed value", () => {
+    expect(() =>
+      serializeActionsHistoricalRecord(
+        {
+          ...historicalRuntimeRecord(),
+          runtime_observation_performed: "true",
+        },
+        "runtime",
+      ),
+    ).toThrow(/canonical boolean/u);
+  });
+
+  it.each([
+    [
+      "CRLF",
+      (bytes) => Buffer.from(bytes.toString("utf8").replaceAll("\n", "\r\n")),
+    ],
+    ["missing final LF", (bytes) => bytes.subarray(0, bytes.length - 1)],
+    [
+      "wrong separator",
+      (bytes) =>
+        Buffer.from(
+          bytes.toString("utf8").replace("policy_id=", "policy_id: "),
+        ),
+    ],
+  ])(
+    "rejects a non-canonical static set hash derived from %s bytes",
+    (_label, mutate) => {
+      const canonical = serializeActionsHistoricalRecord(
+        ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+        "static",
+      );
+      const changed = exceptionProvenance();
+      changed.actions_historical_unavailable_set_sha256 = sha256(
+        mutate(canonical),
+      );
+      expect(validateReport(exceptionReport(changed)).errors).toContain(
+        "public audit historical unavailable set hash mismatch",
+      );
+    },
+  );
+
+  it.each([
+    "actions_historical_runtime_observation_count",
+    "actions_historical_runtime_observation_set_sha256",
+    "actions_historical_runtime_observations",
+  ])("rejects a missing runtime proof field: %s", (field) => {
+    const changed = exceptionProvenance();
+    const withoutField = Object.fromEntries(
+      Object.entries(changed).filter(([name]) => name !== field),
+    );
+    expect(validateReport(exceptionReport(withoutField)).ok).toBe(false);
+  });
+
+  it.each([
+    ["performed false", "runtime_observation_performed", false],
+    ["initial status", "observed_direct_log_initial_status", "301"],
+    ["final 410", "observed_direct_log_final_status", "410"],
+    ["final 403", "observed_direct_log_final_status", "403"],
+    ["final 500", "observed_direct_log_final_status", "500"],
+    ["content type", "observed_direct_log_final_content_type", "text/xml"],
+    ["error code", "observed_direct_log_error_code", "ContainerNotFound"],
+    ["response SHA", "observed_direct_log_response_sha256", "A".repeat(64)],
+    ["response bytes", "observed_direct_log_response_bytes", "1"],
+    ["wrong run", "run_id", "31887544174"],
+    ["wrong attempt", "run_attempt", "2"],
+    ["wrong job", "job_id", "95018938493"],
+    ["wrong head", "run_head_sha", "f".repeat(40)],
+  ])("rejects a mutated runtime proof: %s", (_label, field, value) => {
+    const record = { ...historicalRuntimeRecord(), [field]: value };
+    const changed = exceptionProvenance();
+    changed.actions_historical_runtime_observations = [record];
+    changed.actions_historical_runtime_observation_set_sha256 =
+      actionsHistoricalSetSha256([record], "runtime");
+    const validation = validateReport(exceptionReport(changed));
+    if (
+      field === "observed_direct_log_response_sha256" ||
+      field === "observed_direct_log_response_bytes"
+    ) {
+      expect(validation.ok).toBe(true);
+      expect(
+        validateActionsHistoricalRuntimeBytes(changed, historicalRuntimeBody)
+          .ok,
+      ).toBe(false);
+    } else {
+      expect(validation.ok).toBe(false);
+    }
+  });
+
+  it("rejects a mutated runtime observation set hash", () => {
+    const changed = exceptionProvenance();
+    changed.actions_historical_runtime_observation_set_sha256 = "A".repeat(64);
+    expect(validateReport(exceptionReport(changed)).errors).toContain(
+      "public audit historical runtime observation set hash mismatch",
+    );
+  });
+
+  it.each([
+    ["repository", "repository", "other/repo"],
+    ["run", "run_id", "31887544174"],
+    ["attempt", "run_attempt", "2"],
+    ["job", "job_id", "95018938493"],
+    ["head", "run_head_sha", "f".repeat(40)],
+    ["static 410", "direct_log_final_status", "410"],
+    ["direct SHA", "direct_log_response_sha256", "A".repeat(64)],
+    ["direct bytes", "direct_log_response_bytes", "216"],
+    ["attempt jobs SHA", "attempt_jobs_response_sha256", "A".repeat(64)],
+    ["attempt jobs total", "attempt_jobs_total_count", "2"],
+    ["attempt jobs length", "attempt_jobs_length", "2"],
+    ["attempt jobs sole ID", "attempt_jobs_sole_job_id", "95018938493"],
+    ["archive status", "attempt_archive_final_status", "404"],
+    ["archive SHA", "attempt_archive_sha256", "A".repeat(64)],
+    ["archive bytes", "attempt_archive_bytes", "23"],
+    ["archive entries", "attempt_archive_zip_entries", "1"],
+    ["archive regular entries", "attempt_archive_regular_entry_count", "1"],
+  ])(
+    "rejects a mutated static approved policy field: %s",
+    (_label, field, value) => {
+      const record = {
+        ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+        [field]: value,
+      };
+      const changed = exceptionProvenance();
+      changed.actions_historical_unavailable_records = [record];
+      changed.actions_historical_unavailable_set_sha256 =
+        actionsHistoricalSetSha256([record], "static");
+      expect(validateReport(exceptionReport(changed)).errors).toContain(
+        "public audit approved historical policy record mismatch",
+      );
+    },
+  );
+
+  it("rejects count inequality, a second exception, and contradictory truth fields", () => {
+    const countMismatch = exceptionProvenance();
+    countMismatch.actions_historical_runtime_observation_count = 0;
+    expect(validateReport(exceptionReport(countMismatch)).errors).toContain(
+      "public audit historical runtime observation count mismatch",
+    );
+
+    const second = exceptionProvenance();
+    second.actions_historical_unavailable_count = 2;
+    second.actions_historical_unavailable_records = [
+      { ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD },
+      { ...ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD },
+    ];
+    second.actions_historical_unavailable_set_sha256 =
+      actionsHistoricalSetSha256(
+        second.actions_historical_unavailable_records,
+        "static",
+      );
+    second.actions_historical_runtime_observation_count = 2;
+    second.actions_historical_runtime_observations = [
+      { ...historicalRuntimeRecord() },
+      { ...historicalRuntimeRecord() },
+    ];
+    second.actions_historical_runtime_observation_set_sha256 =
+      actionsHistoricalSetSha256(
+        second.actions_historical_runtime_observations,
+        "runtime",
+      );
+    expect(validateReport(exceptionReport(second)).errors).toContain(
+      "public audit historical unavailable count exceeds policy",
+    );
+
+    const complete = exceptionProvenance();
+    complete.actions_scan_complete = true;
+    expect(validateReport(exceptionReport(complete)).errors).toContain(
+      "public audit Actions scan completeness mismatch",
+    );
+  });
+
+  it.each([
+    ["inventory", "actions_job_inventory_count", 2],
+    ["required", "actions_required_job_log_count", 2],
+    ["retrieval", "actions_job_log_retrieval_count", 1],
+    ["scan", "actions_job_log_scan_count", 1],
+  ])(
+    "enforces an exception job-count equation mutation: %s",
+    (_label, field, value) => {
+      const changed = exceptionProvenance();
+      changed[field] = value;
+      expect(validateReport(exceptionReport(changed)).ok).toBe(false);
+    },
+  );
+
+  it("hashes one runtime record as its exact canonical bytes", () => {
+    const record = historicalRuntimeRecord();
+    expect(actionsHistoricalSetSha256([record], "runtime")).toBe(
+      sha256(serializeActionsHistoricalRecord(record, "runtime")),
+    );
+    expect(record.observed_direct_log_response_sha256).not.toBe(
+      ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD.direct_log_response_sha256,
+    );
+  });
+
+  it.each([
+    [
+      "omitted runtime field",
+      () => {
+        const value = { ...historicalRuntimeRecord() };
+        delete value.observed_direct_log_error_code;
+        return value;
+      },
+    ],
+    [
+      "extra runtime field",
+      () => ({
+        ...historicalRuntimeRecord(),
+        extra: "forbidden",
+      }),
+    ],
+    [
+      "runtime field order",
+      () => {
+        const source = historicalRuntimeRecord();
+        return {
+          repository: source.repository,
+          policy_id: source.policy_id,
+          ...source,
+        };
+      },
+    ],
+  ])(
+    "rejects a runtime canonical record schema mutation: %s",
+    (_label, mutate) => {
+      expect(() =>
+        serializeActionsHistoricalRecord(mutate(), "runtime"),
+      ).toThrow(/record schema/u);
+    },
+  );
+
+  it("rejects a legacy independent count alias and a false evidence gate", () => {
+    const alias = { ...provenance, historical_unavailable_count: 0 };
+    expect(validateReport(report({ provenance: alias })).errors).toContain(
+      "public audit legacy historical unavailable alias is forbidden",
+    );
+    const gate = { ...provenance, actions_evidence_gate_pass: false };
+    expect(validateReport(report({ provenance: gate })).errors).toContain(
+      "public audit Actions evidence gate did not pass",
+    );
   });
 
   it.each([
@@ -687,6 +1242,157 @@ describe("public exposure audit contract", () => {
         ).rejects.toThrow(/BLOCKED:.*pagination/u);
         expect(contentRequests).toBe(0);
         await expect(readFile(fixture.output)).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
+
+  it("accepts only the exact approved historical job with fresh bound runtime evidence", async () => {
+    const fixture = await createAuditRepository(
+      "public-audit-historical-happy-",
+    );
+    const { fetchImpl, seen } = approvedHistoricalFetch(fixture);
+    try {
+      const value = await runPublicExposureAudit({
+        cwd: fixture.repo,
+        repository: ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD.repository,
+        targetCommit: fixture.head,
+        phase: "candidate_ci",
+        output: fixture.output,
+        token: "test-token",
+        fetchImpl,
+      });
+      expect(value.result).toBe("PASS");
+      expect(value.scans.actions_run_logs).toBe(0);
+      expect(value.provenance).toMatchObject({
+        actions_job_inventory_count: 1,
+        actions_required_job_log_count: 1,
+        actions_job_log_retrieval_count: 0,
+        actions_job_log_scan_count: 0,
+        actions_historical_unavailable_count: 1,
+        actions_historical_runtime_observation_count: 1,
+        actions_scan_complete: false,
+        actions_evidence_gate_pass: true,
+      });
+      expect(
+        seen.some(
+          (entry) =>
+            entry.url.includes("/jobs?filter=all&per_page=100&page=1") &&
+            entry.redirect === null,
+        ),
+      ).toBe(true);
+      expect(
+        seen.some(
+          (entry) => entry.url.endsWith("/logs") && entry.redirect === "manual",
+        ),
+      ).toBe(true);
+      expect(
+        seen.some(
+          (entry) =>
+            entry.url.includes("runtime.example.invalid") &&
+            entry.redirect === "manual",
+        ),
+      ).toBe(true);
+      const rawPath = historicalRuntimeEvidencePath(fixture.output);
+      expect(await readFile(rawPath)).toEqual(historicalRuntimeBody);
+      const rawProof = await readActionsHistoricalRuntimeEvidence({
+        path: rawPath,
+        report: value,
+      });
+      expect(rawProof.validation).toEqual({
+        ok: true,
+        errors: [],
+        side_effects: 0,
+      });
+      await writeFile(rawPath, Buffer.from("mutated raw response"));
+      const mutated = await readActionsHistoricalRuntimeEvidence({
+        path: rawPath,
+        report: value,
+      });
+      expect(mutated.validation.ok).toBe(false);
+      expect(mutated.validation.errors).toEqual(
+        expect.arrayContaining([
+          "public audit historical runtime raw SHA-256 mismatch",
+          "public audit historical runtime raw byte count mismatch",
+        ]),
+      );
+    } finally {
+      await rm(fixture.root, { recursive: true });
+    }
+  });
+
+  it.each([
+    ["initial status mutation", "initial_status", /initial status/u],
+    ["initial request failure", "request_failure", /request failure/u],
+    ["missing redirect", "redirect_missing", /redirect failure/u],
+    ["redirect request failure", "redirect_failure", /redirect failure/u],
+    ["final 410", "final_410", /final status 410/u],
+    ["final 403", "final_403", /final status 403/u],
+    ["final 5xx", "final_500", /final status 500/u],
+    ["final success instead of 404", "final_200", /final status 200/u],
+    ["content type mutation", "content_type", /content type mismatch/u],
+    ["BlobNotFound mutation", "error_code", /error code mismatch/u],
+    ["empty response body", "empty_body", /response is empty/u],
+    ["response body read failure", "body_failure", /response body failure/u],
+  ])(
+    "blocks an invalid mandatory runtime observation: %s",
+    async (_label, mode, expected) => {
+      const fixture = await createAuditRepository(
+        "public-audit-historical-runtime-",
+      );
+      const { fetchImpl } = approvedHistoricalFetch(fixture, mode);
+      try {
+        await expect(
+          runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository: ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD.repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            fetchImpl,
+          }),
+        ).rejects.toThrow(expected);
+        await expect(readFile(fixture.output)).rejects.toThrow();
+        await expect(
+          readFile(historicalRuntimeEvidencePath(fixture.output)),
+        ).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
+
+  it.each([
+    ["second unavailable job", "second_unavailable", /read failure 404/u],
+    [
+      "non-allowlisted historical job",
+      "non_allowlisted_missing",
+      /read failure 404/u,
+    ],
+    ["post-adoption missing job", "post_adoption_missing", /read failure 404/u],
+    ["wrong static identity", "wrong_static_identity", /read failure 404/u],
+    ["non-completed job", "non_completed", /job is not completed/u],
+  ])(
+    "keeps all non-approved unavailable evidence fail-closed: %s",
+    async (_label, mode, expected) => {
+      const fixture = await createAuditRepository(
+        "public-audit-historical-closed-",
+      );
+      const { fetchImpl } = approvedHistoricalFetch(fixture, mode);
+      try {
+        await expect(
+          runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository: ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD.repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            fetchImpl,
+          }),
+        ).rejects.toThrow(expected);
       } finally {
         await rm(fixture.root, { recursive: true });
       }

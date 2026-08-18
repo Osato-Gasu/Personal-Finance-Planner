@@ -1,6 +1,73 @@
 # TASK-013 Implementation report
 
-## Identity
+## Spec Revision 2 implementation
+
+### Authority and identity
+
+- spec revision／design revision: `2／3`
+- user approval: `USER-APPROVAL-TASK-013-SPEC-REV2-20260818-151500`／option 3
+- implementation authority／release authority: `true／false`
+- adoption commit／tree: `592676371d8a3117e1cdd9cda96fd8c1955d6e95`／`4ed56b253c2d75b0a316d4393d4a0c8a5906623e`
+- adoption parent: terminal transition `dc8f87c319ff4fe5162854b9d12f1a6f3cf4a008`
+- adoption Governance CI: run `32113761565`／attempt `1`／job `95638623309`／SUCCESS／29 steps／failed `0`
+- requested Main model／effort: `Sol／XHigh`
+- actual Main model／effort: `未確認／未確認`
+- implementation scope: `tools/public-exposure-audit.mjs`, `tools/public-exposure-audit-lib.mjs`, `tests/public-exposure-audit.test.mjs`, and this report only
+
+### Implemented evidence policy
+
+- Actions jobs inventory now requests `filter=all` and binds each job to its own `run_attempt`; the run endpoint's latest-attempt value is not substituted for an older job attempt.
+- Every canonical job must be completed. A non-completed job remains BLOCKED.
+- All normal required logs remain mandatory and fail closed on request, redirect, status, or body failure.
+- Only exact policy `task-013-spec-rev2-exact-v1` may produce `APPROVED_HISTORICAL_UNAVAILABLE`: repository `Osato-Gasu/Personal-Finance-Planner`, run `31887544173`, attempt `1`, job `95018938492`, head `25be0b48699ef350bd72a60e3b564b7dd8c1d2a4`, completed/failure.
+- Exception use always performs a fresh direct-log request with manual redirect observation. Acceptance requires initial `302`, final `404`, exact `application/xml`, parsed `BlobNotFound`, and a non-empty body. 410, 403, 5xx, 200, request/redirect/body failures, MIME/error-code mismatch, and empty body are BLOCKED.
+- The immutable static policy record and fresh runtime observation record have separate exact field orders, UTF-8 no BOM／LF／final-LF serialization, canonical scalar validation, direct-concatenation set hashes, and the exact empty-set SHA-256 `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+- Proof fields use only `actions_historical_unavailable_count` and `actions_historical_runtime_observation_count`; an independent legacy alias is rejected. Static/runtime counts must match and cannot exceed one.
+- Exception truth is explicit: `actions_scan_complete=false`; `actions_evidence_gate_pass=true` only after the static identity, runtime contract, canonical hashes, and all inventory/retrieval/scan count equations pass.
+- Proof consumers reconstruct both records and hashes. High-risk verification can read a separate regular non-link raw runtime response and compare its exact SHA-256／bytes to the candidate proof.
+- The raw runtime XML is written only beside the repository-external audit output. It is not copied into repository reports.
+- A release/preflight proof consumer validates the exact candidate audit proof and does not replace its bound runtime observation with a later observation.
+
+### Test matrix
+
+- public exposure audit contract suite: `158` tests PASS, increased from `82` without deleting or weakening existing tests
+- covers the accepted Design Revision 3 44-category matrix, including exact happy path, mandatory observation failures, 302/404 mutations, 410/403/5xx, MIME／BlobNotFound／body failures, static/runtime identity and set-hash mutation, raw SHA/bytes binding, count equations, second/non-allowlisted/post-adoption exception rejection, non-completed job rejection, empty/one-record hashes, field order／EOL／final-LF／scalar／extra/omitted field rejection, truth contradictions, legacy alias rejection, and all prior regressions
+- full Vitest: `697` tests／`21` files PASS
+- focused rules／NISA／iDeCo／overview: `69／68／86／28` PASS
+- distribution contract／public exposure audit: `77／158` PASS
+- npm ci／typecheck／lint／format check: PASS／vulnerabilities `0`
+- build app／launcher freshness: PASS／`216828` bytes
+- portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
+- staged HTTP distribution: `5` files／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
+- audit identity normalization／completion simulation: PowerShell 7 and 5.1 each `21／34` PASS
+- shared sync／AI governance／audit identity／project overlay／NEXT_ACTION／Progress: PowerShell 7 and 5.1 PASS
+- startup context: `58593` bytes (`<=65536`, target `<=61440`)
+
+### Working-tree public exposure audit
+
+- repository-external report: `C:\Users\owner\Development\personal\_evidence\TASK-013-spec-rev2-20260818-164834\working-tree-audit-final.json`
+- report bytes／SHA-256: `5668`／`F4F3D2E6AAE4B30C713A8CF21BB5D43734ED0E494EF764D3886E35BA5714A8F4`
+- result／findings: `PASS／0`
+- Actions runs: `136`
+- Actions jobs inventory／required／retrieved／scanned／historical unavailable／runtime observations: `142／142／141／141／1／1`
+- `actions_scan_complete／actions_evidence_gate_pass`: `false／true`
+- static canonical record/set SHA-256: `08794AC59619ECD91E9E5AA81441222D8EDB2248BB6CFA9098D20DDA4E8F887B`
+- runtime canonical record/set SHA-256: `F285FD6AF90632C64DC9FE03538AD7EE38B8ADE9B62604F1605704BCC6DA0A1C`
+- raw runtime response: repository-external `working-tree-audit-final.json.actions-job-95018938492-runtime-response.xml`
+- raw runtime response bytes／SHA-256: `215`／`42446269EB14E2CC48BA06AF9E51EB635F69DB343EAB00ACBECFAF9034A9B22A`
+- raw runtime response vs proof identity: PASS
+- preserved static 2026-08-18 response bytes／SHA-256: `215`／`1CCCE68DDD68C8BD055419F893169F9C311D4F242CC957F9DC9F2CB1447C9C21`
+- static and fresh runtime body SHA-256 values intentionally differ; the independent proof contracts both pass
+
+### Candidate, high-risk VERIFY, and handoff
+
+- implementation candidate: pending
+- high-risk read-only VERIFY: pending; requested `Sol／XHigh`, actual `未確認／未確認`
+- candidate exact Governance CI: pending
+- implementation-review handoff-only commit and exact CI: pending
+- release/public distribution side effects: `0`
+
+## Revision 1 historical identity
 
 - task: `TASK-013`
 - spec revision: `1`

@@ -3,6 +3,8 @@ import { mkdir, lstat, readFile, writeFile } from "node:fs/promises";
 import { dirname, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
+  buildActionsHistoricalEvidence,
   buildPublicAuditReport,
   buildStableInventory,
   canonicalMetadataRecord,
@@ -132,6 +134,104 @@ async function githubBytes(url, token, fetchImpl = fetch) {
       `BLOCKED: GitHub log/artifact response body failure at ${url}`,
     );
   }
+}
+
+function responseHeader(response, name) {
+  const value = response?.headers?.get?.(name);
+  return typeof value === "string" ? value.trim() : null;
+}
+
+async function githubHistoricalDirectLogObservation(
+  url,
+  token,
+  fetchImpl = fetch,
+) {
+  let initial;
+  try {
+    initial = await fetchImpl(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "personal-finance-planner-public-audit",
+      },
+      redirect: "manual",
+    });
+  } catch {
+    throw new Error("BLOCKED: historical Actions direct-log request failure");
+  }
+  if (initial?.status !== 302)
+    throw new Error(
+      `BLOCKED: historical Actions direct-log initial status ${String(initial?.status)}`,
+    );
+  const location = responseHeader(initial, "location");
+  let redirectUrl;
+  try {
+    redirectUrl = new URL(location);
+  } catch {
+    throw new Error("BLOCKED: historical Actions direct-log redirect failure");
+  }
+  if (
+    redirectUrl.protocol !== "https:" ||
+    redirectUrl.username !== "" ||
+    redirectUrl.password !== ""
+  )
+    throw new Error("BLOCKED: historical Actions direct-log redirect failure");
+  let final;
+  try {
+    final = await fetchImpl(redirectUrl.href, {
+      headers: {
+        Accept: "application/xml",
+        "User-Agent": "personal-finance-planner-public-audit",
+      },
+      redirect: "manual",
+    });
+  } catch {
+    throw new Error("BLOCKED: historical Actions direct-log redirect failure");
+  }
+  if (final?.status !== 404)
+    throw new Error(
+      `BLOCKED: historical Actions direct-log final status ${String(final?.status)}`,
+    );
+  const contentType = responseHeader(final, "content-type");
+  if (contentType !== "application/xml")
+    throw new Error(
+      "BLOCKED: historical Actions direct-log content type mismatch",
+    );
+  let bytes;
+  try {
+    bytes = Buffer.from(await final.arrayBuffer());
+  } catch {
+    throw new Error(
+      "BLOCKED: historical Actions direct-log response body failure",
+    );
+  }
+  if (bytes.length === 0)
+    throw new Error("BLOCKED: historical Actions direct-log response is empty");
+  const text = bytes.toString("utf8");
+  if (!/<Code>\s*BlobNotFound\s*<\/Code>/u.test(text))
+    throw new Error(
+      "BLOCKED: historical Actions direct-log error code mismatch",
+    );
+  const approved = ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD;
+  return {
+    bytes,
+    record: {
+      policy_id: approved.policy_id,
+      repository: approved.repository,
+      run_id: approved.run_id,
+      run_attempt: approved.run_attempt,
+      job_id: approved.job_id,
+      run_head_sha: approved.run_head_sha,
+      runtime_observation_performed: true,
+      observed_direct_log_initial_status: "302",
+      observed_direct_log_final_status: "404",
+      observed_direct_log_final_content_type: "application/xml",
+      observed_direct_log_error_code: "BlobNotFound",
+      observed_direct_log_response_sha256: sha256(bytes),
+      observed_direct_log_response_bytes: String(bytes.length),
+    },
+  };
 }
 
 function githubListPage(response, key, label) {
@@ -333,7 +433,7 @@ async function scanGithub({
   const runJobs = await mapLimit(runEntries, 12, async (runEntry) => ({
     runEntry,
     jobs: await githubPages(
-      `${base}/actions/runs/${runEntry.runId}/jobs`,
+      `${base}/actions/runs/${runEntry.runId}/jobs?filter=all`,
       token,
       "jobs",
       "Actions job",
@@ -343,16 +443,22 @@ async function scanGithub({
   const jobEntries = runJobs.flatMap(({ runEntry, jobs }) =>
     jobs.map((job) => {
       const jobId = canonicalPositiveIntegerId(job.id, "Actions job");
+      const runAttempt = canonicalPositiveIntegerId(
+        job.run_attempt ?? runEntry.run.run_attempt,
+        "Actions job run attempt",
+      );
       return {
         run: runEntry.run,
         job,
         runId: runEntry.runId,
         jobId,
+        runAttempt,
         stableKey: `${runEntry.runId}\t${jobId}`,
         metadataRecord: canonicalMetadataRecord(
           [
             ["run_id", runEntry.runId],
             ["id", jobId],
+            ["run_attempt", runAttempt],
             ["status", job.status],
             ["conclusion", job.conclusion],
           ],
@@ -362,9 +468,11 @@ async function scanGithub({
     }),
   );
   const jobInventory = buildStableInventory(jobEntries, "Actions job");
-  const completedJobs = jobEntries.filter(
-    (entry) => entry.job.status === "completed",
-  );
+  for (const entry of jobEntries) {
+    if (entry.job.status !== "completed")
+      throw new Error("BLOCKED: Actions job is not completed");
+  }
+  const completedJobs = jobEntries;
   const requiredJobLogInventory = buildStableInventory(
     completedJobs.map((entry) => ({
       stableKey: entry.stableKey,
@@ -372,6 +480,7 @@ async function scanGithub({
         [
           ["run_id", entry.runId],
           ["id", entry.jobId],
+          ["run_attempt", entry.runAttempt],
         ],
         "required Actions job log",
       ),
@@ -415,23 +524,61 @@ async function scanGithub({
     if (artifact.expired)
       throw new Error("BLOCKED: Actions artifact is expired or unavailable");
   }
-  const logFindings = await mapLimit(completedJobs, 8, async (entry) => {
-    const bytes = await githubBytes(
-      `${base}/actions/jobs/${entry.jobId}/logs`,
-      token,
-      fetchImpl,
-    );
-    return scanPublicBytes({
-      bytes,
-      path: `actions/run-${entry.runId}/job-${entry.jobId}.log`,
-      commit: entry.run.head_sha ?? null,
-    });
+  const approved = ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD;
+  const logResults = await mapLimit(completedJobs, 8, async (entry) => {
+    const approvedHistorical =
+      repository === approved.repository &&
+      entry.runId === approved.run_id &&
+      entry.runAttempt === approved.run_attempt &&
+      entry.jobId === approved.job_id &&
+      entry.run.head_sha === approved.run_head_sha &&
+      entry.job.status === approved.job_status &&
+      entry.job.conclusion === approved.job_conclusion;
+    const url = `${base}/actions/jobs/${entry.jobId}/logs`;
+    if (approvedHistorical) {
+      const observation = await githubHistoricalDirectLogObservation(
+        url,
+        token,
+        fetchImpl,
+      );
+      return {
+        unavailable: true,
+        findings: [],
+        runtimeObservation: observation.record,
+        runtimeBytes: observation.bytes,
+      };
+    }
+    const bytes = await githubBytes(url, token, fetchImpl);
+    return {
+      unavailable: false,
+      findings: scanPublicBytes({
+        bytes,
+        path: `actions/run-${entry.runId}/job-${entry.jobId}.log`,
+        commit: entry.run.head_sha ?? null,
+      }),
+      runtimeObservation: null,
+      runtimeBytes: null,
+    };
   });
-  for (const current of logFindings) {
-    findings.push(...current);
+  const unavailableResults = logResults.filter((result) => result.unavailable);
+  if (unavailableResults.length > 1)
+    throw new Error("BLOCKED: multiple historical Actions logs unavailable");
+  for (const current of logResults.filter((result) => !result.unavailable)) {
+    findings.push(...current.findings);
     scans.actions_run_logs += 1;
   }
-  if (scans.actions_run_logs !== requiredJobLogInventory.count)
+  const historicalEvidence = buildActionsHistoricalEvidence(
+    unavailableResults[0]?.runtimeObservation ?? null,
+  );
+  const logRetrievalCount = logResults.length - unavailableResults.length;
+  if (
+    logRetrievalCount +
+      historicalEvidence.actions_historical_unavailable_count !==
+      requiredJobLogInventory.count ||
+    scans.actions_run_logs !== logRetrievalCount ||
+    historicalEvidence.actions_historical_runtime_observation_count !==
+      historicalEvidence.actions_historical_unavailable_count
+  )
     throw new Error("BLOCKED: Actions job log scan inventory mismatch");
   for (const entry of artifactEntries) {
     const { artifactId } = entry;
@@ -461,12 +608,18 @@ async function scanGithub({
     runInventoryCount: runInventory.count,
     jobInventoryCount: jobInventory.count,
     requiredJobLogCount: requiredJobLogInventory.count,
-    jobLogRetrievalCount: logFindings.length,
+    jobLogRetrievalCount: logRetrievalCount,
     jobLogScanCount: scans.actions_run_logs,
     artifactInventoryCount: artifactInventory.count,
     artifactRetrievalCount: artifactRetrievals,
     artifactScanCount: scans.actions_artifacts,
+    historicalEvidence,
+    historicalRuntimeBytes: unavailableResults[0]?.runtimeBytes ?? null,
   };
+}
+
+export function historicalRuntimeEvidencePath(outputPath) {
+  return `${resolve(outputPath)}.actions-job-${ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD.job_id}-runtime-response.xml`;
 }
 
 export async function runPublicExposureAudit({
@@ -738,8 +891,8 @@ export async function runPublicExposureAudit({
     actions_artifact_inventory_count: github.artifactInventoryCount,
     actions_artifact_retrieval_count: github.artifactRetrievalCount,
     actions_artifact_scan_count: github.artifactScanCount,
+    ...github.historicalEvidence,
     repository_scan_complete: true,
-    actions_scan_complete: true,
   };
   const report = buildPublicAuditReport({
     repository,
@@ -767,9 +920,19 @@ export async function runPublicExposureAudit({
     throw new Error(
       `public audit report self-validation failed: ${structuralErrors.join("; ")}`,
     );
+  let runtimeEvidencePath = null;
+  if (github.historicalRuntimeBytes) {
+    runtimeEvidencePath = historicalRuntimeEvidencePath(outputPath);
+    if (isPathInside(root, runtimeEvidencePath) || runtimeEvidencePath === root)
+      throw new Error("runtime evidence output must be outside the repository");
+    await assertNoLinkedPath(dirname(runtimeEvidencePath));
+    await writeFile(runtimeEvidencePath, github.historicalRuntimeBytes, {
+      flag: "wx",
+    });
+  }
   await writeFile(outputPath, bytes, { flag: "wx" });
   process.stdout.write(
-    `${JSON.stringify({ result: report.result, findings: report.findings_count, output: outputPath, bytes: bytes.byteLength })}\n`,
+    `${JSON.stringify({ result: report.result, findings: report.findings_count, output: outputPath, bytes: bytes.byteLength, runtime_evidence: runtimeEvidencePath })}\n`,
   );
   return report;
 }
