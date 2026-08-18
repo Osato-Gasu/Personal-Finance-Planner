@@ -1,14 +1,14 @@
 schema_version: 1
 task_id: TASK-013
 feature: TASK-009公開監査stable ID修復
-phase: implementation
-status: changes_requested
-next_actor: Codex
-next_role: IMPLEMENTER
-model: 5.6 Sol
-effort: high
+phase: user_decision
+status: needs_user_decision
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
+model: none
+effort: none
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-013/RELAY_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-013/USER_DECISION_HANDOFF.md
 rules_version: 0.12.25
 rules_commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 preferred_executor: Claude
@@ -35,13 +35,13 @@ review_findings_count: 0
 review_finding_ids: none
 spec_revision_reset: false
 review_stage: implementation
-changes_requested_cycles: 2
+changes_requested_cycles: 3
 implementation_review_attempt: 3
 implementation_review_profile: terminal
-implementation_review_terminated: false
-user_confirmation_required: false
-user_confirmation_prompt: none
-review_termination_reason: none
+implementation_review_terminated: true
+user_confirmation_required: true
+user_confirmation_prompt: Review unresolved blockers, choose release, remediation, or a new approved spec revision; no fourth implementation review is permitted.
+review_termination_reason: third implementation-review CHANGES_REQUESTED; explicit user confirmation required
 write_bridge: required_for_state_transition
 write_probe: required_for_chatgpt
 relay_status: none

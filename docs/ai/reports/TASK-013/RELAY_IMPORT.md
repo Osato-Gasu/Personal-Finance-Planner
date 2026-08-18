@@ -1,39 +1,37 @@
 # RELAY IMPORT — TASK-013
 
-- source bundle: TASK-013_IMPLEMENTATION_REVIEW_ATTEMPT_2_CHANGES_REQUESTED_REPLACEMENT_6E77C887B517.json
-- source SHA-256: 6E77C887B517475AEA36714C0E7B14A1BA9D5B9CB9553CD8D9FCF68315545A70
-- source bytes: 11412
+- source bundle: TASK-013_TERMINAL_CHANGES_REQUESTED_RELAY_8F05CEF37C4F.json
+- source SHA-256: 8F05CEF37C4FF3D642368484BCA25C0B45D816BAA20D107716C944B7A5AE8EED
+- source bytes: 13426
 - identity verified: true
 - canonical bundle: docs/ai/reports/TASK-013/RELAY_BUNDLE.json
-- canonical SHA-256: 6E77C887B517475AEA36714C0E7B14A1BA9D5B9CB9553CD8D9FCF68315545A70
-- canonical bytes: 11412
+- canonical SHA-256: 8F05CEF37C4FF3D642368484BCA25C0B45D816BAA20D107716C944B7A5AE8EED
+- canonical bytes: 13426
 - semantic round-trip: verified
 - decision: CHANGES_REQUESTED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
 - candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
-- handoff HEAD: 94a2be9ae2ddb1d85e8ed7db89f5ecce3287c708
+- handoff HEAD: aa6a02eccd66a7d20bb3a89b451accc558503a8e
 - spec_revision_reset: false
 - review_stage: implementation
-- changes_requested_cycles: 2
+- changes_requested_cycles: 3
 - implementation_review_attempt: 3
 - implementation_review_profile: terminal
-- implementation_review_final: true
-- implementation_review_terminated: false
-- attempt_4_forbidden: true
-- user_confirmation_required: false
-- user_confirmation_prompt: none
-- review_termination_reason: none
-- implementation_review_open_finding_ids: FINDING-013-R2-01, FINDING-013-R2-02
+- implementation_review_terminated: true
+- user_confirmation_required: true
+- user_confirmation_prompt: Review unresolved blockers, choose release, remediation, or a new approved spec revision; no fourth implementation review is permitted.
+- review_termination_reason: third implementation-review CHANGES_REQUESTED; explicit user confirmation required
+- implementation_review_open_finding_ids: FINDING-013-R2-01, FINDING-013-R2-02, FINDING-013-R3-01
 - routing_mode: connector_read_only
 - route_repository: Osato-Gasu/Personal-Finance-Planner
 - requested_ref: refs/heads/codex/task-013-public-audit-stable-id
-- resolved_commit: 94a2be9ae2ddb1d85e8ed7db89f5ecce3287c708
-- next_action_blob: 1e72caf2024fe1c581a367b9c6c316cf8112caa3
-- handoff_blob: e65229ac83946c8572991a4654df0f0a387d8808
+- resolved_commit: aa6a02eccd66a7d20bb3a89b451accc558503a8e
+- next_action_blob: 088d94710526103a7881fa981208dc4912491dc1
+- handoff_blob: 9b81e0fbb43f838f0a777b80eb016fc6bb500aca
 - adapter_blob: 1feb586cdac2c612ca02fee3dc1b0addf6cfab94
 - implementation_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
-- imported findings: 2
-- accepted findings: 2
+- imported findings: 3
+- accepted findings: 3
 - finding dispositions: 0
