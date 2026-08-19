@@ -1,4 +1,4 @@
-# CODEX HANDOFF — TASK-013 SPEC REVISION 2
+# CODEX HANDOFF — TASK-013 SPEC REVISION 3
 
 - relay_schema: 2
 - task_id: TASK-013
@@ -12,10 +12,10 @@
 - candidate_commit: none
 - reviewed_handoff_head: none
 - shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-- spec_revision: 2
-- design_revision: 3
+- spec_revision: 3
+- design_revision: 2
 - spec_revision_reset: true
-- user_approval_id: USER-APPROVAL-TASK-013-SPEC-REV2-20260818-151500
+- user_approval_id: USER-APPROVAL-TASK-013-SPEC-REV3-20260819-094900
 - implementation_authority: true
 - release_authority: false
 - review_stage: implementation
@@ -45,6 +45,8 @@
 TASK-009の未承認・未release product candidateをbaselineとして継承しつつ、public exposure auditのActions run／job／artifact inventoryでcanonical stable IDとmutable metadataを分離する。同一stable IDのduplicate／metadata conflict、pagination overlap、inventory／retrieval／scan／report countまたはset-hash不整合をfail-closedで拒否し、TASK-013の新candidate・新handoff・implementation review attempt 1／standardを経てのみ承認可能にする。
 
 Spec Revision 2／Design Revision 3として、既知のhistorical Actions job 1件だけにexact 404 exceptionを追加する。Immutable static policy evidenceとauditごとのfresh mandatory runtime observationを独立proofとしてbindingし、historical log bytesをscanしたとは扱わない。正式契約は `docs/ai/tasks/TASK-013.md` と `docs/ai/reports/TASK-013/SPEC_REVISION_2_ADOPTION.md` を参照する。
+
+Spec Revision 3／Design Revision 2は、complete `filter=all` inventoryからexact current auditor runだけをauthoritative runtime／GitHub metadata／target-commit workflow blobでbindingして一時分離する。正式契約はTASKと`SPEC_REVISION_3_ADOPTION.md`を参照する。
 
 ## Spec Revision 2 implementation authority
 
@@ -88,8 +90,8 @@ Spec Revision 2／Design Revision 3として、既知のhistorical Actions job 1
 
 ## Required changes
 
-- Implement Design Revision 3 within `tools/public-exposure-audit.mjs`, `tools/public-exposure-audit-lib.mjs`, `tests/public-exposure-audit.test.mjs`, and `docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md` only.
-- Cover the complete 44-category Design Revision 3 test matrix without deleting, skipping, or weakening existing tests.
+- Implement Spec Revision 3 Design Revision 2 within `tools/public-exposure-audit.mjs`, `tools/public-exposure-audit-lib.mjs`, `tests/public-exposure-audit.test.mjs`, `.github/workflows/ci.yml`, `.github/workflows/distribution.yml`, and `docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md` only.
+- Cover the complete 38-category Design Revision 2 self-exclusion matrix and retain the complete 44-category Spec Revision 2 matrix without deleting, skipping, or weakening existing tests.
 - Run a real working-tree audit and retain raw runtime response bytes plus static/runtime canonical proof evidence outside the repository.
 - Create an exact candidate only after all local gates pass; require separated read-only high-risk VERIFY before candidate push.
 
@@ -99,9 +101,9 @@ Spec Revision 2／Design Revision 3として、既知のhistorical Actions job 1
 
 ## Independent review disposition audit
 
-- Design Revision 3 independent re-review: PASS.
+- Spec Revision 3 Design Revision 2 independent re-review: PASS.
 - Blocking findings remaining: 0.
-- `FINDING-013-R2-IDR-01`, `FINDING-013-R2-IDR-02`, and `FINDING-013-R2-IDR-03`: RESOLVED.
+- `FINDING-013-R3-IDR-01`: RESOLVED. Prior Spec Revision 2 findings remain historical/resolved as recorded.
 
 ## Acceptance criteria
 

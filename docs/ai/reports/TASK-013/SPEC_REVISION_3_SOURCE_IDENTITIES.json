@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "task_id": "TASK-013",
+  "spec_revision": 3,
+  "design_revision": 2,
+  "recorded_at": "2026-08-19 10:04:32 JST",
+  "upload_set": {
+    "supplied_name": "TASK-013_SPEC_REVISION_3_CODEX_MAIN_UPLOAD_SET.zip",
+    "bytes": 17358,
+    "sha256": "DBDDEB3F7A5D48BE14A46E192E2983C6B2A3966C86F6B1C82E895CC3A681998A"
+  },
+  "external_sources": [
+    {
+      "supplied_name": "TASK-013_SPEC_REVISION_3_AUDITOR_SELF_EXCLUSION_DESIGN_REVISION_2.md",
+      "bytes": 16989,
+      "sha256": "622C4D8348437ECDC5479BD701A60B9962B2E9EF3F052CE9ECC0ED0F741603BA",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 569,
+      "trailing_lf": true
+    },
+    {
+      "supplied_name": "TASK-013_SPEC_REVISION_3_USER_APPROVAL.json",
+      "bytes": 1877,
+      "sha256": "760D6B3716EDBC580BEA7591545B22AFCE4520D0DF7F78E26E1B633973CCD3E3",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 38,
+      "trailing_lf": true
+    },
+    {
+      "supplied_name": "TASK-013_SPEC_REVISION_3_INDEPENDENT_DESIGN_REREVIEW_RESULT.md",
+      "bytes": 8388,
+      "sha256": "B346E474E0F528A87EA2631541A0CAF02D0964FB827BEA1B3E03A13579B761E1",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 298,
+      "trailing_lf": true
+    },
+    {
+      "supplied_name": "TASK-013_SPEC_REVISION_3_FINAL_DESIGN_DISPOSITION.json",
+      "bytes": 1590,
+      "sha256": "59BA003C113EC3052E5952D38148431B3FBA44C40BF51630B5A9EFE1FE63955D",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 39,
+      "trailing_lf": true
+    },
+    {
+      "supplied_name": "TASK-013_CODEX_MAIN_SPEC_REVISION_3_BOOTSTRAP_IMPLEMENTATION_PROMPT.md",
+      "bytes": 15083,
+      "sha256": "A791A9D398E578816E05CBB93E40E9EC4B9514EAEDE42248A9DAA38533BD378F",
+      "regular_file": true,
+      "link": false,
+      "utf8_bom": false,
+      "cr_count": 0,
+      "lf_count": 497,
+      "trailing_lf": true
+    }
+  ]
+}

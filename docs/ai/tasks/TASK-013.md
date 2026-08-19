@@ -4,7 +4,7 @@ title: TASK-009公開監査stable ID修復
 status: ready
 route: TWO_SESSION_FAST
 priority: high
-spec_revision: 2
+spec_revision: 3
 spec_status: accepted
 current_phase: implementation
 current_role_id: IMPLEMENTER
@@ -63,7 +63,7 @@ actual_executor: Codex
 provider_substitution: none
 
 shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
-updated_at: 2026-08-18
+updated_at: 2026-08-19
 ---
 
 # TASK-013 — TASK-009公開監査stable ID修復
@@ -73,6 +73,8 @@ updated_at: 2026-08-18
 TASK-009の未承認・未release product candidateをbaselineとして継承しつつ、public exposure auditのActions run／job／artifact inventoryでcanonical stable IDとmutable metadataを分離する。同一stable IDのduplicate／metadata conflict、pagination overlap、inventory／retrieval／scan／report countまたはset-hash不整合をfail-closedで拒否し、TASK-013の新candidate・新handoff・implementation review attempt 1／standardを経てのみ承認可能にする。
 
 Spec Revision 2は、revision 1で回収不能と確認された既知のActions job 1件だけに対し、immutableな承認済みhistorical policy evidenceと、例外を利用する各auditでのfresh mandatory runtime direct-log observationを同時に要求する。回収不能なhistorical log bytesをscan済みとは扱わず、その他の欠落・失敗は引き続きfail-closedとする。
+
+Spec Revision 3は、`filter=all`を維持したまま、auditを実行中のexact workflow runだけを一時的にauditee集合から分離する。Caller runtime、authoritative GitHub run metadata、exact target commitのworkflow blobをfield-by-fieldで結合し、他runのnon-completed jobは引き続きBLOCKEDとする。
 
 ## Spec Revision 2 adoption authority
 
@@ -108,6 +110,15 @@ Spec Revision 2は、revision 1で回収不能と確認された既知のActions
 - High-risk read-only VERIFYはcandidate proofのruntime response SHA/bytesをrepository-external raw responseと照合し、static/runtime proof、stable IDs、`filter=all`、non-completed fail-closed、artifact/archive/history/redaction/proof-transfer/asset gateを確認する。
 - Reportはhistorical logをscanしたと表現せず、1件がpolicyによりunavailableとして受理され、`actions_scan_complete=false` であることを明示する。
 
+## Spec Revision 3 adoption authority
+
+- User approval `USER-APPROVAL-TASK-013-SPEC-REV3-20260819-094900` binds Design Revision 2 SHA `622C4D…03BA`; independent review is PASS／0 and final disposition grants implementation and one bootstrap push only。Failed run `32119217442` remains permanent FAILURE; release/main/Distribution authority remain false。Exact authority is in `SPEC_REVISION_3_ADOPTION.md`。
+
+## Spec Revision 3 exact auditor self-exclusion contract
+
+- Keep complete `filter=all` inventory。Only the exact runtime- and authoritative-metadata-bound current run may be excluded in candidate CI or release preflight; exact target workflow blob equality is mandatory。Offline/another/second exclusion、identity/hash substitution and unrelated non-completed jobs are BLOCKED。
+- Topology `exact-auditor-self-exclusion-v1` validates one non-empty auditor set、strict auditees、canonical hashes/equations and `actions_scan_complete=false`。Prior completed auditor runs including `32119217442` become normal auditees。Full field/order/consumer/test contract is in the accepted design and adoption report。
+
 ## Scope
 
 - R01 Exact activation base: transition commit 30cc57b05ac49dc6afa587f9d70ade571e526d9c／tree 2b3039cdd499b37f7ed2f8bace9bec7d43195a60／Governance CI 31945392516 attempt 1／job 95160466560 SUCCESSをexact確認し、専用branch codex/task-013-public-audit-stable-idを同commitから作成する。REQUIREMENTS_DEFINED Importはactivation-onlyとし、exact branch CI SUCCESS前に製品実装を開始しない。
@@ -125,6 +136,7 @@ Spec Revision 2は、revision 1で回収不能と確認された既知のActions
 - R13 Lifecycle／review: activation後はcycles 0／attempt 1／standard／final false／terminated false、open finding noneから開始する。実装後はtransition commitのdescendantとなる新TASK-013 candidateを作成し、candidate exact Governance CI SUCCESS後だけ直系子の6-path handoff-only commitを作成する。candidate→handoff production diff 0でimplementation review attempt 1／standardを依頼する。
 - R14 Release boundary: TASK-013 candidateがAPPROVEDとなるまでtag、GitHub Release、asset、Pages設定／deployment、Distribution workflow dispatch、origin/main統合、completionを行わない。APPROVED後もrepository-native release順序とexact main CIを維持し、TASK-009 candidateをrelease targetにしない。
 - R15 Push／CI policy: formal boundaryごとにlocal gate完了後の1pushを原則とし、CI起動用empty commitや途中pushを行わない。決定的source／test failureはrerunせず修正する。明確なexternal transient failureだけ同一runのfailed jobsをexact 1回rerunでき、rerun-all、再々rerun、再pushを禁止する。CI軽量化は別TASKとする。
+- R16 Spec Rev3 bootstrap: `ffee828…`の直系子にlocal adoption、その直系子にexact self-exclusion candidateを作り、全gateとread-only VERIFY PASS後に2-commit chainを一度だけpushする。Accepted authoritative identity、partition、proof、closure contractを完全実装する。
 
 ## Out of scope
 
@@ -133,6 +145,7 @@ Spec Revision 2は、revision 1で回収不能と確認された既知のActions
 - HTTP／history／archive／secret／proof／asset gateの緩和、warning-only化、best-effort化。
 - Governance CI軽量化、job削減、path filter追加、required gate／test count削減。
 - APPROVED前のorigin/main統合、tag、GitHub Release、asset、Pages、deployment、Distribution dispatch、completion。
+- Arbitrary in-progress exclusion、second self-excluded run、`filter=latest`、authoritative workflow ID/blob check省略、failed run `32119217442`のrerun／relabel。
 
 ## Acceptance criteria
 
@@ -151,6 +164,7 @@ Spec Revision 2は、revision 1で回収不能と確認された既知のActions
 - AC13 Truthful completeness: exception利用時は `actions_scan_complete=false`、unavailable/runtime counts `1/1` とし、全static/runtime/count gate成立時だけ `actions_evidence_gate_pass=true` とする。Historical unavailable logをscan済みと表現しない。
 - AC14 Deterministic proof: static/runtime canonical recordsをexact field order、UTF-8 no BOM、LF、final LF、canonical scalarでserializeし、sorted direct-concatenation set hashをproof consumerが再構成できる。Unknown legacy alias、field omission/addition/order/EOL/scalar mutationを拒否する。
 - AC15 Verification boundary: raw runtime responseはrepository外部evidenceにのみ保持し、high-risk read-only VERIFYがcandidate proof SHA/bytesとexact照合する。Candidate exact CIとhandoff exact CI成功後もrelease authorityは付与されず、ChatGPT implementation reviewへ返す。
+- AC16 Spec Rev3: exact runtime／authoritative workflow ID／target blobをbindingし、complete inventoryをexact auditor run 1件とstrict auditeesへ分割する。Self-exclusion truth、closure chain、one-push bootstrap and consumer revalidation must all pass。
 
 ## Tests
 
@@ -163,6 +177,7 @@ Spec Revision 2は、revision 1で回収不能と確認された既知のActions
 - T07 Distribution regression: public audit proof transfer、release staging exact 5、stage／publish mutation matrix、exact_published no-op、canonical APPROVED proof、portable 284、staged HTTP 5 files／5 routesを維持する。
 - T08 Full gates: Vitest 567以上、focused 69／68／86／28以上、distribution contract 77以上、public exposure audit 28以上＋新規test、normalization各21、completion各34、runtime requests／console errors／page errors 0をcandidate／handoff exact CIで確認する。
 - T09 Spec Revision 2 matrix: Design Revision 3 section 18の44カテゴリを全てcoverする。Exact happy path、runtime omission/performed false、initial/final status、410/403/5xx、MIME/error code、empty body、request/redirect/read failure、runtime SHA/bytes/set hash mutation、missing runtime fields、count mismatch、wrong static/runtime stable identity、static direct/attempt-jobs/attempt-archive mutation、second/non-allowlisted/post-adoption missing job、non-completed job、count equations、empty/one-record hashes、field order/separator/CRLF/final-LF/scalar/extra/omitted field、scan/evidence gate contradiction、legacy alias、raw-runtime VERIFY binding、既存全regressionを独立caseで検証する。
+- T10 Spec Revision 3 matrix: Design Revision 2 section 14の38カテゴリ（authoritative ID/blob、substitution、second/unrelated exclusion、truth、closure、legacy rejection）と既存全regressionを独立caseで検証する。
 
 ## Build
 
