@@ -854,11 +854,15 @@ export async function runPublicExposureAudit({
   token,
   auditorRunId,
   auditorRunAttempt,
-  githubEnvironment = process.env,
+  githubEnvironment = {},
   fetchImpl = fetch,
   spawnImpl = spawnSync,
   scanArtifactImpl = scanArtifactArchive,
 }) {
+  const selfExclusionRequested =
+    auditorRunId !== undefined || auditorRunAttempt !== undefined;
+  if (!selfExclusionRequested && githubEnvironment.GITHUB_ACTIONS === "true")
+    throw new Error("BLOCKED: GitHub audit requires exact auditor identity");
   const root = String(
     git(cwd, ["rev-parse", "--show-toplevel"], undefined, spawnImpl),
   ).trim();
@@ -1182,6 +1186,7 @@ async function main() {
     token: process.env.GITHUB_TOKEN,
     auditorRunId: option("--auditor-run-id", undefined),
     auditorRunAttempt: option("--auditor-run-attempt", undefined),
+    githubEnvironment: process.env,
   });
   if (report.findings_count > 0) process.exitCode = 1;
 }

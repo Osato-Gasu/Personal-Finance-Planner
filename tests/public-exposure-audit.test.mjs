@@ -1176,6 +1176,78 @@ describe("public exposure audit contract", () => {
     },
   );
 
+  it("isolates the programmatic offline default from ambient GitHub Actions", async () => {
+    const fixture = await createAuditRepository(
+      "public-audit-ambient-programmatic-",
+    );
+    const previous = process.env.GITHUB_ACTIONS;
+    process.env.GITHUB_ACTIONS = "true";
+    const fetchImpl = async (url) => {
+      const value = String(url);
+      if (value.endsWith(`/${repository}`))
+        return jsonResponse({ private: false, visibility: "public" });
+      if (value.includes("/actions/runs?"))
+        return jsonResponse({ total_count: 0, workflow_runs: [] });
+      if (value.includes("/actions/artifacts?"))
+        return jsonResponse({ total_count: 0, artifacts: [] });
+      throw new Error(`unexpected ambient-isolation URL: ${value}`);
+    };
+    try {
+      const value = await runPublicExposureAudit({
+        cwd: fixture.repo,
+        repository,
+        targetCommit: fixture.head,
+        phase: "candidate_ci",
+        output: fixture.output,
+        token: "test-token",
+        fetchImpl,
+        scanArtifactImpl: () => [],
+      });
+      expect(value.result).toBe("PASS");
+      expect(value.provenance).toMatchObject({
+        actions_auditor_self_excluded_run_count: 0,
+        actions_auditee_run_count: 0,
+        actions_scan_complete: true,
+      });
+    } finally {
+      if (previous === undefined)
+        Reflect.deleteProperty(process.env, "GITHUB_ACTIONS");
+      else process.env.GITHUB_ACTIONS = previous;
+      await rm(fixture.root, { recursive: true });
+    }
+  });
+
+  it("keeps the real CLI fail-closed in ambient GitHub Actions without auditor identity", async () => {
+    const root = await mkdtemp(join(tmpdir(), "public-audit-ambient-cli-"));
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          resolve(process.cwd(), "tools", "public-exposure-audit.mjs"),
+          "--repository",
+          repository,
+          "--target-sha",
+          targetCommit,
+          "--phase",
+          "candidate_ci",
+          "--output",
+          resolve(root, "audit.json"),
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          env: { ...process.env, GITHUB_ACTIONS: "true" },
+        },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "BLOCKED: GitHub audit requires exact auditor identity",
+      );
+    } finally {
+      await rm(root, { recursive: true });
+    }
+  });
+
   it.each([
     [1, "1"],
     [Number.MAX_SAFE_INTEGER, String(Number.MAX_SAFE_INTEGER)],

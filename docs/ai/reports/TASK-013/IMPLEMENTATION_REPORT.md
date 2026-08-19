@@ -1,5 +1,42 @@
 # TASK-013 Implementation report
 
+## Spec Revision 3 correction candidate
+
+### Authority and permanent failure evidence
+
+- ChatGPT decision: `AUTHORIZE_CORRECTION_CANDIDATE_WITHOUT_NEW_SPEC_REVISION`
+- classification: `DETERMINISTIC_IMPLEMENTATION_TEST_ENVIRONMENT_COUPLING`
+- correction exact parent／tree: `2d5cb0bf03f379965a28531d6d41d16e24d83130`／`b8eb7e2efece4dc41ca3e23b35ec82ce1d4f44af`
+- source upload ZIP: `7974` bytes／SHA-256 `E3FBAF27F856C8A34B3E13AAAC2C61B9284F614221F49FF60EEED2C1B6248FCE`
+- resume prompt: `8589` bytes／SHA-256 `9E796A6BED22135776E0DBA24883FD1B2C0AF58B3600FBA3BA814B493CF67FA9`
+- disposition: `1901` bytes／SHA-256 `478435DAD366ECA2C50CAB31B623FA595209D9F885E36B701F54E9B56274AAD3`
+- blocker evidence: `4896` bytes／SHA-256 `5F8A8D5E16342FCA587F032F6D154ABA4CD86E0A8F92F70864E7BEF6AE4D92AC`
+- permanent failures retained without rerun／relabel: run `32119217442`／job `95655572235`; run `32209639232`／job `95939580378`
+- failed candidate run `32209639232`: attempt `1`, job `95939580378`, Test `41 failed／696 passed／737 total`; public-audit step skipped; rerun count `0`
+- main／Distribution／release authority: `false／false／false`
+
+### Correction
+
+- `runPublicExposureAudit()` now defaults its injected programmatic `githubEnvironment` to an empty object, so offline／mock callers do not inherit ambient `process.env`
+- CLI `main()` explicitly passes `githubEnvironment: process.env`, preserving real GitHub Actions fail-closed behavior
+- the no-auditor-identity GitHub Actions guard executes before repository／GitHub scanning, so the CLI deterministically returns `BLOCKED: GitHub audit requires exact auditor identity`
+- regression A sets ambient `GITHUB_ACTIONS=true`, invokes the programmatic offline path without auditor args or environment injection, reaches the ordinary canonical evidence path, and restores the process environment
+- regression B launches the real CLI with ambient `GITHUB_ACTIONS=true` and no auditor identity and requires the exact fail-closed error
+- correction changed-path boundary: `tools/public-exposure-audit.mjs`, `tests/public-exposure-audit.test.mjs`, and this report only; workflow and audit-library diff `0`
+
+### Pre-commit evidence
+
+- ambient `GITHUB_ACTIONS=true` public exposure suite: `200／200` PASS
+- ambient `GITHUB_ACTIONS=true` full Vitest: `739／739` tests／`21／21` files PASS
+- npm ci／typecheck／lint／format: PASS／vulnerabilities `0`
+- focused rules／NISA／iDeCo／overview: `69／68／86／28` PASS
+- distribution contract: `77` PASS
+- launcher freshness: PASS／`216828` bytes
+- portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
+- staged HTTP distribution: `5` files／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
+- new correction candidate commit／tree, exact-candidate clean-worktree governance, read-only Sol／XHigh VERIFY, correction push, exact candidate CI, and handoff-only lifecycle: pending
+- tag／Release／Pages／deployment／workflow_dispatch side effects: `0`
+
 ## Spec Revision 3 implementation
 
 ### Authority and topology
