@@ -1,39 +1,39 @@
 schema_version: 1
 task_id: TASK-013
 feature: TASK-009公開監査stable ID修復
-phase: implementation
-status: ready
-next_actor: Codex
-next_role: IMPLEMENTER
+phase: implementation_review
+status: review_requested
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
 model: 5.6 Sol
 effort: high
-session_mode: existing
-handoff_file: docs/ai/handoffs/TASK-013/CODEX_HANDOFF.md
+session_mode: new
+handoff_file: docs/ai/handoffs/TASK-013/IMPLEMENTATION_REVIEW_HANDOFF.md
 rules_version: 0.12.25
 rules_commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
+return_to: Codex
 actual_executor: Codex
 provider_substitution: none
-review_kind: none
-review_role: none
-execution_mode: existing_session
+review_kind: implementation
+review_role: ORCHESTRATOR_AND_REVIEWER
+execution_mode: separate_session
 repository_access: true
-review_status: not_requested
-request_review_status: none
-review_model: none
-review_effort: none
-reviewed_candidate: none
-reviewed_spec_revision: none
+review_status: requested
+request_review_status: requested
+review_model: 5.6 Sol
+review_effort: high
+reviewed_candidate: 1285f6745062545bb4e73a937cde141f6ab620d4
+reviewed_spec_revision: 3
 review_request_id: none
 review_started_at: none
 review_completed_at: none
 review_result: none
 review_findings_count: 0
 review_finding_ids: none
-spec_revision_reset: true
+spec_revision_reset: false
 review_stage: implementation
 changes_requested_cycles: 0
 implementation_review_attempt: 1

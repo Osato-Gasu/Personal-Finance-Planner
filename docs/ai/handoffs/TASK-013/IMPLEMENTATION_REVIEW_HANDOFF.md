@@ -1,10 +1,11 @@
-# IMPLEMENTATION REVIEW HANDOFF — TASK-013
+# IMPLEMENTATION REVIEW HANDOFF — TASK-013 SPEC REVISION 3
 
 ## Identity
 
 - task_id: TASK-013
 - feature: TASK-009公開監査stable ID修復
-- spec_revision: 1
+- spec_revision: 3
+- design_revision: 2
 - phase: implementation_review
 - status: review_requested
 - actor: ChatGPT
@@ -16,56 +17,59 @@
 - return_to: Codex
 - repository: Osato-Gasu/Personal-Finance-Planner
 - branch: codex/task-013-public-audit-stable-id
-- baseline_commit: 30cc57b05ac49dc6afa587f9d70ade571e526d9c
-- activation_commit: 184d4da3f79443416f0570aec2b029d4c2c72202
-- activation_tree: 86b0f2d9e9ded5618c80d2062ae1602b0f907e1c
-- activation_ci: run 31947743040／attempt 1／job 95166339042／SUCCESS
-- attempt_1_review_import: a0f8738396e9dfd1e6aefed5154f1d7e6732434e
-- attempt_1_review_import_tree: f819b3f808711afecc3b03f70febf7e257a97c24
-- attempt_1_review_import_ci: run 31954202991／attempt 1／job 95182201338／SUCCESS
-- implementation_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
-- candidate_commit: b38d0182d62053a25e17c6a32853d1112d9084eb
-- candidate_tree: 57eaf1f4a9a088f37bd3cf39c5ededa29e670a2f
-- candidate_parent: a0f8738396e9dfd1e6aefed5154f1d7e6732434e
-- candidate_ci: run 31955360058／attempt 1／job 95185062836／SUCCESS
+- baseline_commit: ffee8284704bd2d8e19b7a5ae85d5e772a39977c
+- adoption_commit: 55ca1d89d74e63d45baa06ee8f9da67a53c389f5
+- adoption_tree: 5e4c20a971bd5bfde21ebf9b222860f6d32683f8
+- failed_implementation_candidate: 2d5cb0bf03f379965a28531d6d41d16e24d83130
+- failed_implementation_candidate_tree: b8eb7e2efece4dc41ca3e23b35ec82ce1d4f44af
+- failed_candidate_ci: run 32209639232／attempt 1／job 95939580378／FAILURE
+- implementation_candidate: 1285f6745062545bb4e73a937cde141f6ab620d4
+- candidate_commit: 1285f6745062545bb4e73a937cde141f6ab620d4
+- candidate_tree: 3fb36efc2fd13b9321baf11a63e798d54fe48a12
+- candidate_parent: 2d5cb0bf03f379965a28531d6d41d16e24d83130
+- candidate_ci: run 32211856041／attempt 1／job 95945976130／SUCCESS
+- candidate_ci_workflow_id: 331460220
+- candidate_ci_workflow_blob: 15699c9c5989d3cc42bd22d34fe4d55fd42e5e82
 - shared_candidate: f07571d3e8745b9a49a28b1ac77e211c210146a3
 - shared_version: 0.12.25
 - shared_tree: 4e0ba4dbea24cba9a9816eb1486e63e7e583c4fc
 - shared_manifest_sha256: ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE
 - review_stage: implementation
 - review_kind: implementation
-- reviewed_candidate: b38d0182d62053a25e17c6a32853d1112d9084eb
-- reviewed_spec_revision: 1
-- changes_requested_cycles: 1
-- implementation_review_attempt: 2
-- implementation_review_profile: narrowed
+- reviewed_candidate: 1285f6745062545bb4e73a937cde141f6ab620d4
+- reviewed_spec_revision: 3
+- changes_requested_cycles: 0
+- implementation_review_attempt: 1
+- implementation_review_profile: standard
 - implementation_review_final: false
 - implementation_review_terminated: false
-- attempt_4_forbidden: false
-- implementation_review_open_finding_ids: FINDING-013-R1-01
+- implementation_review_open_finding_ids: none
 - user_confirmation_required: false
 - review_termination_reason: none
+- implementation_changes_authorized_during_review: false
+- release_authority: false
 
 ## Assignment
 
-- purpose: TASK-013 implementation review attempt 2／narrowedとして、accepted unresolved finding `FINDING-013-R1-01`の解消とcandidate exact source、tests、audit evidenceをR07、AC04、T04、F03／F04へ照合する。
-- exact_scope: attempt 1 review import `a0f8738396e9dfd1e6aefed5154f1d7e6732434e`からcandidate `b38d0182d62053a25e17c6a32853d1112d9084eb`までの3-path修正diff。handoff commitはcandidate直系子のrepository-native 6-path governance-only transitionであり、production diffは0でなければならない。
-- stable_identity: Actions runはrun ID、jobはrun ID＋job ID、artifactはartifact IDをcanonical positive integer stable keyとする。mutable metadataは固定順序のtyped recordへ分離し、stable-key set hashとrecord-set hashを個別に検証する。
-- duplicate_conflict: run／job／artifactの同一stable IDはmetadata同一でもduplicate、異なる場合はconflictとして、content retrieval／report write前にfail-closedで拒否する。pagination page 1の100件とpage 2 overlapを含む。
-- total_count_contract: Actions runs／artifactsはglobal、jobsはrunごとの`total_count`を必須nonnegative safe integerとして検証する。各pageで宣言値を不変に保ち、累積超過を拒否し、終了時に累積件数とのexact一致を要求する。response object／対象array／total_countの不正はjob log／artifact content retrievalおよびreport write前にBLOCKEDとする。
-- negative_tests: run／job／artifactについてtotal_count欠落、malformed、過大、過小、page間変更を動的simulationし、run response shape、negative／non-integer／unsafe countも拒否する。全失敗でcontent request 0かつreport未生成を確認する。
-- audit_evidence: working tree `attempt-2-final-working-tree-audit.json`／2990 bytes／SHA-256 `E16976E492A0CAC763CBA64ACFAC230BD79DB0713F9C77DE0B0F19DD7057C6E3`、candidate exact `attempt-2-candidate-audit.json`／2990 bytes／SHA-256 `7D15B62E6BA688EC8E77B3C16E267278E4BA0E2F01CC7E55D7748414B441950C`、双方 finding 0／PASS。
-- test_evidence: Vitest 621、rules 69、NISA 68、iDeCo 86、overview 28、distribution contract 77、public audit 82、normalization PS7／5.1各21、completion PS7／5.1各34、portable 284、staged HTTP 5 files／5 routes、runtime／console／page errors 0。
-- non_regression: product src、AppState、migration、storage、backup/import/export、financial calculations、rule data、package／lock、launcher、docs/product、generated sharedのattempt-1-import-to-candidate diffは0。
-- task_009_boundary: TASK-009はcycles 3／attempt 3／terminal／final／terminated、attempt 4 forbidden、candidate未承認・未releaseのまま維持し、TASK-013のapproval／release identityへ流用しない。
-- public_side_effects: repository visibility publicを維持。tag 0、Release 0、Pages未構成、deployment 0、Distribution workflow_dispatch 0、origin/main不変、PR 0。
-- out_of_scope: implementation修正、新規MINOR／QUESTION、改善提案、scope拡張、review判定import、attempt 3以降、release、origin/main統合、tag、Release、asset、Pages、deployment、Distribution dispatch、completion。
-- stop_conditions: candidate／tree／CI、audit identity、candidate-to-handoff production diff、public side-effect boundary、R02～R15／AC02～AC10／T02～T08／F01～F08の不一致。reviewerはsourceを補修せずexact relayをCodexへ返す。
+- purpose: TASK-013 Spec Revision 3 implementation review attempt 1／standardとして、candidate exact source、tests、audit evidenceをaccepted Auditor Self-Exclusion Design Revision 2、Spec Revision 2 historical-evidence policy、R02～R16、AC02～AC15、T02～T10、F01～F08へ照合する。
+- exact_scope: adoption `55ca1d89d74e63d45baa06ee8f9da67a53c389f5`からcorrected candidate `1285f6745062545bb4e73a937cde141f6ab620d4`までの6-path Spec Revision 3 implementation diff、およびfailed candidate `2d5cb0bf03f379965a28531d6d41d16e24d83130`からcandidateまでの許可3-path correction diff。handoff commitはcandidate直系子のrepository-native 6-path governance-only transitionであり、candidate-to-handoff production diffは0でなければならない。
+- correction_authority: `AUTHORIZE_CORRECTION_CANDIDATE_WITHOUT_NEW_SPEC_REVISION`／`DETERMINISTIC_IMPLEMENTATION_TEST_ENVIRONMENT_COUPLING`。Programmatic defaultはambient-isolated、CLIは`process.env`を明示し、GitHub Actions上のauditor identity欠落をscan前にexact BLOCKEDとする。
+- exact_self_exclusion: only exact current auditor run is partitioned from complete `filter=all` inventory after caller runtime、authoritative workflow run metadata、target commit workflow blobをfield-by-fieldでbindingする。Second／unrelated／offline／malformed exclusion、identity substitution、unrelated non-completed run/jobはBLOCKED。
+- closure_and_history: prior auditor and failed runs are ordinary completed auditees in later audits。Permanent failures run `32119217442`／job `95655572235` and run `32209639232`／job `95939580378` remain attempt 1／completed／failure and were not rerun、relabeled、deleted、or treated as success。
+- historical_exception: only exact Spec Revision 2 policy job `95018938492` may use fresh `302 -> 404`／`application/xml`／`BlobNotFound` runtime observation。All static/runtime/count/hash gates remain mandatory and `actions_scan_complete=false`／`actions_evidence_gate_pass=true` semantics remain exact。
+- verify_evidence: correction read-only high-risk VERIFY PASS／findings 0; requested model／effort `Sol／XHigh`, actual `未確認／未確認` because runtime evidence was unavailable; edits／push／rerun／public-state mutation 0。
+- candidate_ci_evidence: exact run `32211856041`／attempt `1`／job `95945976130`／SUCCESS; Governance CI path `.github/workflows/ci.yml`, workflow ID `331460220`, blob `15699c9c5989d3cc42bd22d34fe4d55fd42e5e82`, all 29 steps success。Full Test `739`、public audit contract `200`、distribution `77`、rules／NISA／iDeCo／overview `69／68／86／28` PASS。
+- candidate_audit_evidence: CI command bound target `1285f6745062545bb4e73a937cde141f6ab620d4`／phase `candidate_ci`／auditor run `32211856041`／attempt `1`; authenticated job log records PASS／findings `0`／`67618` bytes and repository-external runner runtime evidence for historical job `95018938492`。
+- non_regression: workflow and audit-library correction diff 0; product src、AppState、migration、storage、backup/import/export、financial calculations、rule data、package／lock、launcher、docs/product、generated shared remain unchanged by the correction。Candidate-to-handoff production diff must be 0。
+- task_009_boundary: TASK-009 remains cycles 3／attempt 3／terminal／final／terminated; attempt 4 forbidden; candidate `03825e58f61f95d2364f09246f202744e4617ba5` remains unapproved and unreleased and cannot become TASK-013 approval or release identity。
+- public_side_effects: origin/main remains `0dbc4fb102c92a6df12331540c6cc11010258f54`; tag count `0`; no Release、asset、Pages、deployment、Distribution workflow dispatch、main integration、completion, or repository-visibility mutation was authorized or performed。
+- out_of_scope: implementation changes、review-decision import、attempt 2以降、release、origin/main integration、tag、Release、asset、Pages、deployment、Distribution dispatch、completion。
+- stop_conditions: candidate／tree／CI、authoritative workflow ID/blob、audit identity、permanent-failure history、candidate-to-handoff production diff、public side-effect boundary、accepted requirementsの不一致。Reviewerはsourceを補修せずexact portable relayをCodexへ返す。
 - report: docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md
 
 ## Review policy
 
-- Attempt 2 uses the narrowed profile. Review candidate `b38d0182d62053a25e17c6a32853d1112d9084eb` and tree `57eaf1f4a9a088f37bd3cf39c5ededa29e670a2f` exactly. Findings are limited to accepted unresolved `FINDING-013-R1-01`, a new regression caused by its correction, or an explicit release gate; reject new MINOR／QUESTION、improvement、or scope expansion.
+- Attempt 1 uses the standard profile. Review exact candidate `1285f6745062545bb4e73a937cde141f6ab620d4` and tree `3fb36efc2fd13b9321baf11a63e798d54fe48a12` without substituting the failed predecessor or a later handoff head.
 - Confirm that the handoff is the candidate's direct child, changes exactly the repository-native six governance／review paths, and has production diff 0.
-- Do not create／move／delete tag、Release、asset、Pages、deployment, do not dispatch a workflow, and do not change repository visibility or origin/main during review.
-- Return an exact APPROVED、CHANGES_REQUESTED、or BLOCKED portable relay to Codex. Do not perform implementation changes、release、main integration、distribution、completion、or canonical sync.
+- Do not rerun or relabel permanent failed runs `32119217442` and `32209639232`。Do not create／move／delete tag、Release、asset、Pages、deployment; do not dispatch a workflow; do not change repository visibility or origin/main during review。
+- Return an exact APPROVED、CHANGES_REQUESTED、or BLOCKED portable relay to Codex。Do not perform implementation changes、release、main integration、distribution、completion、or canonical sync。

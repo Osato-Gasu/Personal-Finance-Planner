@@ -34,7 +34,12 @@
 - launcher freshness: PASS／`216828` bytes
 - portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
 - staged HTTP distribution: `5` files／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
-- new correction candidate commit／tree, exact-candidate clean-worktree governance, read-only Sol／XHigh VERIFY, correction push, exact candidate CI, and handoff-only lifecycle: pending
+- correction candidate commit／tree: `1285f6745062545bb4e73a937cde141f6ab620d4`／`3fb36efc2fd13b9321baf11a63e798d54fe48a12`; exact parent `2d5cb0bf03f379965a28531d6d41d16e24d83130`
+- exact-candidate clean-worktree governance: PowerShell 7／5.1 shared sync, governance, REQUIREMENTS_DEFINED smoke, audit identity, normalization `21`, overlay, and completion `34` PASS; startup context `61400` bytes
+- independent read-only correction VERIFY: PASS／findings `0`; requested `Sol／XHigh`, actual `未確認／未確認` because runtime evidence was unavailable; public side effects `0`
+- candidate Governance CI: run `32211856041`／attempt `1`／job `95945976130`／SUCCESS; exact workflow ID `331460220`, workflow blob `15699c9c5989d3cc42bd22d34fe4d55fd42e5e82`, all `29` steps succeeded
+- CI Test／public audit contract: `739／739`／`200／200` PASS; real candidate audit CLI bound target `1285f6745062545bb4e73a937cde141f6ab620d4`, auditor run `32211856041`／attempt `1`, and returned PASS／findings `0`／`67618` bytes
+- permanent failed runs `32119217442` and `32209639232` remain attempt `1` completed／failure without rerun; handoff-only lifecycle prepared for implementation review attempt `1`／standard
 - tag／Release／Pages／deployment／workflow_dispatch side effects: `0`
 
 ## Spec Revision 3 implementation
@@ -78,8 +83,9 @@
 - portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
 - staged HTTP distribution: `5` files／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
 - PowerShell 7 shared sync and AI governance: PASS; startup context `61400` bytes (`<=65536`, target `<=61440`)
-- clean-worktree-only governance simulations: pending exact candidate commit
-- candidate commit／tree, repository-external exact candidate audit, independent high-risk VERIFY, candidate exact CI, handoff-only commit, and handoff exact CI: pending
+- clean-worktree-only governance simulations: PowerShell 7／5.1 PASS on exact correction candidate; normalization `21` and completion `34` each
+- implementation candidate: `1285f6745062545bb4e73a937cde141f6ab620d4`／tree `3fb36efc2fd13b9321baf11a63e798d54fe48a12`; candidate exact Governance CI run `32211856041`／attempt `1`／job `95945976130`／SUCCESS
+- independent high-risk correction VERIFY: PASS／findings `0`; candidate audit PASS／findings `0`／`67618` bytes; handoff-only commit and handoff exact CI follow
 - release／tag／Pages／deployment／workflow-dispatch side effects: `0`
 
 ## Spec Revision 2 implementation
