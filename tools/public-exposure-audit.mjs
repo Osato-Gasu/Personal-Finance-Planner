@@ -5,10 +5,14 @@ import { fileURLToPath } from "node:url";
 import {
   ACTIONS_HISTORICAL_APPROVED_POLICY_RECORD,
   buildActionsHistoricalEvidence,
+  buildOfflineActionsAuditTopology,
   buildPublicAuditReport,
   buildStableInventory,
   canonicalMetadataRecord,
   canonicalPositiveIntegerId,
+  actionsAuditorJobSetSha256,
+  actionsAuditorRunSetSha256,
+  PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION,
   PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
   PUBLIC_AUDIT_SCAN_METHOD,
   assertNoLinkedPath,
@@ -390,7 +394,13 @@ export function scanArtifactArchive(
 
 async function scanGithub({
   repository,
+  targetCommit,
+  phase,
+  root,
   token,
+  auditorRunId,
+  auditorRunAttempt,
+  githubEnvironment,
   findings,
   scans,
   fetchImpl,
@@ -412,9 +422,14 @@ async function scanGithub({
   );
   const runEntries = runs.map((run) => {
     const runId = canonicalPositiveIntegerId(run.id, "Actions run");
+    const runAttempt = canonicalPositiveIntegerId(
+      run.run_attempt,
+      "Actions run attempt",
+    );
     return {
       run,
       runId,
+      runAttempt,
       stableKey: runId,
       metadataRecord: canonicalMetadataRecord(
         [
@@ -422,13 +437,97 @@ async function scanGithub({
           ["head_sha", run.head_sha],
           ["status", run.status],
           ["conclusion", run.conclusion],
-          ["run_attempt", run.run_attempt],
+          ["run_attempt", runAttempt],
         ],
         "Actions run",
       ),
     };
   });
   const runInventory = buildStableInventory(runEntries, "Actions run");
+  const selfExclusionRequested =
+    auditorRunId !== undefined || auditorRunAttempt !== undefined;
+  if (
+    selfExclusionRequested &&
+    (auditorRunId === undefined || auditorRunAttempt === undefined)
+  )
+    throw new Error("BLOCKED: incomplete auditor self-exclusion identity");
+  if (!selfExclusionRequested && githubEnvironment.GITHUB_ACTIONS === "true")
+    throw new Error("BLOCKED: GitHub audit requires exact auditor identity");
+  let canonicalAuditorRunId = null;
+  let canonicalAuditorRunAttempt = null;
+  let authoritativeRun = null;
+  let expectedWorkflow = null;
+  let workflowBlobSha = null;
+  if (selfExclusionRequested) {
+    canonicalAuditorRunId = canonicalPositiveIntegerId(
+      auditorRunId,
+      "auditor run",
+    );
+    canonicalAuditorRunAttempt = canonicalPositiveIntegerId(
+      auditorRunAttempt,
+      "auditor run attempt",
+    );
+    expectedWorkflow =
+      phase === "candidate_ci"
+        ? { path: ".github/workflows/ci.yml", event: "push" }
+        : phase === "release_preflight"
+          ? {
+              path: ".github/workflows/distribution.yml",
+              event: "workflow_dispatch",
+            }
+          : null;
+    if (!expectedWorkflow)
+      throw new Error("BLOCKED: phase does not allow auditor self-exclusion");
+    const environmentChecks = [
+      ["GITHUB_RUN_ID", canonicalAuditorRunId],
+      ["GITHUB_RUN_ATTEMPT", canonicalAuditorRunAttempt],
+      ["GITHUB_REPOSITORY", repository],
+      ["GITHUB_EVENT_NAME", expectedWorkflow.event],
+    ];
+    for (const [name, expected] of environmentChecks) {
+      if (githubEnvironment[name] !== expected)
+        throw new Error(`BLOCKED: ${name} does not match auditor identity`);
+    }
+    authoritativeRun = await githubJson(
+      `${base}/actions/runs/${canonicalAuditorRunId}`,
+      token,
+      fetchImpl,
+    );
+    const authoritativeRunId = canonicalPositiveIntegerId(
+      authoritativeRun.id,
+      "authoritative auditor run",
+    );
+    const authoritativeAttempt = canonicalPositiveIntegerId(
+      authoritativeRun.run_attempt,
+      "authoritative auditor run attempt",
+    );
+    canonicalPositiveIntegerId(
+      authoritativeRun.workflow_id,
+      "authoritative auditor workflow",
+    );
+    if (
+      authoritativeRunId !== canonicalAuditorRunId ||
+      authoritativeAttempt !== canonicalAuditorRunAttempt ||
+      authoritativeRun.repository?.full_name !== repository ||
+      authoritativeRun.head_sha !== targetCommit ||
+      authoritativeRun.status !== "in_progress" ||
+      authoritativeRun.conclusion !== null ||
+      authoritativeRun.path !== expectedWorkflow.path ||
+      authoritativeRun.event !== expectedWorkflow.event ||
+      typeof authoritativeRun.head_branch !== "string" ||
+      authoritativeRun.head_branch.length === 0
+    )
+      throw new Error("BLOCKED: authoritative auditor run identity mismatch");
+    const object = `${targetCommit}:${expectedWorkflow.path}`;
+    const type = String(
+      git(root, ["cat-file", "-t", object], undefined, spawnImpl),
+    ).trim();
+    workflowBlobSha = String(
+      git(root, ["rev-parse", "--verify", object], undefined, spawnImpl),
+    ).trim();
+    if (type !== "blob" || !/^[0-9a-f]{40}$/u.test(workflowBlobSha))
+      throw new Error("BLOCKED: authoritative workflow blob is unavailable");
+  }
   scans.actions_run_logs = 0;
   const runJobs = await mapLimit(runEntries, 12, async (runEntry) => ({
     runEntry,
@@ -468,11 +567,132 @@ async function scanGithub({
     }),
   );
   const jobInventory = buildStableInventory(jobEntries, "Actions job");
-  for (const entry of jobEntries) {
-    if (entry.job.status !== "completed")
-      throw new Error("BLOCKED: Actions job is not completed");
+  const auditorRunEntries = selfExclusionRequested
+    ? runEntries.filter((entry) => entry.runId === canonicalAuditorRunId)
+    : [];
+  if (selfExclusionRequested && auditorRunEntries.length !== 1)
+    throw new Error("BLOCKED: exact auditor run is absent or duplicated");
+  if (selfExclusionRequested) {
+    const listed = auditorRunEntries[0].run;
+    if (
+      canonicalPositiveIntegerId(
+        listed.run_attempt,
+        "listed auditor run attempt",
+      ) !== canonicalAuditorRunAttempt ||
+      listed.head_sha !== targetCommit ||
+      listed.status !== "in_progress" ||
+      listed.conclusion !== null
+    )
+      throw new Error(
+        "BLOCKED: listed auditor run conflicts with authoritative run",
+      );
   }
-  const completedJobs = jobEntries;
+  const auditeeRunEntries = runEntries.filter(
+    (entry) => entry.runId !== canonicalAuditorRunId,
+  );
+  const auditorJobEntries = selfExclusionRequested
+    ? jobEntries.filter((entry) => entry.runId === canonicalAuditorRunId)
+    : [];
+  const auditeeJobEntries = jobEntries.filter(
+    (entry) => entry.runId !== canonicalAuditorRunId,
+  );
+  if (selfExclusionRequested && auditorJobEntries.length === 0)
+    throw new Error("BLOCKED: auditor job set is empty");
+  if (
+    selfExclusionRequested &&
+    auditorJobEntries.some(
+      (entry) => entry.runAttempt !== canonicalAuditorRunAttempt,
+    )
+  )
+    throw new Error("BLOCKED: auditor job run attempt mismatch");
+  if (
+    selfExclusionRequested &&
+    !auditorJobEntries.some((entry) => entry.job.status !== "completed")
+  )
+    throw new Error("BLOCKED: auditor job set has no executing job");
+  for (const entry of auditeeJobEntries) {
+    if (entry.job.status !== "completed")
+      throw new Error("BLOCKED: auditee Actions job is not completed");
+  }
+  const completedJobs = auditeeJobEntries;
+  const auditeeRunInventory = buildStableInventory(
+    auditeeRunEntries,
+    "auditee Actions run",
+  );
+  const auditeeJobInventory = buildStableInventory(
+    auditeeJobEntries,
+    "auditee Actions job",
+  );
+  const auditorJobRecords = auditorJobEntries.map((entry) => ({
+    run_id: entry.runId,
+    run_attempt: entry.runAttempt,
+    job_id: entry.jobId,
+    status: entry.job.status,
+    conclusion: entry.job.conclusion ?? "none",
+  }));
+  const auditorJobSetSha256 = actionsAuditorJobSetSha256(auditorJobRecords);
+  const auditorRunRecords = selfExclusionRequested
+    ? [
+        {
+          topology_version: PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION,
+          repository,
+          phase,
+          auditor_run_id: canonicalAuditorRunId,
+          auditor_run_attempt: canonicalAuditorRunAttempt,
+          workflow_id: canonicalPositiveIntegerId(
+            authoritativeRun.workflow_id,
+            "authoritative auditor workflow",
+          ),
+          workflow_path: expectedWorkflow.path,
+          workflow_blob_sha: workflowBlobSha,
+          event: expectedWorkflow.event,
+          head_branch: authoritativeRun.head_branch,
+          head_sha: targetCommit,
+          run_status: "in_progress",
+          run_conclusion: "none",
+          auditor_job_count: String(auditorJobRecords.length),
+          auditor_job_set_sha256: auditorJobSetSha256,
+        },
+      ]
+    : [];
+  const topology = selfExclusionRequested
+    ? {
+        actions_audit_topology_version: PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION,
+        actions_auditor_self_excluded_run_count: 1,
+        actions_auditor_self_excluded_run_set_sha256:
+          actionsAuditorRunSetSha256(auditorRunRecords),
+        actions_auditor_self_excluded_run_records: auditorRunRecords,
+        actions_auditor_self_excluded_job_count: auditorJobRecords.length,
+        actions_auditor_self_excluded_job_set_sha256: auditorJobSetSha256,
+        actions_auditor_self_excluded_job_records: auditorJobRecords,
+      }
+    : buildOfflineActionsAuditTopology();
+  Object.assign(topology, {
+    actions_auditee_run_count: auditeeRunInventory.count,
+    actions_auditee_job_count: auditeeJobInventory.count,
+    actions_auditee_run_set_sha256: auditeeRunInventory.stableKeySetSha256,
+    actions_auditee_job_set_sha256: auditeeJobInventory.stableKeySetSha256,
+    actions_auditee_run_stable_ids: auditeeRunEntries.map(
+      (entry) => entry.stableKey,
+    ),
+    actions_auditee_job_stable_ids: auditeeJobEntries.map(
+      (entry) => entry.stableKey,
+    ),
+    actions_auditee_run_records: auditeeRunEntries.map((entry) => ({
+      id: entry.runId,
+      head_sha: entry.run.head_sha,
+      status: entry.run.status,
+      conclusion: entry.run.conclusion,
+      run_attempt: entry.runAttempt,
+    })),
+    actions_auditee_job_records: auditeeJobEntries.map((entry) => ({
+      run_id: entry.runId,
+      id: entry.jobId,
+      run_attempt: entry.runAttempt,
+      status: entry.job.status,
+      conclusion: entry.job.conclusion,
+    })),
+  });
   const requiredJobLogInventory = buildStableInventory(
     completedJobs.map((entry) => ({
       stableKey: entry.stableKey,
@@ -570,6 +790,7 @@ async function scanGithub({
   const historicalEvidence = buildActionsHistoricalEvidence(
     unavailableResults[0]?.runtimeObservation ?? null,
   );
+  if (selfExclusionRequested) historicalEvidence.actions_scan_complete = false;
   const logRetrievalCount = logResults.length - unavailableResults.length;
   if (
     logRetrievalCount +
@@ -614,6 +835,7 @@ async function scanGithub({
     artifactRetrievalCount: artifactRetrievals,
     artifactScanCount: scans.actions_artifacts,
     historicalEvidence,
+    topology,
     historicalRuntimeBytes: unavailableResults[0]?.runtimeBytes ?? null,
   };
 }
@@ -630,6 +852,9 @@ export async function runPublicExposureAudit({
   output,
   staging,
   token,
+  auditorRunId,
+  auditorRunAttempt,
+  githubEnvironment = process.env,
   fetchImpl = fetch,
   spawnImpl = spawnSync,
   scanArtifactImpl = scanArtifactArchive,
@@ -855,7 +1080,13 @@ export async function runPublicExposureAudit({
   }
   const github = await scanGithub({
     repository,
+    targetCommit,
+    phase,
+    root,
     token,
+    auditorRunId,
+    auditorRunAttempt,
+    githubEnvironment,
     findings,
     scans,
     fetchImpl,
@@ -891,6 +1122,7 @@ export async function runPublicExposureAudit({
     actions_artifact_inventory_count: github.artifactInventoryCount,
     actions_artifact_retrieval_count: github.artifactRetrievalCount,
     actions_artifact_scan_count: github.artifactScanCount,
+    ...github.topology,
     ...github.historicalEvidence,
     repository_scan_complete: true,
   };
@@ -912,6 +1144,8 @@ export async function runPublicExposureAudit({
     phase,
     reportBytes: bytes,
     expectedSha256: sha256(bytes),
+    requireGithubSelfExclusion:
+      auditorRunId !== undefined || auditorRunAttempt !== undefined,
   });
   const structuralErrors = validation.errors.filter(
     (error) => error !== "public audit has findings or did not pass",
@@ -946,6 +1180,8 @@ async function main() {
     output: option("--output"),
     staging: option("--staging", undefined),
     token: process.env.GITHUB_TOKEN,
+    auditorRunId: option("--auditor-run-id", undefined),
+    auditorRunAttempt: option("--auditor-run-attempt", undefined),
   });
   if (report.findings_count > 0) process.exitCode = 1;
 }

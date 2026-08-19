@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -11,10 +11,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   PUBLIC_AUDIT_CATEGORIES,
   PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
+  PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION,
   PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS,
   PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES,
   PUBLIC_AUDIT_REQUIRED_SCANS,
@@ -23,7 +24,11 @@ import {
   ACTIONS_HISTORICAL_POLICY_ID,
   PUBLIC_AUDIT_EMPTY_SET_SHA256,
   actionsHistoricalSetSha256,
+  actionsAuditorJobSetSha256,
+  actionsAuditorRunSetSha256,
+  actionsAuditeeSetSha256,
   buildActionsHistoricalEvidence,
+  buildOfflineActionsAuditTopology,
   buildStableInventory,
   buildPublicAuditReport,
   canonicalMetadataRecord,
@@ -45,6 +50,64 @@ import {
 
 const repository = "owner/repo";
 const targetCommit = "a".repeat(40);
+function actionRecordHashes(runs, jobs) {
+  return {
+    run: buildStableInventory(
+      runs.map((run) => ({
+        stableKey: run.id,
+        metadataRecord: canonicalMetadataRecord(
+          [
+            ["id", run.id],
+            ["head_sha", run.head_sha],
+            ["status", run.status],
+            ["conclusion", run.conclusion],
+            ["run_attempt", run.run_attempt],
+          ],
+          "test Actions run",
+        ),
+      })),
+      "test Actions run",
+    ).recordSetSha256,
+    job: buildStableInventory(
+      jobs.map((job) => ({
+        stableKey: `${job.run_id}\t${job.id}`,
+        metadataRecord: canonicalMetadataRecord(
+          [
+            ["run_id", job.run_id],
+            ["id", job.id],
+            ["run_attempt", job.run_attempt],
+            ["status", job.status],
+            ["conclusion", job.conclusion],
+          ],
+          "test Actions job",
+        ),
+      })),
+      "test Actions job",
+    ).recordSetSha256,
+  };
+}
+const baselineAuditeeRunRecords = [
+  {
+    id: "1",
+    head_sha: targetCommit,
+    status: "completed",
+    conclusion: "success",
+    run_attempt: "1",
+  },
+];
+const baselineAuditeeJobRecords = [
+  {
+    run_id: "1",
+    id: "1",
+    run_attempt: "1",
+    status: "completed",
+    conclusion: "success",
+  },
+];
+const baselineRecordHashes = actionRecordHashes(
+  baselineAuditeeRunRecords,
+  baselineAuditeeJobRecords,
+);
 const provenance = {
   target_commit: targetCommit,
   scan_method: PUBLIC_AUDIT_SCAN_METHOD,
@@ -53,12 +116,21 @@ const provenance = {
   reachable_tree_set_sha256: "C".repeat(64),
   reachable_blob_set_sha256: "D".repeat(64),
   commit_path_blob_associations_sha256: "E".repeat(64),
-  actions_run_set_sha256: "F".repeat(64),
-  actions_job_set_sha256: "1".repeat(64),
+  actions_run_set_sha256: actionsAuditeeSetSha256(["1"]),
+  actions_job_set_sha256: actionsAuditeeSetSha256(["1\t1"]),
   actions_artifact_set_sha256: "2".repeat(64),
-  actions_run_record_set_sha256: "3".repeat(64),
-  actions_job_record_set_sha256: "4".repeat(64),
+  actions_run_record_set_sha256: baselineRecordHashes.run,
+  actions_job_record_set_sha256: baselineRecordHashes.job,
   actions_artifact_record_set_sha256: "5".repeat(64),
+  ...buildOfflineActionsAuditTopology(),
+  actions_auditee_run_count: 1,
+  actions_auditee_job_count: 1,
+  actions_auditee_run_set_sha256: actionsAuditeeSetSha256(["1"]),
+  actions_auditee_job_set_sha256: actionsAuditeeSetSha256(["1\t1"]),
+  actions_auditee_run_stable_ids: ["1"],
+  actions_auditee_job_stable_ids: ["1\t1"],
+  actions_auditee_run_records: baselineAuditeeRunRecords,
+  actions_auditee_job_records: baselineAuditeeJobRecords,
   actions_inventory_identity_version:
     PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION,
   actions_run_inventory_count: 1,
@@ -151,6 +223,286 @@ async function createAuditRepository(prefix) {
   return { root, repo, head, output: resolve(root, "audit.json") };
 }
 
+async function createSelfAuditRepository(prefix, workflowPath) {
+  const fixture = await createAuditRepository(prefix);
+  const workflow = resolve(fixture.repo, ...workflowPath.split("/"));
+  await mkdir(resolve(workflow, ".."), { recursive: true });
+  await writeFile(workflow, "name: Exact self audit\n");
+  execFileSync("git", ["add", workflowPath], { cwd: fixture.repo });
+  execFileSync("git", ["commit", "-m", "workflow"], { cwd: fixture.repo });
+  fixture.head = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: fixture.repo,
+    encoding: "utf8",
+  }).trim();
+  fixture.workflowBlobSha = execFileSync(
+    "git",
+    ["rev-parse", `${fixture.head}:${workflowPath}`],
+    { cwd: fixture.repo, encoding: "utf8" },
+  ).trim();
+  return fixture;
+}
+
+function selfAuditFetch(
+  fixture,
+  { phase = "candidate_ci", mode = "happy" } = {},
+) {
+  const workflowPath =
+    phase === "candidate_ci"
+      ? ".github/workflows/ci.yml"
+      : ".github/workflows/distribution.yml";
+  const event = phase === "candidate_ci" ? "push" : "workflow_dispatch";
+  const auditor = {
+    id: 101,
+    run_attempt: mode === "authoritative_attempt" ? 2 : 1,
+    workflow_id:
+      mode === "workflow_id_missing"
+        ? undefined
+        : mode === "workflow_id_malformed"
+          ? "01"
+          : 301,
+    repository: {
+      full_name: mode === "repository_mismatch" ? "other/repo" : repository,
+    },
+    head_sha: mode === "target_mismatch" ? "f".repeat(40) : fixture.head,
+    status: mode === "completed_run" ? "completed" : "in_progress",
+    conclusion: mode === "conclusion" ? "failure" : null,
+    path:
+      mode === "path_mismatch" ? ".github/workflows/other.yml" : workflowPath,
+    event: mode === "event_mismatch" ? "pull_request" : event,
+    head_branch: "main",
+  };
+  const listedAuditor = {
+    id: 101,
+    head_sha: fixture.head,
+    status: "in_progress",
+    conclusion: null,
+    run_attempt: 1,
+  };
+  const previous = {
+    id: 32119217442,
+    head_sha: "e".repeat(40),
+    status: "completed",
+    conclusion: "failure",
+    run_attempt: 1,
+  };
+  const previousAuditor = {
+    id: 100,
+    head_sha: "c".repeat(40),
+    status: "completed",
+    conclusion: "success",
+    run_attempt: 1,
+  };
+  return async (url) => {
+    const value = String(url);
+    if (value.endsWith(`/${repository}`))
+      return jsonResponse({ private: false, visibility: "public" });
+    if (value.endsWith("/actions/runs/101")) return jsonResponse(auditor);
+    if (value.includes("/actions/runs?")) {
+      const runs =
+        mode === "absent"
+          ? [previousAuditor, previous]
+          : [listedAuditor, previousAuditor, previous];
+      if (mode === "duplicate_run") runs.push({ ...listedAuditor });
+      if (mode === "unrelated_in_progress")
+        runs.push({
+          id: 102,
+          head_sha: "d".repeat(40),
+          status: "in_progress",
+          conclusion: null,
+          run_attempt: 1,
+        });
+      return jsonResponse({ total_count: runs.length, workflow_runs: runs });
+    }
+    if (value.includes("/actions/runs/101/jobs?")) {
+      const jobs =
+        mode === "empty_jobs"
+          ? []
+          : [
+              {
+                id: 201,
+                status: "in_progress",
+                conclusion: null,
+                ...(mode === "missing_job_attempt"
+                  ? {}
+                  : { run_attempt: mode === "wrong_job_attempt" ? 2 : 1 }),
+              },
+            ];
+      if (mode === "duplicate_job") jobs.push({ ...jobs[0] });
+      return jsonResponse({ total_count: jobs.length, jobs });
+    }
+    if (value.includes("/actions/runs/32119217442/jobs?"))
+      return jsonResponse({
+        total_count: 1,
+        jobs: [
+          {
+            id: 95655572235,
+            status: "completed",
+            conclusion: "failure",
+            run_attempt: 1,
+          },
+        ],
+      });
+    if (value.includes("/actions/runs/100/jobs?"))
+      return jsonResponse({
+        total_count: 1,
+        jobs: [
+          {
+            id: 200,
+            status: "completed",
+            conclusion: "success",
+            run_attempt: 1,
+          },
+        ],
+      });
+    if (value.includes("/actions/runs/102/jobs?"))
+      return jsonResponse({
+        total_count: 1,
+        jobs: [
+          { id: 202, status: "in_progress", conclusion: null, run_attempt: 1 },
+        ],
+      });
+    if (value.includes("/actions/artifacts?"))
+      return jsonResponse({ total_count: 0, artifacts: [] });
+    if (value.endsWith("/actions/jobs/95655572235/logs"))
+      return bytesResponse("failed run safe log");
+    if (value.endsWith("/actions/jobs/200/logs"))
+      return bytesResponse("previous auditor safe log");
+    throw new Error(`unexpected self-audit URL: ${value}`);
+  };
+}
+
+let candidateSelfFixture;
+let distributionSelfFixture;
+let selfAuditSequence = 0;
+
+beforeAll(async () => {
+  candidateSelfFixture = await createSelfAuditRepository(
+    "public-audit-self-candidate-",
+    ".github/workflows/ci.yml",
+  );
+  distributionSelfFixture = await createSelfAuditRepository(
+    "public-audit-self-distribution-",
+    ".github/workflows/distribution.yml",
+  );
+  distributionSelfFixture.staging = resolve(
+    distributionSelfFixture.root,
+    "staging",
+  );
+  await mkdir(distributionSelfFixture.staging);
+  for (const name of [
+    "Personal-Finance-Planner.html",
+    "index.html",
+    "release-manifest.json",
+    "SHA256SUMS.txt",
+    ".nojekyll",
+  ])
+    await writeFile(resolve(distributionSelfFixture.staging, name), "safe\n");
+});
+
+afterAll(async () => {
+  await Promise.all(
+    [candidateSelfFixture, distributionSelfFixture]
+      .filter(Boolean)
+      .map((fixture) => rm(fixture.root, { recursive: true })),
+  );
+});
+
+async function executeSelfAudit({
+  phase = "candidate_ci",
+  mode = "happy",
+  environment = {},
+  fixture = phase === "candidate_ci"
+    ? candidateSelfFixture
+    : distributionSelfFixture,
+} = {}) {
+  const event = phase === "candidate_ci" ? "push" : "workflow_dispatch";
+  selfAuditSequence += 1;
+  return runPublicExposureAudit({
+    cwd: fixture.repo,
+    repository,
+    targetCommit: fixture.head,
+    phase,
+    staging: phase === "release_preflight" ? fixture.staging : undefined,
+    output: resolve(fixture.root, `self-audit-${selfAuditSequence}.json`),
+    token: "test-token",
+    auditorRunId: "101",
+    auditorRunAttempt: "1",
+    githubEnvironment: {
+      GITHUB_ACTIONS: "true",
+      GITHUB_RUN_ID: "101",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_REPOSITORY: repository,
+      GITHUB_EVENT_NAME: event,
+      ...environment,
+    },
+    fetchImpl: selfAuditFetch(fixture, { phase, mode }),
+    scanArtifactImpl: () => [],
+  });
+}
+
+function rehashAuditorTopology(currentProvenance) {
+  currentProvenance.actions_auditor_self_excluded_job_count =
+    currentProvenance.actions_auditor_self_excluded_job_records.length;
+  currentProvenance.actions_auditor_self_excluded_job_set_sha256 =
+    actionsAuditorJobSetSha256(
+      currentProvenance.actions_auditor_self_excluded_job_records,
+    );
+  if (currentProvenance.actions_auditor_self_excluded_run_records[0]) {
+    const run = currentProvenance.actions_auditor_self_excluded_run_records[0];
+    run.auditor_job_count = String(
+      currentProvenance.actions_auditor_self_excluded_job_count,
+    );
+    run.auditor_job_set_sha256 =
+      currentProvenance.actions_auditor_self_excluded_job_set_sha256;
+  }
+  currentProvenance.actions_auditor_self_excluded_run_count =
+    currentProvenance.actions_auditor_self_excluded_run_records.length;
+  currentProvenance.actions_auditor_self_excluded_run_set_sha256 =
+    actionsAuditorRunSetSha256(
+      currentProvenance.actions_auditor_self_excluded_run_records,
+    );
+  return currentProvenance;
+}
+
+async function readCandidateSelfProof(currentReport, authoritative = {}) {
+  selfAuditSequence += 1;
+  const path = resolve(
+    candidateSelfFixture.root,
+    `consumer-proof-${selfAuditSequence}.json`,
+  );
+  const bytes = serializePublicAuditReport(currentReport);
+  await writeFile(path, bytes);
+  return readAuditProof({
+    path,
+    expectedSha256: sha256(bytes),
+    repository,
+    targetCommit: candidateSelfFixture.head,
+    phase: "candidate_ci",
+    cwd: candidateSelfFixture.repo,
+    token: "test-token",
+    githubEnvironment: {
+      GITHUB_RUN_ID: "101",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_REPOSITORY: repository,
+      GITHUB_EVENT_NAME: "push",
+    },
+    fetchImpl: async () =>
+      jsonResponse({
+        id: 101,
+        run_attempt: 1,
+        workflow_id: 301,
+        repository: { full_name: repository },
+        head_sha: candidateSelfFixture.head,
+        path: ".github/workflows/ci.yml",
+        event: "push",
+        head_branch: "main",
+        status: "in_progress",
+        conclusion: null,
+        ...authoritative,
+      }),
+  });
+}
+
 function report(overrides = {}) {
   return buildPublicAuditReport({
     repository,
@@ -176,6 +528,116 @@ function exceptionReport(provenanceOverride = exceptionProvenance()) {
   return report({
     provenance: provenanceOverride,
     scans: { ...base.scans, actions_run_logs: 0 },
+  });
+}
+
+function selfExcludedProvenance({
+  repositoryName = repository,
+  target = targetCommit,
+  phase = "release_preflight",
+  workflowBlobSha = "b".repeat(40),
+} = {}) {
+  const jobRecords = [
+    {
+      run_id: "101",
+      run_attempt: "1",
+      job_id: "201",
+      status: "in_progress",
+      conclusion: "none",
+    },
+  ];
+  const jobHash = actionsAuditorJobSetSha256(jobRecords);
+  const runRecords = [
+    {
+      topology_version: PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION,
+      repository: repositoryName,
+      phase,
+      auditor_run_id: "101",
+      auditor_run_attempt: "1",
+      workflow_id: "301",
+      workflow_path:
+        phase === "candidate_ci"
+          ? ".github/workflows/ci.yml"
+          : ".github/workflows/distribution.yml",
+      workflow_blob_sha: workflowBlobSha,
+      event: phase === "candidate_ci" ? "push" : "workflow_dispatch",
+      head_branch: "main",
+      head_sha: target,
+      run_status: "in_progress",
+      run_conclusion: "none",
+      auditor_job_count: "1",
+      auditor_job_set_sha256: jobHash,
+    },
+  ];
+  const recordHashes = actionRecordHashes(
+    [
+      {
+        id: "101",
+        head_sha: target,
+        status: "in_progress",
+        conclusion: null,
+        run_attempt: "1",
+      },
+    ],
+    [
+      {
+        run_id: "101",
+        id: "201",
+        run_attempt: "1",
+        status: "in_progress",
+        conclusion: null,
+      },
+    ],
+  );
+  return {
+    ...provenance,
+    target_commit: target,
+    actions_run_inventory_count: 1,
+    actions_job_inventory_count: 1,
+    actions_run_set_sha256: actionsAuditeeSetSha256(["101"]),
+    actions_job_set_sha256: actionsAuditeeSetSha256(["101\t201"]),
+    actions_run_record_set_sha256: recordHashes.run,
+    actions_job_record_set_sha256: recordHashes.job,
+    actions_required_job_log_count: 0,
+    actions_job_log_retrieval_count: 0,
+    actions_job_log_scan_count: 0,
+    actions_auditor_self_excluded_run_count: 1,
+    actions_auditor_self_excluded_run_set_sha256:
+      actionsAuditorRunSetSha256(runRecords),
+    actions_auditor_self_excluded_run_records: runRecords,
+    actions_auditor_self_excluded_job_count: 1,
+    actions_auditor_self_excluded_job_set_sha256: jobHash,
+    actions_auditor_self_excluded_job_records: jobRecords,
+    actions_auditee_run_count: 0,
+    actions_auditee_job_count: 0,
+    actions_auditee_run_set_sha256: PUBLIC_AUDIT_EMPTY_SET_SHA256,
+    actions_auditee_job_set_sha256: PUBLIC_AUDIT_EMPTY_SET_SHA256,
+    actions_auditee_run_stable_ids: [],
+    actions_auditee_job_stable_ids: [],
+    actions_auditee_run_records: [],
+    actions_auditee_job_records: [],
+    actions_scan_complete: false,
+  };
+}
+
+function selfExcludedReport(options = {}) {
+  const currentProvenance = selfExcludedProvenance(options);
+  const base = report({
+    repository: options.repositoryName ?? repository,
+    targetCommit: options.target ?? targetCommit,
+    phase: options.phase ?? "release_preflight",
+    provenance: currentProvenance,
+  });
+  return report({
+    repository: options.repositoryName ?? repository,
+    targetCommit: options.target ?? targetCommit,
+    phase: options.phase ?? "release_preflight",
+    provenance: currentProvenance,
+    scans: {
+      ...base.scans,
+      actions_run_logs: 0,
+      release_staging: options.phase === "candidate_ci" ? 0 : 5,
+    },
   });
 }
 
@@ -308,6 +770,412 @@ function approvedHistoricalFetch(fixture, mode = "happy") {
 }
 
 describe("public exposure audit contract", () => {
+  it("accepts the exact current Governance CI auditor run and scans the permanent failed run normally", async () => {
+    const value = await executeSelfAudit();
+    expect(value.result).toBe("PASS");
+    expect(value.provenance).toMatchObject({
+      actions_auditor_self_excluded_run_count: 1,
+      actions_auditor_self_excluded_job_count: 1,
+      actions_auditee_run_count: 2,
+      actions_auditee_job_count: 2,
+      actions_required_job_log_count: 2,
+      actions_job_log_scan_count: 2,
+      actions_scan_complete: false,
+    });
+    expect(
+      value.provenance.actions_auditor_self_excluded_run_records[0],
+    ).toMatchObject({
+      workflow_path: ".github/workflows/ci.yml",
+      event: "push",
+      workflow_blob_sha: candidateSelfFixture.workflowBlobSha,
+    });
+  });
+
+  it("accepts the exact Distribution release_preflight auditor run", async () => {
+    const value = await executeSelfAudit({ phase: "release_preflight" });
+    expect(value.result).toBe("PASS");
+    expect(
+      value.provenance.actions_auditor_self_excluded_run_records[0],
+    ).toMatchObject({
+      workflow_path: ".github/workflows/distribution.yml",
+      event: "workflow_dispatch",
+      workflow_blob_sha: distributionSelfFixture.workflowBlobSha,
+    });
+  });
+
+  it("validates the canonical self-exclusion record, partition equations, and truthful incompleteness", () => {
+    const value = selfExcludedReport();
+    expect(validateReport(value)).toEqual({
+      ok: true,
+      errors: [],
+      side_effects: 0,
+    });
+  });
+
+  it.each([
+    [
+      "two self-excluded runs",
+      (current) => {
+        current.actions_auditor_self_excluded_run_records.push({
+          ...current.actions_auditor_self_excluded_run_records[0],
+          auditor_run_id: "102",
+        });
+        rehashAuditorTopology(current);
+        current.actions_run_inventory_count += 1;
+      },
+      /run count is not exact/u,
+    ],
+    [
+      "exclusion count equation mismatch",
+      (current) => {
+        current.actions_run_inventory_count += 1;
+      },
+      /run partition count mismatch/u,
+    ],
+    [
+      "auditor run set hash mutation",
+      (current) => {
+        current.actions_auditor_self_excluded_run_set_sha256 = "A".repeat(64);
+      },
+      /auditor run set hash mismatch/u,
+    ],
+    [
+      "auditor job set hash mutation",
+      (current) => {
+        current.actions_auditor_self_excluded_job_set_sha256 = "A".repeat(64);
+      },
+      /auditor job set hash mismatch/u,
+    ],
+    [
+      "auditee run set hash mutation",
+      (current) => {
+        current.actions_auditee_run_set_sha256 = "A".repeat(64);
+      },
+      /auditee run set hash mismatch/u,
+    ],
+    [
+      "auditee job set hash mutation",
+      (current) => {
+        current.actions_auditee_job_set_sha256 = "A".repeat(64);
+      },
+      /auditee job set hash mismatch/u,
+    ],
+    [
+      "actions_scan_complete true with self-exclusion",
+      (current) => {
+        current.actions_scan_complete = true;
+      },
+      /scan completeness mismatch/u,
+    ],
+    [
+      "all auditor jobs completed",
+      (current) => {
+        current.actions_auditor_self_excluded_job_records[0].status =
+          "completed";
+        current.actions_auditor_self_excluded_job_records[0].conclusion =
+          "success";
+        rehashAuditorTopology(current);
+      },
+      /no executing job/u,
+    ],
+    [
+      "auditor job duplicate",
+      (current) => {
+        current.actions_auditor_self_excluded_job_records.push({
+          ...current.actions_auditor_self_excluded_job_records[0],
+        });
+        rehashAuditorTopology(current);
+        current.actions_job_inventory_count += 1;
+      },
+      /duplicate stable ID/u,
+    ],
+  ])("rejects a topology proof mutation: %s", (_label, mutate, pattern) => {
+    const current = selfExcludedProvenance();
+    mutate(current);
+    const value = selfExcludedReport();
+    value.provenance = current;
+    const bytes = serializePublicAuditReport(value);
+    const validation = validatePublicExposureAudit(value, {
+      repository,
+      targetCommit,
+      phase: "release_preflight",
+      reportBytes: bytes,
+      expectedSha256: sha256(bytes),
+      requireGithubSelfExclusion: true,
+    });
+    expect(validation.errors.join("; ")).toMatch(pattern);
+  });
+
+  it("rejects a legacy proof that omits Spec Revision 3 topology fields", () => {
+    const topologyFields = new Set([
+      "actions_audit_topology_version",
+      "actions_auditor_self_excluded_run_count",
+      "actions_auditor_self_excluded_run_set_sha256",
+      "actions_auditor_self_excluded_run_records",
+      "actions_auditor_self_excluded_job_count",
+      "actions_auditor_self_excluded_job_set_sha256",
+      "actions_auditor_self_excluded_job_records",
+      "actions_auditee_run_count",
+      "actions_auditee_job_count",
+      "actions_auditee_run_set_sha256",
+      "actions_auditee_job_set_sha256",
+      "actions_auditee_run_stable_ids",
+      "actions_auditee_job_stable_ids",
+      "actions_auditee_run_records",
+      "actions_auditee_job_records",
+    ]);
+    const value = report({
+      provenance: Object.fromEntries(
+        Object.entries(provenance).filter(
+          ([field]) => !topologyFields.has(field),
+        ),
+      ),
+    });
+    expect(validateReport(value).ok).toBe(false);
+  });
+
+  it("revalidates authoritative workflow ID and exact target workflow blob instead of trusting a recomputed set hash", async () => {
+    const baseOptions = {
+      target: candidateSelfFixture.head,
+      phase: "candidate_ci",
+      workflowBlobSha: candidateSelfFixture.workflowBlobSha,
+    };
+    const valid = await readCandidateSelfProof(selfExcludedReport(baseOptions));
+    expect(valid.validation.errors).toEqual([]);
+
+    const workflowIdMutation = selfExcludedReport(baseOptions);
+    workflowIdMutation.provenance.actions_auditor_self_excluded_run_records[0].workflow_id =
+      "302";
+    rehashAuditorTopology(workflowIdMutation.provenance);
+    const workflowIdProof = await readCandidateSelfProof(workflowIdMutation);
+    expect(workflowIdProof.validation.errors).toContain(
+      "public audit authoritative workflow ID mismatch",
+    );
+
+    const blobMutation = selfExcludedReport(baseOptions);
+    blobMutation.provenance.actions_auditor_self_excluded_run_records[0].workflow_blob_sha =
+      "c".repeat(40);
+    rehashAuditorTopology(blobMutation.provenance);
+    const blobProof = await readCandidateSelfProof(blobMutation);
+    expect(blobProof.validation.errors).toContain(
+      "public audit authoritative workflow blob SHA mismatch",
+    );
+  });
+
+  it.each([
+    ["auditor run absent", "absent", /auditor run is absent/u],
+    [
+      "auditor run duplicate or conflict",
+      "duplicate_run",
+      /duplicate Actions run/u,
+    ],
+    [
+      "authoritative run attempt mismatch",
+      "authoritative_attempt",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    [
+      "authoritative target SHA mismatch",
+      "target_mismatch",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    [
+      "authoritative repository mismatch",
+      "repository_mismatch",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    [
+      "workflow path mismatch",
+      "path_mismatch",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    [
+      "event mismatch",
+      "event_mismatch",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    [
+      "authoritative workflow ID missing",
+      "workflow_id_missing",
+      /invalid authoritative auditor workflow/u,
+    ],
+    [
+      "authoritative workflow ID malformed",
+      "workflow_id_malformed",
+      /invalid authoritative auditor workflow/u,
+    ],
+    [
+      "auditor run status completed",
+      "completed_run",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    [
+      "auditor run conclusion non-null",
+      "conclusion",
+      /authoritative auditor run identity mismatch/u,
+    ],
+    ["auditor job set empty", "empty_jobs", /auditor job set is empty/u],
+    [
+      "auditor job duplicate or conflict",
+      "duplicate_job",
+      /duplicate Actions job/u,
+    ],
+    [
+      "auditor job run_attempt missing",
+      "missing_job_attempt",
+      /invalid Actions job run attempt/u,
+    ],
+    [
+      "auditor job run_attempt wrong",
+      "wrong_job_attempt",
+      /auditor job run attempt mismatch/u,
+    ],
+    [
+      "unrelated in-progress run or arbitrary job",
+      "unrelated_in_progress",
+      /auditee Actions job is not completed/u,
+    ],
+  ])(
+    "blocks invalid exact-current-run topology: %s",
+    async (_label, mode, pattern) => {
+      await expect(executeSelfAudit({ mode })).rejects.toThrow(pattern);
+    },
+  );
+
+  it.each([
+    [
+      "caller ID differs from GITHUB_RUN_ID",
+      { GITHUB_RUN_ID: "102" },
+      /GITHUB_RUN_ID/u,
+    ],
+    [
+      "caller attempt differs from GITHUB_RUN_ATTEMPT",
+      { GITHUB_RUN_ATTEMPT: "2" },
+      /GITHUB_RUN_ATTEMPT/u,
+    ],
+    [
+      "caller repository differs from GITHUB_REPOSITORY",
+      { GITHUB_REPOSITORY: "other/repo" },
+      /GITHUB_REPOSITORY/u,
+    ],
+    [
+      "caller event differs from GITHUB_EVENT_NAME",
+      { GITHUB_EVENT_NAME: "pull_request" },
+      /GITHUB_EVENT_NAME/u,
+    ],
+  ])(
+    "blocks an untrusted workflow environment: %s",
+    async (_label, environment, pattern) => {
+      await expect(executeSelfAudit({ environment })).rejects.toThrow(pattern);
+    },
+  );
+
+  it("blocks self-exclusion arguments in an unauthorized offline/local phase", async () => {
+    await expect(
+      executeSelfAudit({ phase: "offline", fixture: candidateSelfFixture }),
+    ).rejects.toThrow("phase does not allow auditor self-exclusion");
+  });
+
+  it("blocks authoritative workflow blob resolution failure from the exact target", async () => {
+    const selectiveSpawn = (command, args, options) => {
+      if (
+        command === "git" &&
+        args[0] === "rev-parse" &&
+        String(args.at(-1)).includes(":.github/workflows/ci.yml")
+      )
+        return {
+          status: 1,
+          stdout: Buffer.alloc(0),
+          stderr: Buffer.from("unavailable"),
+        };
+      return spawnSync(command, args, options);
+    };
+    await expect(
+      runPublicExposureAudit({
+        cwd: candidateSelfFixture.repo,
+        repository,
+        targetCommit: candidateSelfFixture.head,
+        phase: "candidate_ci",
+        output: resolve(
+          candidateSelfFixture.root,
+          "blob-resolution-failure.json",
+        ),
+        token: "test-token",
+        auditorRunId: "101",
+        auditorRunAttempt: "1",
+        githubEnvironment: {
+          GITHUB_ACTIONS: "true",
+          GITHUB_RUN_ID: "101",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_REPOSITORY: repository,
+          GITHUB_EVENT_NAME: "push",
+        },
+        fetchImpl: selfAuditFetch(candidateSelfFixture),
+        spawnImpl: selectiveSpawn,
+        scanArtifactImpl: () => [],
+      }),
+    ).rejects.toThrow();
+  });
+
+  it.each(["absent", "tree"])(
+    "blocks an exact workflow path whose target object is %s",
+    async (kind) => {
+      const fixture = await createAuditRepository(
+        `public-audit-workflow-${kind}-`,
+      );
+      try {
+        if (kind === "tree") {
+          await mkdir(resolve(fixture.repo, ".github", "workflows", "ci.yml"), {
+            recursive: true,
+          });
+          await writeFile(
+            resolve(
+              fixture.repo,
+              ".github",
+              "workflows",
+              "ci.yml",
+              "child.yml",
+            ),
+            "name: child\n",
+          );
+          execFileSync("git", ["add", ".github/workflows/ci.yml/child.yml"], {
+            cwd: fixture.repo,
+          });
+          execFileSync("git", ["commit", "-m", "tree at workflow path"], {
+            cwd: fixture.repo,
+          });
+          fixture.head = execFileSync("git", ["rev-parse", "HEAD"], {
+            cwd: fixture.repo,
+            encoding: "utf8",
+          }).trim();
+        }
+        await expect(
+          runPublicExposureAudit({
+            cwd: fixture.repo,
+            repository,
+            targetCommit: fixture.head,
+            phase: "candidate_ci",
+            output: fixture.output,
+            token: "test-token",
+            auditorRunId: "101",
+            auditorRunAttempt: "1",
+            githubEnvironment: {
+              GITHUB_ACTIONS: "true",
+              GITHUB_RUN_ID: "101",
+              GITHUB_RUN_ATTEMPT: "1",
+              GITHUB_REPOSITORY: repository,
+              GITHUB_EVENT_NAME: "push",
+            },
+            fetchImpl: selfAuditFetch(fixture),
+            scanArtifactImpl: () => [],
+          }),
+        ).rejects.toThrow();
+      } finally {
+        await rm(fixture.root, { recursive: true });
+      }
+    },
+  );
+
   it.each([
     [1, "1"],
     [Number.MAX_SAFE_INTEGER, String(Number.MAX_SAFE_INTEGER)],
@@ -1806,15 +2674,64 @@ describe("public exposure audit contract", () => {
   it("reads only an absolute regular non-link proof", async () => {
     const root = await mkdtemp(join(tmpdir(), "public-audit-proof-"));
     try {
+      const repo = resolve(root, "repo");
+      await mkdir(resolve(repo, ".github", "workflows"), { recursive: true });
+      execFileSync("git", ["init", "-b", "main"], { cwd: repo });
+      execFileSync("git", ["config", "user.name", "Audit Test"], {
+        cwd: repo,
+      });
+      execFileSync("git", ["config", "user.email", "audit@example.invalid"], {
+        cwd: repo,
+      });
+      await writeFile(
+        resolve(repo, ".github", "workflows", "distribution.yml"),
+        "name: Distribution\n",
+      );
+      execFileSync("git", ["add", ".github/workflows/distribution.yml"], {
+        cwd: repo,
+      });
+      execFileSync("git", ["commit", "-m", "workflow"], { cwd: repo });
+      const exactTarget = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: repo,
+        encoding: "utf8",
+      }).trim();
+      const workflowBlobSha = execFileSync(
+        "git",
+        ["rev-parse", `${exactTarget}:.github/workflows/distribution.yml`],
+        { cwd: repo, encoding: "utf8" },
+      ).trim();
       const path = resolve(root, "audit.json");
-      const bytes = serializePublicAuditReport(report());
+      const bytes = serializePublicAuditReport(
+        selfExcludedReport({ target: exactTarget, workflowBlobSha }),
+      );
       await writeFile(path, bytes);
       const proof = await readAuditProof({
         path,
         expectedSha256: sha256(bytes),
         repository,
-        targetCommit,
+        targetCommit: exactTarget,
         phase: "release_preflight",
+        cwd: repo,
+        token: "test-token",
+        githubEnvironment: {
+          GITHUB_RUN_ID: "101",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_REPOSITORY: repository,
+          GITHUB_EVENT_NAME: "workflow_dispatch",
+        },
+        fetchImpl: async () =>
+          jsonResponse({
+            id: 101,
+            run_attempt: 1,
+            workflow_id: 301,
+            repository: { full_name: repository },
+            head_sha: exactTarget,
+            path: ".github/workflows/distribution.yml",
+            event: "workflow_dispatch",
+            head_branch: "main",
+            status: "in_progress",
+            conclusion: null,
+          }),
       });
       expect(proof.validation.ok).toBe(true);
       const targetDirectory = resolve(root, "target");
@@ -1829,7 +2746,7 @@ describe("public exposure audit contract", () => {
           path: linked,
           expectedSha256: sha256(bytes),
           repository,
-          targetCommit,
+          targetCommit: exactTarget,
           phase: "release_preflight",
         }),
       ).rejects.toThrow("must not traverse a link");

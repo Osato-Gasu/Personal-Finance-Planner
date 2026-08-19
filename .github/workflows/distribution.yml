@@ -94,7 +94,14 @@ jobs:
         shell: pwsh
         run: |
           $path = Join-Path '${{ runner.temp }}' 'TASK-009-release-preflight-public-audit.json'
-          node tools/public-exposure-audit.mjs --repository '${{ github.repository }}' --target-sha '${{ inputs.target_sha }}' --phase release_preflight --staging _distribution --output $path
+          node tools/public-exposure-audit.mjs `
+            --repository '${{ github.repository }}' `
+            --target-sha '${{ inputs.target_sha }}' `
+            --phase release_preflight `
+            --auditor-run-id '${{ github.run_id }}' `
+            --auditor-run-attempt '${{ github.run_attempt }}' `
+            --staging _distribution `
+            --output $path
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $sha = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
           $bytes = (Get-Item -LiteralPath $path).Length

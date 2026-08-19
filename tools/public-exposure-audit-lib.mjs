@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { lstat, readFile } from "node:fs/promises";
 import { isAbsolute, parse, relative, resolve, sep } from "node:path";
 
-export const PUBLIC_AUDIT_SCHEMA_VERSION = 1;
+export const PUBLIC_AUDIT_SCHEMA_VERSION = 2;
+export const PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION =
+  "exact-auditor-self-exclusion-v1";
 export const PUBLIC_AUDIT_REQUIRED_SCANS = Object.freeze([
   "reachable_commits",
   "commit_objects",
@@ -36,6 +39,10 @@ export const PUBLIC_AUDIT_REQUIRED_PROVENANCE_HASHES = Object.freeze([
   "actions_artifact_record_set_sha256",
   "actions_historical_unavailable_set_sha256",
   "actions_historical_runtime_observation_set_sha256",
+  "actions_auditor_self_excluded_run_set_sha256",
+  "actions_auditor_self_excluded_job_set_sha256",
+  "actions_auditee_run_set_sha256",
+  "actions_auditee_job_set_sha256",
 ]);
 export const PUBLIC_AUDIT_ACTIONS_INVENTORY_IDENTITY_VERSION = "stable-id-v1";
 export const PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS = Object.freeze([
@@ -49,6 +56,10 @@ export const PUBLIC_AUDIT_REQUIRED_ACTION_COUNTS = Object.freeze([
   "actions_artifact_scan_count",
   "actions_historical_unavailable_count",
   "actions_historical_runtime_observation_count",
+  "actions_auditor_self_excluded_run_count",
+  "actions_auditor_self_excluded_job_count",
+  "actions_auditee_run_count",
+  "actions_auditee_job_count",
 ]);
 export const PUBLIC_AUDIT_CATEGORIES = Object.freeze([
   "high_confidence_credential",
@@ -383,7 +394,10 @@ export function validateActionsHistoricalEvidence(provenance) {
   if (staticCount === 0) {
     if (provenance.actions_historical_unavailable_policy !== "none")
       errors.push("public audit historical unavailable policy mismatch");
-    if (provenance.actions_scan_complete !== true)
+    if (
+      provenance.actions_scan_complete !==
+      (provenance.actions_auditor_self_excluded_run_count === 0)
+    )
       errors.push("public audit Actions scan completeness mismatch");
   } else if (staticCount === 1) {
     if (
@@ -479,7 +493,89 @@ export function canonicalMetadataRecord(fields, label) {
 }
 
 function hashCanonicalSet(values) {
-  return sha256(Buffer.from(`${[...values].sort().join("\n")}\n`, "utf8"));
+  const sorted = [...values].sort();
+  return sha256(
+    sorted.length === 0
+      ? Buffer.alloc(0)
+      : Buffer.from(`${sorted.join("\n")}\n`, "utf8"),
+  );
+}
+
+export function actionsAuditeeSetSha256(values) {
+  if (
+    !Array.isArray(values) ||
+    values.some(
+      (value) =>
+        typeof value !== "string" ||
+        value.length === 0 ||
+        /[\r\n]/u.test(value),
+    )
+  )
+    throw new Error("BLOCKED: invalid Actions auditee stable-ID set");
+  if (new Set(values).size !== values.length)
+    throw new Error("BLOCKED: duplicate Actions auditee stable ID");
+  return hashCanonicalSet(values);
+}
+
+function exactRecordKeys(record, fields, label) {
+  if (!record || typeof record !== "object" || Array.isArray(record))
+    throw new Error(`BLOCKED: invalid ${label}`);
+  const keys = Object.keys(record);
+  if (
+    keys.length !== fields.length ||
+    fields.some((field, index) => keys[index] !== field)
+  )
+    throw new Error(`BLOCKED: invalid ${label} schema`);
+}
+
+function auditeeRunInventoryEntry(record) {
+  const fields = ["id", "head_sha", "status", "conclusion", "run_attempt"];
+  exactRecordKeys(record, fields, "auditee Actions run record");
+  const id = canonicalPositiveIntegerId(record.id, "auditee Actions run");
+  const runAttempt = canonicalPositiveIntegerId(
+    record.run_attempt,
+    "auditee Actions run attempt",
+  );
+  return {
+    stableKey: id,
+    metadataRecord: canonicalMetadataRecord(
+      [
+        ["id", id],
+        ["head_sha", record.head_sha],
+        ["status", record.status],
+        ["conclusion", record.conclusion],
+        ["run_attempt", runAttempt],
+      ],
+      "auditee Actions run",
+    ),
+  };
+}
+
+function auditeeJobInventoryEntry(record) {
+  const fields = ["run_id", "id", "run_attempt", "status", "conclusion"];
+  exactRecordKeys(record, fields, "auditee Actions job record");
+  const runId = canonicalPositiveIntegerId(
+    record.run_id,
+    "auditee Actions job run",
+  );
+  const id = canonicalPositiveIntegerId(record.id, "auditee Actions job");
+  const runAttempt = canonicalPositiveIntegerId(
+    record.run_attempt,
+    "auditee Actions job run attempt",
+  );
+  return {
+    stableKey: `${runId}\t${id}`,
+    metadataRecord: canonicalMetadataRecord(
+      [
+        ["run_id", runId],
+        ["id", id],
+        ["run_attempt", runAttempt],
+        ["status", record.status],
+        ["conclusion", record.conclusion],
+      ],
+      "auditee Actions job",
+    ),
+  };
 }
 
 export function buildStableInventory(entries, label) {
@@ -507,6 +603,476 @@ export function buildStableInventory(entries, label) {
     stableKeySetSha256: hashCanonicalSet(seen.keys()),
     recordSetSha256: hashCanonicalSet(seen.values()),
   };
+}
+
+const ACTIONS_AUDITOR_RUN_FIELDS = Object.freeze([
+  "topology_version",
+  "repository",
+  "phase",
+  "auditor_run_id",
+  "auditor_run_attempt",
+  "workflow_id",
+  "workflow_path",
+  "workflow_blob_sha",
+  "event",
+  "head_branch",
+  "head_sha",
+  "run_status",
+  "run_conclusion",
+  "auditor_job_count",
+  "auditor_job_set_sha256",
+]);
+const ACTIONS_AUDITOR_JOB_FIELDS = Object.freeze([
+  "run_id",
+  "run_attempt",
+  "job_id",
+  "status",
+  "conclusion",
+]);
+
+function canonicalTopologyString(value, label) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.trim() !== value ||
+    /[^\x20-\x7E]/u.test(value) ||
+    /[\r\n=]/u.test(value)
+  )
+    throw new Error(`BLOCKED: invalid ${label}`);
+  return value;
+}
+
+function serializeTopologyRecord(record, fields, label) {
+  if (!record || typeof record !== "object" || Array.isArray(record))
+    throw new Error(`BLOCKED: invalid ${label}`);
+  const keys = Object.keys(record);
+  if (
+    keys.length !== fields.length ||
+    fields.some((field, index) => keys[index] !== field)
+  )
+    throw new Error(`BLOCKED: invalid ${label} schema`);
+  return Buffer.from(
+    `${fields
+      .map(
+        (field) =>
+          `${field}=${canonicalTopologyString(record[field], `${label} ${field}`)}`,
+      )
+      .join("\n")}\n`,
+    "utf8",
+  );
+}
+
+export function serializeActionsAuditorRunRecord(record) {
+  return serializeTopologyRecord(
+    record,
+    ACTIONS_AUDITOR_RUN_FIELDS,
+    "Actions auditor run record",
+  );
+}
+
+export function serializeActionsAuditorJobRecord(record) {
+  return serializeTopologyRecord(
+    record,
+    ACTIONS_AUDITOR_JOB_FIELDS,
+    "Actions auditor job record",
+  );
+}
+
+function numericAuditorJobSort(left, right) {
+  for (const field of ["run_id", "run_attempt", "job_id"]) {
+    const difference = BigInt(left[field]) - BigInt(right[field]);
+    if (difference < 0n) return -1;
+    if (difference > 0n) return 1;
+  }
+  return 0;
+}
+
+export function actionsAuditorRunSetSha256(records) {
+  if (!Array.isArray(records))
+    throw new Error("BLOCKED: invalid Actions auditor run set");
+  return sha256(
+    Buffer.concat(
+      records.map((record) => serializeActionsAuditorRunRecord(record)),
+    ),
+  );
+}
+
+export function actionsAuditorJobSetSha256(records) {
+  if (!Array.isArray(records))
+    throw new Error("BLOCKED: invalid Actions auditor job set");
+  return sha256(
+    Buffer.concat(
+      [...records]
+        .sort(numericAuditorJobSort)
+        .map((record) => serializeActionsAuditorJobRecord(record)),
+    ),
+  );
+}
+
+export function buildOfflineActionsAuditTopology() {
+  return {
+    actions_audit_topology_version: PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION,
+    actions_auditor_self_excluded_run_count: 0,
+    actions_auditor_self_excluded_run_set_sha256: PUBLIC_AUDIT_EMPTY_SET_SHA256,
+    actions_auditor_self_excluded_run_records: [],
+    actions_auditor_self_excluded_job_count: 0,
+    actions_auditor_self_excluded_job_set_sha256: PUBLIC_AUDIT_EMPTY_SET_SHA256,
+    actions_auditor_self_excluded_job_records: [],
+  };
+}
+
+function expectedAuditorWorkflow(phase) {
+  if (phase === "candidate_ci")
+    return { path: ".github/workflows/ci.yml", event: "push" };
+  if (phase === "release_preflight")
+    return {
+      path: ".github/workflows/distribution.yml",
+      event: "workflow_dispatch",
+    };
+  return null;
+}
+
+export function validateActionsAuditTopology(
+  provenance,
+  { repository, targetCommit, phase, requireGithubSelfExclusion = false },
+) {
+  const errors = [];
+  if (
+    provenance?.actions_audit_topology_version !==
+    PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION
+  )
+    errors.push("public audit Actions topology version mismatch");
+  const runCount = provenance?.actions_auditor_self_excluded_run_count;
+  const jobCount = provenance?.actions_auditor_self_excluded_job_count;
+  const auditeeRunCount = provenance?.actions_auditee_run_count;
+  const auditeeJobCount = provenance?.actions_auditee_job_count;
+  const runRecords = provenance?.actions_auditor_self_excluded_run_records;
+  const jobRecords = provenance?.actions_auditor_self_excluded_job_records;
+  const auditeeRunIds = provenance?.actions_auditee_run_stable_ids;
+  const auditeeJobIds = provenance?.actions_auditee_job_stable_ids;
+  const auditeeRunRecords = provenance?.actions_auditee_run_records;
+  const auditeeJobRecords = provenance?.actions_auditee_job_records;
+  if (!Array.isArray(runRecords))
+    errors.push("public audit auditor run records are missing");
+  if (!Array.isArray(jobRecords))
+    errors.push("public audit auditor job records are missing");
+  if (!Array.isArray(auditeeRunIds))
+    errors.push("public audit auditee run stable IDs are missing");
+  if (!Array.isArray(auditeeJobIds))
+    errors.push("public audit auditee job stable IDs are missing");
+  if (!Array.isArray(auditeeRunRecords))
+    errors.push("public audit auditee run records are missing");
+  if (!Array.isArray(auditeeJobRecords))
+    errors.push("public audit auditee job records are missing");
+  if (Array.isArray(runRecords) && runRecords.length !== runCount)
+    errors.push("public audit auditor run record count mismatch");
+  if (Array.isArray(jobRecords) && jobRecords.length !== jobCount)
+    errors.push("public audit auditor job record count mismatch");
+  if (Array.isArray(auditeeRunIds) && auditeeRunIds.length !== auditeeRunCount)
+    errors.push("public audit auditee run stable-ID count mismatch");
+  if (Array.isArray(auditeeJobIds) && auditeeJobIds.length !== auditeeJobCount)
+    errors.push("public audit auditee job stable-ID count mismatch");
+  if (
+    Array.isArray(auditeeRunRecords) &&
+    auditeeRunRecords.length !== auditeeRunCount
+  )
+    errors.push("public audit auditee run record count mismatch");
+  if (
+    Array.isArray(auditeeJobRecords) &&
+    auditeeJobRecords.length !== auditeeJobCount
+  )
+    errors.push("public audit auditee job record count mismatch");
+  try {
+    if (
+      Array.isArray(runRecords) &&
+      provenance.actions_auditor_self_excluded_run_set_sha256 !==
+        actionsAuditorRunSetSha256(runRecords)
+    )
+      errors.push("public audit auditor run set hash mismatch");
+  } catch {
+    errors.push("public audit auditor run canonical record invalid");
+  }
+  try {
+    if (
+      Array.isArray(jobRecords) &&
+      provenance.actions_auditor_self_excluded_job_set_sha256 !==
+        actionsAuditorJobSetSha256(jobRecords)
+    )
+      errors.push("public audit auditor job set hash mismatch");
+  } catch {
+    errors.push("public audit auditor job canonical record invalid");
+  }
+  try {
+    if (
+      Array.isArray(auditeeRunIds) &&
+      provenance.actions_auditee_run_set_sha256 !==
+        actionsAuditeeSetSha256(auditeeRunIds)
+    )
+      errors.push("public audit auditee run set hash mismatch");
+  } catch {
+    errors.push("public audit auditee run stable-ID set invalid");
+  }
+  try {
+    if (
+      Array.isArray(auditeeJobIds) &&
+      provenance.actions_auditee_job_set_sha256 !==
+        actionsAuditeeSetSha256(auditeeJobIds)
+    )
+      errors.push("public audit auditee job set hash mismatch");
+  } catch {
+    errors.push("public audit auditee job stable-ID set invalid");
+  }
+  if (Array.isArray(auditeeRunIds)) {
+    for (const runId of auditeeRunIds) {
+      try {
+        canonicalPositiveIntegerId(runId, "auditee run");
+      } catch {
+        errors.push("public audit auditee run stable ID is non-canonical");
+      }
+    }
+  }
+  if (Array.isArray(auditeeJobIds)) {
+    for (const stableId of auditeeJobIds) {
+      const [runId, jobId, extra] = stableId.split("\t");
+      try {
+        canonicalPositiveIntegerId(runId, "auditee job run");
+        canonicalPositiveIntegerId(jobId, "auditee job");
+      } catch {
+        errors.push("public audit auditee job stable ID is non-canonical");
+      }
+      if (extra !== undefined || !auditeeRunIds?.includes(runId))
+        errors.push("public audit auditee job membership mismatch");
+    }
+  }
+  let canonicalAuditeeRunEntries = null;
+  let canonicalAuditeeJobEntries = null;
+  try {
+    if (Array.isArray(auditeeRunRecords)) {
+      canonicalAuditeeRunEntries = auditeeRunRecords.map(
+        auditeeRunInventoryEntry,
+      );
+      const inventory = buildStableInventory(
+        canonicalAuditeeRunEntries,
+        "proof auditee Actions run",
+      );
+      if (
+        inventory.stableKeySetSha256 !==
+        provenance.actions_auditee_run_set_sha256
+      )
+        errors.push("public audit auditee run record membership mismatch");
+    }
+  } catch {
+    errors.push("public audit auditee run canonical records are invalid");
+  }
+  try {
+    if (Array.isArray(auditeeJobRecords)) {
+      canonicalAuditeeJobEntries = auditeeJobRecords.map(
+        auditeeJobInventoryEntry,
+      );
+      if (auditeeJobRecords.some((record) => record.status !== "completed"))
+        errors.push("public audit auditee job is not completed");
+      const inventory = buildStableInventory(
+        canonicalAuditeeJobEntries,
+        "proof auditee Actions job",
+      );
+      if (
+        inventory.stableKeySetSha256 !==
+        provenance.actions_auditee_job_set_sha256
+      )
+        errors.push("public audit auditee job record membership mismatch");
+    }
+  } catch {
+    errors.push("public audit auditee job canonical records are invalid");
+  }
+  try {
+    if (
+      Array.isArray(auditeeRunIds) &&
+      Array.isArray(runRecords) &&
+      provenance.actions_run_set_sha256 !==
+        actionsAuditeeSetSha256([
+          ...auditeeRunIds,
+          ...runRecords.map((record) => record.auditor_run_id),
+        ])
+    )
+      errors.push("public audit complete Actions run membership hash mismatch");
+  } catch {
+    errors.push("public audit complete Actions run membership is invalid");
+  }
+  try {
+    if (
+      Array.isArray(auditeeJobIds) &&
+      Array.isArray(jobRecords) &&
+      provenance.actions_job_set_sha256 !==
+        actionsAuditeeSetSha256([
+          ...auditeeJobIds,
+          ...jobRecords.map((record) => `${record.run_id}\t${record.job_id}`),
+        ])
+    )
+      errors.push("public audit complete Actions job membership hash mismatch");
+  } catch {
+    errors.push("public audit complete Actions job membership is invalid");
+  }
+  try {
+    if (
+      canonicalAuditeeRunEntries &&
+      Array.isArray(runRecords) &&
+      provenance.actions_run_record_set_sha256 !==
+        buildStableInventory(
+          [
+            ...canonicalAuditeeRunEntries,
+            ...runRecords.map((record) => ({
+              stableKey: record.auditor_run_id,
+              metadataRecord: canonicalMetadataRecord(
+                [
+                  ["id", record.auditor_run_id],
+                  ["head_sha", record.head_sha],
+                  ["status", record.run_status],
+                  [
+                    "conclusion",
+                    record.run_conclusion === "none"
+                      ? null
+                      : record.run_conclusion,
+                  ],
+                  ["run_attempt", record.auditor_run_attempt],
+                ],
+                "proof auditor Actions run",
+              ),
+            })),
+          ],
+          "proof complete Actions run",
+        ).recordSetSha256
+    )
+      errors.push("public audit complete Actions run record hash mismatch");
+  } catch {
+    errors.push("public audit complete Actions run records are invalid");
+  }
+  try {
+    if (
+      canonicalAuditeeJobEntries &&
+      Array.isArray(jobRecords) &&
+      provenance.actions_job_record_set_sha256 !==
+        buildStableInventory(
+          [
+            ...canonicalAuditeeJobEntries,
+            ...jobRecords.map((record) => ({
+              stableKey: `${record.run_id}\t${record.job_id}`,
+              metadataRecord: canonicalMetadataRecord(
+                [
+                  ["run_id", record.run_id],
+                  ["id", record.job_id],
+                  ["run_attempt", record.run_attempt],
+                  ["status", record.status],
+                  [
+                    "conclusion",
+                    record.conclusion === "none" ? null : record.conclusion,
+                  ],
+                ],
+                "proof auditor Actions job",
+              ),
+            })),
+          ],
+          "proof complete Actions job",
+        ).recordSetSha256
+    )
+      errors.push("public audit complete Actions job record hash mismatch");
+  } catch {
+    errors.push("public audit complete Actions job records are invalid");
+  }
+  if (provenance?.actions_run_inventory_count !== auditeeRunCount + runCount)
+    errors.push("public audit Actions run partition count mismatch");
+  if (provenance?.actions_job_inventory_count !== auditeeJobCount + jobCount)
+    errors.push("public audit Actions job partition count mismatch");
+  if (provenance?.actions_required_job_log_count !== auditeeJobCount)
+    errors.push("public audit Actions auditee job log count mismatch");
+  if (requireGithubSelfExclusion && runCount !== 1)
+    errors.push("public audit GitHub proof lacks exact auditor self-exclusion");
+  if (runCount === 0) {
+    if (jobCount !== 0)
+      errors.push("public audit offline auditor job exclusion is forbidden");
+  } else if (runCount === 1) {
+    const expected = expectedAuditorWorkflow(phase);
+    if (!expected)
+      errors.push("public audit phase does not allow auditor self-exclusion");
+    if (!Number.isSafeInteger(jobCount) || jobCount < 1)
+      errors.push("public audit auditor job set is empty");
+    const record = Array.isArray(runRecords) ? runRecords[0] : null;
+    if (record) {
+      try {
+        canonicalPositiveIntegerId(record.auditor_run_id, "auditor run");
+        canonicalPositiveIntegerId(
+          record.auditor_run_attempt,
+          "auditor run attempt",
+        );
+        canonicalPositiveIntegerId(record.workflow_id, "auditor workflow");
+      } catch {
+        errors.push("public audit auditor identity is non-canonical");
+      }
+      if (record.topology_version !== PUBLIC_AUDIT_ACTIONS_TOPOLOGY_VERSION)
+        errors.push("public audit auditor record topology mismatch");
+      if (record.repository !== repository)
+        errors.push("public audit auditor repository mismatch");
+      if (record.phase !== phase)
+        errors.push("public audit auditor phase mismatch");
+      if (expected && record.workflow_path !== expected.path)
+        errors.push("public audit auditor workflow path mismatch");
+      if (expected && record.event !== expected.event)
+        errors.push("public audit auditor event mismatch");
+      if (!/^[0-9a-f]{40}$/u.test(record.workflow_blob_sha ?? ""))
+        errors.push("public audit auditor workflow blob SHA is invalid");
+      if (record.head_sha !== targetCommit)
+        errors.push("public audit auditor target SHA mismatch");
+      if (record.run_status !== "in_progress")
+        errors.push("public audit auditor run status mismatch");
+      if (record.run_conclusion !== "none")
+        errors.push("public audit auditor run conclusion mismatch");
+      if (record.auditor_job_count !== String(jobCount))
+        errors.push("public audit auditor record job count mismatch");
+      if (
+        record.auditor_job_set_sha256 !==
+        provenance.actions_auditor_self_excluded_job_set_sha256
+      )
+        errors.push("public audit auditor record job hash mismatch");
+      if (
+        typeof record.head_branch !== "string" ||
+        record.head_branch.length === 0
+      )
+        errors.push("public audit auditor head branch is missing");
+      if (Array.isArray(jobRecords)) {
+        const seen = new Set();
+        let nonCompleted = false;
+        for (const job of jobRecords) {
+          try {
+            canonicalPositiveIntegerId(job.run_id, "auditor job run");
+            canonicalPositiveIntegerId(
+              job.run_attempt,
+              "auditor job run attempt",
+            );
+            canonicalPositiveIntegerId(job.job_id, "auditor job");
+          } catch {
+            errors.push("public audit auditor job identity is non-canonical");
+          }
+          if (
+            job.run_id !== record.auditor_run_id ||
+            job.run_attempt !== record.auditor_run_attempt
+          )
+            errors.push("public audit auditor job membership mismatch");
+          if (seen.has(job.job_id))
+            errors.push("public audit auditor job duplicate stable ID");
+          seen.add(job.job_id);
+          if (job.status !== "completed") nonCompleted = true;
+        }
+        if (!nonCompleted)
+          errors.push("public audit auditor job set has no executing job");
+      }
+    }
+    if (provenance?.actions_scan_complete !== false)
+      errors.push(
+        "public audit self-excluded Actions scan completeness mismatch",
+      );
+  } else {
+    errors.push("public audit auditor self-excluded run count is not exact");
+  }
+  return errors;
 }
 
 function isFixturePath(path) {
@@ -659,7 +1225,14 @@ export function serializePublicAuditReport(report) {
 
 export function validatePublicExposureAudit(
   report,
-  { repository, targetCommit, phase, reportBytes, expectedSha256 },
+  {
+    repository,
+    targetCommit,
+    phase,
+    reportBytes,
+    expectedSha256,
+    requireGithubSelfExclusion = false,
+  },
 ) {
   const errors = [];
   if (report?.schema_version !== PUBLIC_AUDIT_SCHEMA_VERSION)
@@ -742,11 +1315,14 @@ export function validatePublicExposureAudit(
     if (!Number.isSafeInteger(count) || count < 0)
       errors.push(`public audit Actions provenance count is missing: ${name}`);
   }
-  if (
-    report?.provenance?.actions_job_inventory_count !==
-    report?.provenance?.actions_required_job_log_count
-  )
-    errors.push("public audit Actions job inventory count mismatch");
+  errors.push(
+    ...validateActionsAuditTopology(report?.provenance, {
+      repository,
+      targetCommit,
+      phase,
+      requireGithubSelfExclusion,
+    }),
+  );
   if (
     report?.provenance?.actions_job_log_retrieval_count +
       report?.provenance?.actions_historical_unavailable_count !==
@@ -788,7 +1364,122 @@ export function validatePublicExposureAudit(
   return { ok: errors.length === 0, errors, side_effects: 0 };
 }
 
-export async function readAuditProof({ path, expectedSha256, ...identity }) {
+function exactWorkflowBlobSha(cwd, targetCommit, workflowPath) {
+  const object = `${targetCommit}:${workflowPath}`;
+  const typeResult = spawnSync("git", ["cat-file", "-t", object], {
+    cwd,
+    encoding: "utf8",
+  });
+  if (typeResult.status !== 0 || typeResult.stdout.trim() !== "blob")
+    throw new Error("authoritative workflow object is not an exact Git blob");
+  const shaResult = spawnSync("git", ["rev-parse", "--verify", object], {
+    cwd,
+    encoding: "utf8",
+  });
+  const value = shaResult.status === 0 ? shaResult.stdout.trim() : "";
+  if (!/^[0-9a-f]{40}$/u.test(value))
+    throw new Error("authoritative workflow blob SHA is unavailable");
+  return value;
+}
+
+async function validateAuthoritativeAuditorIdentity(
+  report,
+  { cwd, token, fetchImpl, githubEnvironment },
+) {
+  const errors = [];
+  const record =
+    report?.provenance?.actions_auditor_self_excluded_run_records?.[0];
+  if (!record) return ["public audit authoritative auditor record is missing"];
+  if (!token) return ["public audit authoritative GitHub token is missing"];
+  const envChecks = [
+    ["GITHUB_RUN_ID", record.auditor_run_id],
+    ["GITHUB_RUN_ATTEMPT", record.auditor_run_attempt],
+    ["GITHUB_REPOSITORY", record.repository],
+    ["GITHUB_EVENT_NAME", record.event],
+  ];
+  for (const [name, expected] of envChecks) {
+    if (githubEnvironment?.[name] !== expected)
+      errors.push(`public audit authoritative ${name} mismatch`);
+  }
+  let authoritative = null;
+  try {
+    const response = await fetchImpl(
+      `https://api.github.com/repos/${record.repository}/actions/runs/${record.auditor_run_id}`,
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${token}`,
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      },
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    authoritative = await response.json();
+  } catch {
+    errors.push("public audit authoritative auditor run fetch failed");
+  }
+  if (authoritative) {
+    let runId = null;
+    let attempt = null;
+    let workflowId = null;
+    try {
+      runId = canonicalPositiveIntegerId(
+        authoritative.id,
+        "authoritative auditor run",
+      );
+      attempt = canonicalPositiveIntegerId(
+        authoritative.run_attempt,
+        "authoritative auditor run attempt",
+      );
+      workflowId = canonicalPositiveIntegerId(
+        authoritative.workflow_id,
+        "authoritative auditor workflow",
+      );
+    } catch {
+      errors.push("public audit authoritative auditor identity is malformed");
+    }
+    if (runId !== record.auditor_run_id)
+      errors.push("public audit authoritative auditor run ID mismatch");
+    if (attempt !== record.auditor_run_attempt)
+      errors.push("public audit authoritative auditor attempt mismatch");
+    if (workflowId !== record.workflow_id)
+      errors.push("public audit authoritative workflow ID mismatch");
+    if (authoritative.repository?.full_name !== record.repository)
+      errors.push("public audit authoritative repository mismatch");
+    if (authoritative.head_sha !== record.head_sha)
+      errors.push("public audit authoritative target SHA mismatch");
+    if (authoritative.path !== record.workflow_path)
+      errors.push("public audit authoritative workflow path mismatch");
+    if (authoritative.event !== record.event)
+      errors.push("public audit authoritative event mismatch");
+    if (authoritative.head_branch !== record.head_branch)
+      errors.push("public audit authoritative head branch mismatch");
+    if (authoritative.status !== record.run_status)
+      errors.push("public audit authoritative run status mismatch");
+    if ((authoritative.conclusion ?? "none") !== record.run_conclusion)
+      errors.push("public audit authoritative run conclusion mismatch");
+  }
+  try {
+    if (
+      exactWorkflowBlobSha(cwd, report.target_commit, record.workflow_path) !==
+      record.workflow_blob_sha
+    )
+      errors.push("public audit authoritative workflow blob SHA mismatch");
+  } catch {
+    errors.push("public audit authoritative workflow blob resolution failed");
+  }
+  return errors;
+}
+
+export async function readAuditProof({
+  path,
+  expectedSha256,
+  cwd = process.cwd(),
+  token = process.env.GITHUB_TOKEN,
+  fetchImpl = fetch,
+  githubEnvironment = process.env,
+  ...identity
+}) {
   if (!isAbsolute(path)) throw new Error("public audit path must be absolute");
   const resolved = resolve(path);
   await assertNoLinkedPath(resolved);
@@ -797,14 +1488,27 @@ export async function readAuditProof({ path, expectedSha256, ...identity }) {
     throw new Error("public audit path must be a regular non-link file");
   const bytes = await readFile(resolved);
   const report = JSON.parse(bytes.toString("utf8"));
+  const validation = validatePublicExposureAudit(report, {
+    ...identity,
+    reportBytes: bytes,
+    expectedSha256,
+    requireGithubSelfExclusion: true,
+  });
+  const authoritativeErrors = validation.errors.includes(
+    "public audit GitHub proof lacks exact auditor self-exclusion",
+  )
+    ? []
+    : await validateAuthoritativeAuditorIdentity(report, {
+        cwd,
+        token,
+        fetchImpl,
+        githubEnvironment,
+      });
+  const errors = [...validation.errors, ...authoritativeErrors];
   return {
     report,
     bytes,
-    validation: validatePublicExposureAudit(report, {
-      ...identity,
-      reportBytes: bytes,
-      expectedSha256,
-    }),
+    validation: { ok: errors.length === 0, errors, side_effects: 0 },
   };
 }
 

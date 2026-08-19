@@ -58,6 +58,7 @@ jobs:
       - name: Test public exposure audit contracts
         run: npm run test:public-exposure-audit
       - name: Audit public repository history and candidate bytes
+        if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
@@ -65,6 +66,8 @@ jobs:
           --repository '${{ github.repository }}'
           --target-sha '${{ github.sha }}'
           --phase candidate_ci
+          --auditor-run-id '${{ github.run_id }}'
+          --auditor-run-attempt '${{ github.run_attempt }}'
           --output '${{ runner.temp }}/TASK-009-public-audit-${{ github.run_id }}.json'
       - name: Build
         run: npm run build:app

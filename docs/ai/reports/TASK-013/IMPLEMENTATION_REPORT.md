@@ -1,5 +1,50 @@
 # TASK-013 Implementation report
 
+## Spec Revision 3 implementation
+
+### Authority and topology
+
+- specification／design: `Spec Revision 3／Auditor Self-Exclusion Design Revision 2`
+- user approval: `USER-APPROVAL-TASK-013-SPEC-REV3-20260819-094900`
+- independent design re-review: `PASS`／findings `0`
+- adoption commit／tree: `55ca1d89d74e63d45baa06ee8f9da67a53c389f5`／`5e4c20a971bd5bfde21ebf9b222860f6d32683f8`
+- adoption parent: `ffee8284704bd2d8e19b7a5ae85d5e772a39977c`
+- adoption push: intentionally deferred; the adoption and implementation candidate form the approved two-commit bootstrap push chain
+- failed Governance CI run `32119217442`／attempt `1`／job `95655572235`: permanent `FAILURE`; not rerun, relabeled, or treated as success
+- implementation authority／release authority: `true／false`
+- allowed implementation paths: audit CLI／library／tests, Governance CI workflow, Distribution workflow, and this report only
+
+### Implemented exact-current-run self-exclusion
+
+- audit proof schema is atomically advanced to `2`; new candidate／handoff／main／release proofs require `exact-auditor-self-exclusion-v1` topology fields and legacy topology-free proofs cannot authorize them
+- only `candidate_ci` at `.github/workflows/ci.yml`／`push` and `release_preflight` at `.github/workflows/distribution.yml`／`workflow_dispatch` may self-exclude
+- workflows pass exact `${{ github.run_id }}` and `${{ github.run_attempt }}`; the producer requires exact equality with `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, `GITHUB_REPOSITORY`, and `GITHUB_EVENT_NAME`
+- the producer fetches the exact run endpoint and binds canonical run ID／attempt, repository, target SHA, `in_progress`／null status, workflow ID, path, event, and head branch
+- workflow identity is bound to the exact regular Git blob resolved from `target_sha:<workflow_path>`; missing, non-blob, malformed, or mismatched identities fail closed
+- the complete paginated `filter=all` inventory is partitioned into exactly one auditor run and every other auditee run; all jobs of the auditor run are the atomic exclusion set and at least one must be non-completed
+- every auditee job remains subject to the prior strict completed/log/artifact/historical-exception rules; an unrelated non-completed run or job remains BLOCKED
+- proof includes canonical auditor run/job records, auditee stable IDs and canonical records, partition counts, set hashes, complete inventory stable-ID hashes, and complete inventory record hashes
+- proof validation reconstructs auditor／auditee／complete run and job memberships, hashes, counts, job evidence equations, and the prior Spec Revision 2 historical static/runtime contract
+- consumer validation independently refetches the exact auditor run and re-resolves the exact target workflow blob; a recomputed proof set hash cannot substitute for authoritative workflow ID or blob equality
+- self-audited proof truth is fixed at `actions_scan_complete=false`; `actions_evidence_gate_pass=true` is accepted only after topology, authoritative identity, auditee evidence, historical exception, count, and hash validation all pass
+- prior completed auditor runs and permanent failed run `32119217442` are ordinary auditees in the next audit, closing the temporary phase-local exclusion chain
+- Governance CI performs the candidate public audit only for `push`; pull-request CI continues all non-self-audited checks without inventing an unauthorized runtime identity
+
+### Test and build evidence before candidate commit
+
+- public exposure audit contract: `198` PASS, increased from `160` while retaining every Spec Revision 2／Design Revision 3 regression
+- Spec Revision 3 Design Revision 2 section 14: all `38` categories covered, including both eligible phases, caller／authoritative identity mismatches, missing／malformed workflow ID, exact blob resolution and non-blob failures, proof mutation with recomputed set hash, duplicate／second／unrelated exclusions, partition/hash/truth contradictions, legacy rejection, and closure-chain scans
+- full Vitest: `737` tests／`21` files PASS
+- distribution contract: `77` PASS
+- npm ci／typecheck／lint／format: PASS／vulnerabilities `0`
+- launcher freshness: PASS／`216828` bytes
+- portable browser: `284` checks／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
+- staged HTTP distribution: `5` files／`5` routes／360px／runtime requests `0`／console errors `0`／page errors `0`
+- PowerShell 7 shared sync and AI governance: PASS; startup context `61400` bytes (`<=65536`, target `<=61440`)
+- clean-worktree-only governance simulations: pending exact candidate commit
+- candidate commit／tree, repository-external exact candidate audit, independent high-risk VERIFY, candidate exact CI, handoff-only commit, and handoff exact CI: pending
+- release／tag／Pages／deployment／workflow-dispatch side effects: `0`
+
 ## Spec Revision 2 implementation
 
 ### Authority and identity
