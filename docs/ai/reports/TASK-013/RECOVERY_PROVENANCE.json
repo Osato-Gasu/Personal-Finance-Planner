@@ -3,7 +3,7 @@
   "artifact_role": "report_evidence",
   "task_id": "TASK-013",
   "spec_revision": 3,
-  "recovery_design_revision": 4,
+  "recovery_design_revision": 5,
   "phase_state": "PHASE_A_PRE_SYNC",
   "phase_a_baseline": {
     "commit": "d96ebe1bcfe258185956fd0db3acf1ca15050af6",

@@ -1,10 +1,11 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('RepositoryState','ExternalRelayPreflight','CanonicalRelay','StateContractFixture')]
+    [ValidateSet('RepositoryState','ExternalRelayPreflight','CanonicalRelay','StateContractFixture','RelayContractFixture')]
     [string]$Mode = 'RepositoryState',
     [string]$ProjectRoot,
     [string]$RelayPath,
     [string]$FixturePath,
+    [string]$RelayFixturePath,
     [string]$ProvenanceOverridePath
 )
 
@@ -16,7 +17,7 @@ $utf8Strict = [Text.UTF8Encoding]::new($false, $true)
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "TASK-013 recovery provenance BLOCKED: $Message" }
 }
-Assert-True ([string]::IsNullOrWhiteSpace($ProvenanceOverridePath) -or $Mode -ceq 'StateContractFixture') 'provenance override is fixture-only'
+Assert-True ([string]::IsNullOrWhiteSpace($ProvenanceOverridePath) -or $Mode -in @('StateContractFixture','RelayContractFixture')) 'provenance override is fixture-only'
 function Resolve-ProjectPath([string]$Relative) {
     Assert-True ($Relative -match '^[A-Za-z0-9._/-]+$' -and $Relative -notmatch '(^|/)\.\.(/|$)') "invalid project path: $Relative"
     $full = [IO.Path]::GetFullPath((Join-Path $root $Relative))
@@ -222,21 +223,131 @@ function Test-AllowedRecoveryPath([string]$Path,$Provenance) {
     foreach ($prefix in @($Provenance.allowed_recovery_path_prefixes)) { if ($Path.StartsWith([string]$prefix,[StringComparison]::Ordinal)) { return $true } }
     $false
 }
-function Assert-Relay($Relay,$Provenance,[string]$RawText) {
+function Get-ReviewRequestId($Review) {
+    $repositoryAccess = ([string][bool]$Review.repository_access).ToLowerInvariant()
+    $canonical = "review_kind=$($Review.kind)`nreviewed_candidate=$($Review.reviewed_candidate)`nreviewed_spec_revision=$($Review.reviewed_spec_revision)`npreferred_executor=$($Review.preferred_executor)`nactual_executor=$($Review.actual_executor)`nprovider_substitution=$($Review.provider_substitution)`nexecutor_policy=$($Review.executor_policy)`nreview_role=$($Review.review_role)`nexecution_mode=$($Review.execution_mode)`nrepository_access=$repositoryAccess`nreview_status=$($Review.review_status)`nmodel=$($Review.model)`neffort=$($Review.effort)`nstarted_at=$($Review.started_at)`n"
+    Get-Sha256 ([Text.Encoding]::UTF8.GetBytes($canonical))
+}
+function Convert-ReviewResultToRequest($Result) {
+    [pscustomobject][ordered]@{
+        kind=[string]$Result.review_kind
+        reviewed_candidate=[string]$Result.reviewed_candidate
+        reviewed_spec_revision=[int]$Result.spec_revision
+        request_id=[string]$Result.request_id
+        preferred_executor=[string]$Result.preferred_executor
+        actual_executor=[string]$Result.actual_executor
+        provider_substitution=[string]$Result.provider_substitution
+        executor_policy=[string]$Result.executor_policy
+        review_role=[string]$Result.review_role
+        execution_mode=[string]$Result.execution_mode
+        repository_access=[bool]$Result.repository_access
+        review_status=[string]$Result.request_review_status
+        model=[string]$Result.model
+        effort=[string]$Result.effort
+        started_at=[string]$Result.started_at
+    }
+}
+function Assert-ReviewRequestIdentity($Request,[string]$RecoveryCommit) {
+    Assert-True ($null -ne $Request) 'independent review request is missing'
+    Assert-True ([string]$Request.kind -ceq 'implementation' -and [string]$Request.reviewed_candidate -ceq $RecoveryCommit -and [int]$Request.reviewed_spec_revision -eq 3) 'independent review request candidate/spec identity is invalid'
+    Assert-True ([string]$Request.review_role -ceq 'INDEPENDENT_REVIEWER' -and [string]$Request.execution_mode -ceq 'separate_session' -and [bool]$Request.repository_access -and [string]$Request.review_status -ceq 'requested') 'independent review request execution identity is invalid'
+    Assert-True ([string]$Request.request_id -cmatch '^[A-F0-9]{64}$' -and [string]$Request.request_id -ceq (Get-ReviewRequestId $Request)) 'independent review request_id is not canonical'
+}
+function Assert-ReviewResultIdentity($Result,[string]$RecoveryCommit) {
+    Assert-True ($null -ne $Result) 'independent review result is missing'
+    Assert-True ([string]$Result.review_kind -ceq 'implementation' -and [string]$Result.reviewed_candidate -ceq $RecoveryCommit -and [int]$Result.spec_revision -eq 3) 'independent review result candidate/spec identity is invalid'
+    Assert-True ([string]$Result.review_role -ceq 'INDEPENDENT_REVIEWER' -and [string]$Result.execution_mode -ceq 'separate_session' -and [bool]$Result.repository_access -and [string]$Result.request_review_status -ceq 'requested' -and [string]$Result.review_status -ceq 'completed') 'independent review result execution identity is invalid'
+    $request = Convert-ReviewResultToRequest $Result
+    Assert-True ([string]$Result.request_id -cmatch '^[A-F0-9]{64}$' -and [string]$Result.request_id -ceq (Get-ReviewRequestId $request)) 'independent review result request_id is not canonical'
+}
+function Assert-ResultMatchesStoredRequest($Result,$Stored) {
+    Assert-True ([string]$Stored.review_status -ceq 'requested') 'completed relay requires the canonical stored request state'
+    $pairs = [ordered]@{
+        review_kind=[string]$Result.review_kind; reviewed_candidate=[string]$Result.reviewed_candidate; reviewed_spec_revision=[string]$Result.spec_revision
+        review_request_id=[string]$Result.request_id; preferred_executor=[string]$Result.preferred_executor; actual_executor=[string]$Result.actual_executor
+        provider_substitution=[string]$Result.provider_substitution; executor_policy=[string]$Result.executor_policy; review_role=[string]$Result.review_role
+        execution_mode=[string]$Result.execution_mode; repository_access=(([string][bool]$Result.repository_access).ToLowerInvariant())
+        request_review_status=[string]$Result.request_review_status; review_model=[string]$Result.model; review_effort=[string]$Result.effort
+        review_started_at=[string]$Result.started_at
+    }
+    foreach ($pair in $pairs.GetEnumerator()) { Assert-True ([string]$Stored.($pair.Key) -ceq [string]$pair.Value) "completed relay substituted stored request field: $($pair.Key)" }
+}
+function Assert-ResultMatchesStoredAudit($Result,$Stored) {
+    Assert-True ([string]$Stored.review_status -ceq 'completed') 'final APPROVED requires the canonical stored completed-review state'
+    Assert-ResultMatchesStoredRequest $Result ([pscustomobject]@{
+        review_status='requested'; review_kind=$Stored.review_kind; reviewed_candidate=$Stored.reviewed_candidate; reviewed_spec_revision=$Stored.reviewed_spec_revision
+        review_request_id=$Stored.review_request_id; preferred_executor=$Stored.preferred_executor; actual_executor=$Stored.actual_executor
+        provider_substitution=$Stored.provider_substitution; executor_policy=$Stored.executor_policy; review_role=$Stored.review_role
+        execution_mode=$Stored.execution_mode; repository_access=$Stored.repository_access; request_review_status=$Stored.request_review_status
+        review_model=$Stored.review_model; review_effort=$Stored.review_effort; review_started_at=$Stored.review_started_at
+    })
+    $pairs = [ordered]@{
+        review_completed_at=[string]$Result.completed_at; review_result=[string]$Result.result
+        review_findings_count=[string]$Result.findings_count; review_finding_ids=[string]$Result.finding_ids
+    }
+    foreach ($pair in $pairs.GetEnumerator()) { Assert-True ([string]$Stored.($pair.Key) -ceq [string]$pair.Value) "final APPROVED substituted stored review-result field: $($pair.Key)" }
+}
+function Assert-Relay($Relay,$Provenance,[string]$RawText,$Context) {
     $review = $Provenance.original_product_review
-    Assert-True ([string]$Relay.task_id -ceq 'TASK-013' -and [int]$Relay.spec_revision -eq 3) 'relay task/spec identity is invalid'
+    $recoveryCommit = [string]$Context.recovery_commit
+    Assert-True ($recoveryCommit -cmatch '^[0-9a-f]{40}$') 'relay validation requires a materialized recovery candidate B'
+    Assert-True ([string]$Relay.task_id -ceq 'TASK-013' -and [int]$Relay.spec_revision -eq 3 -and [string]$Relay.repository -ceq 'Osato-Gasu/Personal-Finance-Planner') 'relay task/spec/repository identity is invalid'
     Assert-True ([string]$Relay.shared_candidate -ceq [string]$Provenance.shared_source.commit) 'relay shared candidate is not exact shared v1.0.1'
-    Assert-True ([string]$Provenance.recovery_candidate.commit -cne 'none') 'relay validation requires a materialized recovery candidate'
-    Assert-True ([string]$Relay.reviewed_candidate -ceq [string]$Provenance.recovery_candidate.commit) 'relay reviewed candidate is not recovery candidate B'
+    Assert-True ([string]$Relay.reviewed_candidate -ceq $recoveryCommit) 'relay reviewed candidate is not recovery candidate B'
+    Assert-True ([string]$Relay.reviewed_handoff_head -ceq [string]$Context.current_head) 'relay reviewed handoff is not exact current HEAD'
+    Assert-True ([string]$Relay.routing_mode -in @('local_script','connector_read_only') -and $null -ne $Relay.route_result) 'relay exact route_result is missing'
+    $route = $Relay.route_result
+    Assert-True ([string]$route.repository -ceq 'Osato-Gasu/Personal-Finance-Planner' -and [string]$route.requested_ref -ceq 'refs/heads/codex/task-013-public-audit-stable-id') 'relay route repository/ref identity is invalid'
+    Assert-True ([string]$route.resolved_commit -ceq [string]$Context.current_head -and [string]$route.next_action_blob -ceq [string]$Context.next_action_blob -and [string]$route.handoff_blob -ceq [string]$Context.handoff_blob -and [string]$route.adapter_blob -ceq [string]$Context.adapter_blob) 'relay route/head/blob identity is invalid'
     $markers = @(
         [string]$review.candidate_commit,[string]$review.candidate_tree,[string]$review.reviewed_handoff_commit,
-        [string]$review.result_sha256,[string]$review.result_byte_length,[string]$review.relay_sha256,[string]$review.relay_byte_length
+        [string]$review.result_sha256,[string]$review.result_byte_length,[string]$review.relay_sha256,[string]$review.relay_byte_length,
+        [string]$Context.provenance_sha256
     )
     foreach ($marker in $markers) { Assert-True ($RawText.Contains($marker)) "relay lacks exact original-product provenance marker: $marker" }
-    if ([string]$Relay.decision -ceq 'APPROVED') {
-        Assert-True ($null -ne $Relay.independent_review -and $null -ne $Relay.independent_review_result) 'final APPROVED relay lacks exact recovery independent-review audit'
+    $decision = [string]$Relay.decision
+    if ($decision -ceq 'INDEPENDENT_REVIEW_REQUESTED') {
+        Assert-True ([string]$Context.stored_review.review_status -ceq 'not_requested') 'independent review request requires the canonical pre-request state'
+        Assert-True ($null -ne $Relay.independent_review -and $null -eq $Relay.independent_review_result) 'INDEPENDENT_REVIEW_REQUESTED requires request and forbids result'
+        Assert-ReviewRequestIdentity $Relay.independent_review $recoveryCommit
+    } elseif ($decision -ceq 'INDEPENDENT_REVIEW_COMPLETED') {
+        Assert-True ($null -eq $Relay.independent_review -and $null -ne $Relay.independent_review_result) 'INDEPENDENT_REVIEW_COMPLETED forbids request and requires result'
+        Assert-ReviewResultIdentity $Relay.independent_review_result $recoveryCommit
+        Assert-ResultMatchesStoredRequest $Relay.independent_review_result $Context.stored_review
+    } elseif ($decision -ceq 'APPROVED') {
+        Assert-True ([string]$Relay.review_stage -ceq 'implementation') 'final APPROVED relay review_stage is not implementation'
+        Assert-True ($null -eq $Relay.independent_review -and $null -ne $Relay.independent_review_result) 'final APPROVED forbids request and requires exact completed result'
+        Assert-ReviewResultIdentity $Relay.independent_review_result $recoveryCommit
+        Assert-ResultMatchesStoredAudit $Relay.independent_review_result $Context.stored_review
+    } else {
+        throw "TASK-013 recovery provenance BLOCKED: unsupported recovery relay decision: $decision"
     }
     Assert-True ([int]$Relay.changes_requested_cycles -eq 0 -and [int]$Relay.implementation_review_attempt -eq 1) 'recovery relay must preserve cycles 0 / attempt 1'
+}
+function Get-StoredReviewContext([string]$TaskText) {
+    $values = [ordered]@{}
+    foreach ($field in @(
+        'review_status','review_kind','reviewed_candidate','reviewed_spec_revision','review_request_id','preferred_executor','actual_executor',
+        'provider_substitution','executor_policy','review_role','execution_mode','repository_access','request_review_status','review_model','review_effort',
+        'review_started_at','review_completed_at','review_result','review_findings_count','review_finding_ids'
+    )) { $values[$field] = Get-RequiredTaskValue $TaskText $field }
+    [pscustomobject]$values
+}
+function Get-GitBlobAtCommit([string]$Commit,[string]$Relative) {
+    Assert-True ($Relative -match '^[A-Za-z0-9._/-]+$' -and $Relative -notmatch '(^|/)\.\.(/|$)') "invalid Git path: $Relative"
+    ((Invoke-GitText @('rev-parse',"$Commit`:$Relative") "cannot resolve blob for $Relative at $Commit") -join '').Trim()
+}
+function Get-RepositoryRelayContext($Provenance,$ProvenanceRecord,$Task,[string]$CurrentHead) {
+    $handoff = Get-RequiredTaskValue $Task.Text 'handoff_file'
+    [pscustomobject]@{
+        recovery_commit=[string]$Provenance.recovery_candidate.commit
+        current_head=$CurrentHead
+        next_action_blob=(Get-GitBlobAtCommit $CurrentHead 'docs/ai/NEXT_ACTION.yml')
+        handoff_blob=(Get-GitBlobAtCommit $CurrentHead $handoff)
+        adapter_blob=(Get-GitBlobAtCommit $CurrentHead 'docs/ai/PROJECT_ADAPTER.psd1')
+        provenance_sha256=[string]$ProvenanceRecord.Sha256
+        stored_review=(Get-StoredReviewContext $Task.Text)
+    }
 }
 
 $provenanceRecord = if ([string]::IsNullOrWhiteSpace($ProvenanceOverridePath)) {
@@ -245,7 +356,7 @@ $provenanceRecord = if ([string]::IsNullOrWhiteSpace($ProvenanceOverridePath)) {
     Read-ExternalCanonicalFile $ProvenanceOverridePath 'provenance override'
 }
 $provenance = $provenanceRecord.Text | ConvertFrom-Json -ErrorAction Stop
-Assert-True ([int]$provenance.schema_version -eq 1 -and [string]$provenance.artifact_role -ceq 'report_evidence' -and [string]$provenance.task_id -ceq 'TASK-013' -and [int]$provenance.spec_revision -eq 3 -and [int]$provenance.recovery_design_revision -eq 4) 'provenance root identity is invalid'
+Assert-True ([int]$provenance.schema_version -eq 1 -and [string]$provenance.artifact_role -ceq 'report_evidence' -and [string]$provenance.task_id -ceq 'TASK-013' -and [int]$provenance.spec_revision -eq 3 -and [int]$provenance.recovery_design_revision -eq 5) 'provenance root identity is invalid'
 Assert-True ([bool]$provenance.public_side_effect_authority -eq $false -and [bool]$provenance.release_authority -eq $false) 'recovery provenance grants unauthorized public/release authority'
 $review = $provenance.original_product_review
 Assert-True ([string]$review.candidate_commit -ceq '1285f6745062545bb4e73a937cde141f6ab620d4' -and [string]$review.candidate_tree -ceq '3fb36efc2fd13b9321baf11a63e798d54fe48a12') 'original product candidate identity changed'
@@ -285,6 +396,10 @@ if ($Mode -ceq 'StateContractFixture') {
     $fixtureRecord = Read-ExternalCanonicalFile $FixturePath 'state-contract fixture'
     $fixture = $fixtureRecord.Text | ConvertFrom-Json -ErrorAction Stop
     Assert-RecoveryStateContract $fixture $provenance
+} elseif ($Mode -ceq 'RelayContractFixture') {
+    $relayFixtureRecord = Read-ExternalCanonicalFile $RelayFixturePath 'relay-contract fixture'
+    $relayFixture = $relayFixtureRecord.Text | ConvertFrom-Json -ErrorAction Stop
+    Assert-Relay $relayFixture.relay $provenance $relayFixtureRecord.Text $relayFixture.context
 } else {
     $task = Read-CanonicalFile 'docs/ai/tasks/TASK-013.md'
     $agents = Read-CanonicalFile 'AGENTS.md'
@@ -350,7 +465,8 @@ if ($Mode -in @('ExternalRelayPreflight','CanonicalRelay')) {
     try { $relayText = $utf8Strict.GetString($relayBytes) } catch { throw 'TASK-013 recovery provenance BLOCKED: relay is not strict UTF-8' }
     Assert-True (-not $relayText.Contains("`r") -and $relayText.EndsWith("`n")) 'relay canonical byte shape is invalid'
     $relay = $relayText | ConvertFrom-Json -ErrorAction Stop
-    Assert-Relay $relay $provenance $relayText
+    $relayContext = Get-RepositoryRelayContext $provenance $provenanceRecord $task $currentHead
+    Assert-Relay $relay $provenance $relayText $relayContext
 }
 
 Write-Output "TASK-013 recovery provenance validation passed. mode=$Mode phase=$($provenance.phase_state)"
