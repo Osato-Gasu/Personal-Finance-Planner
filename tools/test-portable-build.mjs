@@ -1497,6 +1497,15 @@ try {
   );
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
+  await page.waitForFunction((key) => {
+    const bytes = globalThis.localStorage.getItem(key);
+    if (!bytes) return false;
+    try {
+      return JSON.parse(bytes).activeRoute === "budget";
+    } catch {
+      return false;
+    }
+  }, storageKey);
 
   const overflowBytes = await page.evaluate((key) => {
     const bytes = globalThis.localStorage.getItem(key);
@@ -1535,6 +1544,13 @@ try {
     globalThis.localStorage.setItem(key, overflow);
     return overflow;
   }, storageKey);
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    overflowBytes,
+  );
   await page.reload({ waitUntil: "load" });
   await assertContains(
     page.getByTestId("calculation-status"),
