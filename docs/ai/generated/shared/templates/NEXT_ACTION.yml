@@ -1,14 +1,15 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.25
-# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+# source version: 1.0.1
+# source commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
 # 直接編集禁止
 
-# NEXT_ACTION template. project generatorが値を決定します。
-schema_version: 1
+# Generated route. Canonical owner: active_task_frontmatter.
+artifact_role: generated_next_action
+schema_version: 2
 task_id: none
 feature: none
-phase: idle
-status: idle
+phase: none
+status: none
 next_actor: ChatGPT
 next_role: ORCHESTRATOR_AND_REVIEWER
 model: none
@@ -17,17 +18,19 @@ session_mode: existing_or_new
 handoff_file: docs/ai/handoffs/PROJECT_REQUIREMENTS.md
 rules_version: <shared-version>
 rules_commit: <shared-commit>
-preferred_executor: Claude
-allowed_executors: Claude, ChatGPT
-executor_policy: preferred_fallback
+rules_tree: <shared-tree>
+manifest_sha256: <manifest-sha256>
+preferred_executor: ChatGPT
+allowed_executors: ChatGPT
+executor_policy: strict
 return_to: user
-actual_executor: ChatGPT
+actual_executor: none
 provider_substitution: none
 review_kind: none
 review_role: none
-execution_mode: existing_session
-repository_access: true
-review_status: not_requested
+execution_mode: none
+repository_access: none
+review_status: none
 request_review_status: none
 review_model: none
 review_effort: none

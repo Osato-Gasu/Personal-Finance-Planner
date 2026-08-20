@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.25
-# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+# source version: 1.0.1
+# source commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -8,25 +8,27 @@ param([Parameter(Mandatory = $true)][string]$ProjectRoot,[switch]$SkipOverlay)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'import-adapter.ps1')
+. (Join-Path $PSScriptRoot 'governance-v1.ps1')
 $root = [IO.Path]::GetFullPath($ProjectRoot)
 $failures = [Collections.Generic.List[string]]::new()
+$sharedSourceRoot = Split-Path -Parent $PSScriptRoot
+$policyPath = Join-Path $sharedSourceRoot 'core/POLICY.psd1'
+$governancePolicy = Import-AdapterFile -Path $policyPath -ExpectedBom absent
 
 function Project-Path([string]$Relative) { Join-Path $root $Relative }
 function Read-ProjectFile([string]$Relative) { [IO.File]::ReadAllText((Project-Path $Relative)) }
 function Add-Failure([string]$Message) { $script:failures.Add($Message) }
-function Test-AssignmentAllowed($Adapter,[string]$Actor,[string]$Role,[string]$Model,[string]$Effort) {
-    $core=@{'5.3 Codex Spark|high'='Spark-high';'5.3 Codex Spark|xhigh'='Spark-xhigh';'5.6 Luna|high'='Luna-high';'5.6 Luna|xhigh'='Luna-xhigh';'5.6 Terra|high'='Terra-high';'5.6 Terra|xhigh'='Terra-xhigh';'5.6 Sol|medium'='Sol-medium';'5.6 Sol|high'='Sol-high';'5.6 Sol|xhigh'='Sol-xhigh';'5.6 Sol|Ultra'='Sol-Ultra'}
-    $review=@{'5.6 Luna|high'='Luna-high';'5.6 Luna|xhigh'='Luna-xhigh';'5.6 Terra|high'='Terra-high';'5.6 Terra|xhigh'='Terra-xhigh';'5.6 Sol|medium'='Sol-medium';'5.6 Sol|high'='Sol-high';'5.6 Sol|xhigh'='Sol-xhigh';'5.6 Sol|Ultra'='Sol-Ultra'}
-    $pair="$Model|$Effort"
-    if($core.ContainsKey($pair)-and@($Adapter.ModelRouting.DeprecatedRoutes)-ccontains$core[$pair]){return $false}
-    if (@($Adapter.Relay.Assignments) -ccontains "$Actor|$Role|$Model|$Effort") { return $true }
-    if($null-ne$Adapter.ModelRouting-and$Actor-ceq'Codex'-and$Role-ceq'IMPLEMENTER'-and$core.ContainsKey($pair)-and@($Adapter.ModelRouting.CoreRoutes)-ccontains$core[$pair]){return $true}
-    if($null-ne$Adapter.ModelRouting-and$Actor-ceq'ChatGPT'-and$Role-ceq'ORCHESTRATOR_AND_REVIEWER'-and$review.ContainsKey($pair)-and@($Adapter.ModelRouting.ReviewRoutes)-ccontains$review[$pair]){return $true}
-    $review=$Adapter.Relay.IndependentReview
-    if($null-eq$review-or$Role-cne'INDEPENDENT_REVIEWER'){return $false}
-    if($Actor-ceq[string]$review.PreferredExecutor){return $Model-notmatch'(?i)^(none|unknown|tbd|runtime[-_ ]selected)$'-and$Effort-notmatch'(?i)^(none|unknown|tbd|runtime[-_ ]selected)$'}
-    if($Actor-ceq[string]$review.FallbackExecutor){return @($review.FallbackAssignments)-ccontains"$Actor|$Role|$Model|$Effort"}
-    return $false
+function Test-AssignmentAllowed($Policy,[string]$Actor,[string]$Role,[string]$Model,[string]$Effort) {
+    if($Actor-in@('USER','NONE')){return $Model-ceq'none'-and$Effort-ceq'none'}
+    $assignment=if($Actor-ceq'ChatGPT'-and$Role-ceq'ORCHESTRATOR_AND_REVIEWER'){'CHATGPT_ORCHESTRATOR'}elseif($Actor-ceq'ChatGPT'-and$Role-ceq'INDEPENDENT_REVIEWER'){'CHATGPT_INDEPENDENT_REVIEWER'}elseif($Actor-ceq'Codex'-and$Role-ceq'IMPLEMENTER'){'CODEX_MAIN'}else{return $false}
+    if($Model-ceq'none'-and$Effort-ceq'none'){return $true}
+    $modelId=if($Model-match'(?i)(Spark|Luna|Terra|Sol)$'){$Matches[1]}else{$Model}
+    $modelId=(Get-Culture).TextInfo.ToTitleCase($modelId.ToLowerInvariant())
+    $effortId=if($Effort-ceq'Ultra'){'max'}else{$Effort.ToLowerInvariant()}
+    $routeId="$modelId-$effortId"
+    if($Policy.Routing.LegacyRouteMap.ContainsKey($routeId)){$routeId=[string]$Policy.Routing.LegacyRouteMap[$routeId]}
+    $purpose=[string]$Policy.Routing.AssignmentPurpose[$assignment]
+    return @($Policy.Routing.PurposeOrders[$purpose])-ccontains$routeId
 }
 function Read-Value([string]$Text, [string]$Key, [string]$Source) {
     $matches = [regex]::Matches($Text, "(?m)^\s*(?:-\s*)?$([regex]::Escape($Key)):\s*(.*?)\s*$")
@@ -111,13 +113,14 @@ $required = @(
     'AGENTS.md',
     'docs/ai/PROJECT_ADAPTER.psd1',
     'docs/ai/PROJECT_RULES.md',
+    'docs/ai/WORKFLOW.md',
     'docs/ai/CURRENT_STATE.md',
     'docs/ai/BACKLOG.md',
     'docs/ai/COMPLETED_TASKS.md',
     'docs/ai/NEXT_ACTION.yml',
     'docs/ai/SESSION_START.md',
     'docs/ai/SHARED_RULES.lock.yml',
-    'docs/ai/generated/shared/START.md',
+    'docs/ai/generated/shared/core/START.md',
     'docs/ai/generated/shared/manifest.yml',
     'board/PROGRESS.html',
     'tools/sync-shared-governance.ps1',
@@ -133,36 +136,39 @@ foreach ($relative in $required) {
 }
 
 $adapter = $null
+$governanceRules = [Collections.Generic.List[object]]::new()
+$phaseIds = @($governancePolicy.Lifecycle.InternalPhases)
 $taskHistoryPolicy = 'git_only'
 $retainedTaskPairs = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 try {
-    $adapter = Import-AdapterFile -Path (Project-Path 'docs/ai/PROJECT_ADAPTER.psd1') -ExpectedBom present
-    if ([int]$adapter.SchemaVersion -ne 1) { Add-Failure "unsupported project adapter schema: $($adapter.SchemaVersion)" }
-    $requiredPhases = @('requirements','design','design_review','implementation','implementation_review','browser_evidence','release','completion_sync','user_decision','blocked','completed')
-    foreach ($phase in $requiredPhases) { if (-not $adapter.PhaseLabels.ContainsKey($phase)) { Add-Failure "project adapter missing required phase: $phase" } }
-    if ($adapter.PhaseLabels.ContainsKey('done')) { Add-Failure 'project adapter must use completed instead of done' }
-    if([string]::IsNullOrWhiteSpace([string]$adapter.DefaultLabelLocale)){Add-Failure 'project adapter label locale is missing'}
-    foreach($phase in $requiredPhases){if([string]::IsNullOrWhiteSpace([string]$adapter.PhaseLabels[$phase])){Add-Failure "project adapter missing human phase label: $phase"}}
-    foreach($role in @('ORCHESTRATOR_AND_REVIEWER','IMPLEMENTER','INDEPENDENT_REVIEWER')){if(-not$adapter.RoleLabels.ContainsKey($role)-or[string]::IsNullOrWhiteSpace([string]$adapter.RoleLabels[$role])){Add-Failure "project adapter missing human role label: $role"}}
-    foreach($effort in @('medium','high','xhigh','Ultra')){if($null-eq$adapter.DisplayLabels-or$null-eq$adapter.DisplayLabels.Effort-or[string]::IsNullOrWhiteSpace([string]$adapter.DisplayLabels.Effort[$effort])){Add-Failure "project adapter missing human effort label: $effort"}}
-    $routing=$adapter.ModelRouting
-    if($null-ne$routing){
-        $core=@($routing.CoreRoutes);$review=@($routing.ReviewRoutes);$deprecated=@($routing.DeprecatedRoutes);$declared=@($core+$review+$deprecated|Where-Object{-not[string]::IsNullOrWhiteSpace([string]$_)})
-        if($core.Count-eq0-or$review.Count-eq0-or$core.Count-ne@($core|Select-Object -Unique).Count-or$review.Count-ne@($review|Select-Object -Unique).Count-or$deprecated.Count-ne@($deprecated|Select-Object -Unique).Count){Add-Failure 'project adapter model routing routes are incomplete or duplicated'}
-        if([string]::IsNullOrWhiteSpace([string]$routing.DocumentDefault)-or[string]::IsNullOrWhiteSpace([string]$routing.CodeDefault)-or$declared-cnotcontains[string]$routing.DocumentDefault-or$declared-cnotcontains[string]$routing.CodeDefault){Add-Failure 'project adapter model routing defaults must be declared routes'}
-        if([string]::IsNullOrWhiteSpace([string]$routing.NewWorkSelection)-or[string]$routing.LunaToSolCostRatio-notmatch'^\d+(?:\.\d+)?/\d+(?:\.\d+)?$'-or[string]$routing.TerraToSolCostRatio-notmatch'^\d+(?:\.\d+)?/\d+(?:\.\d+)?$'-or$null-eq$routing.UltraRequiresUserApproval-or$routing.UltraRequiresUserApproval.GetType()-ne[bool]){Add-Failure 'project adapter model routing policy values are invalid'}
-        if($routing.UltraRequiresUserApproval){Add-Failure 'project adapter model routing must disable explicit Ultra approval (UltraRequiresUserApproval must be false)'}
+    Assert-GovernanceV1Policy $governancePolicy | Out-Null
+    $adapterPath = Project-Path 'docs/ai/PROJECT_ADAPTER.psd1'
+    $adapterText = [IO.File]::ReadAllText($adapterPath)
+    $adapter = Import-AdapterFile -Path $adapterPath -ExpectedBom absent
+    $adapterContract=Assert-GovernanceV1ProjectAdapter $adapterText $adapter $governancePolicy
+    $globalOwners=[ordered]@{
+        'source/AGENTS.md'='AGENTS.md'
+        'core/CONSTITUTION.md'='core/CONSTITUTION.md'
+        'core/OUTPUT.md'='core/OUTPUT.md'
+        'core/LIFECYCLE.md'='core/LIFECYCLE.md'
+        'core/ARTIFACTS.md'='core/ARTIFACTS.md'
+        'core/EXECUTION.md'='core/EXECUTION.md'
     }
+    foreach($entry in $globalOwners.GetEnumerator()){
+        $generatedRelative="docs/ai/generated/shared/$($entry.Key)"
+        foreach($rule in @(Get-GovernanceV1MarkdownRules -Text (Read-ProjectFile $generatedRelative) -Path $entry.Value -Layer global)){$governanceRules.Add($rule)}
+    }
+    foreach($projectRelative in @('docs/ai/PROJECT_RULES.md','docs/ai/WORKFLOW.md')){
+        foreach($rule in @(Get-GovernanceV1MarkdownRules -Text (Read-ProjectFile $projectRelative) -Path $projectRelative -Layer project)){
+            if(@($rule.RuleRelations).Count-ne0){throw "PROJECT Markdown relation entries are forbidden: $projectRelative"}
+            $governanceRules.Add($rule)
+        }
+    }
+    foreach($rule in @($adapterContract.RuleRecords)){$governanceRules.Add($rule)}
+    $phaseIds = @($governancePolicy.Lifecycle.InternalPhases + @($adapter.PhaseExtensions | ForEach-Object { [string]$_.Id }))
+    if(@($phaseIds | Select-Object -Unique).Count-ne$phaseIds.Count){Add-Failure 'project adapter phase extension duplicates a lifecycle phase'}
     if (-not $adapter.Relay -or [string]::IsNullOrWhiteSpace([string]$adapter.Relay.Repository)) { Add-Failure 'project adapter relay repository is missing' }
-    if (@($adapter.Relay.Assignments).Count -eq 0) { Add-Failure 'project adapter relay assignments are missing' }
-    foreach ($decision in @('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION','REQUIREMENTS_DEFINED','INDEPENDENT_REVIEW_REQUESTED','INDEPENDENT_REVIEW_COMPLETED')) { if ([string]::IsNullOrWhiteSpace([string]$adapter.Relay.NextActionTemplates[$decision])) { Add-Failure "project adapter relay next_action template is missing: $decision" } }
-    if($null-eq$adapter.Relay.CandidateIdentity){Add-Failure 'project adapter relay candidate identity mapping is missing'}else{
-        foreach($decision in @('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')){$mapping=$adapter.Relay.CandidateIdentity.Decisions[$decision];foreach($stage in @('design','implementation')){if($mapping-isnot[Collections.IDictionary]-or[string]::IsNullOrWhiteSpace([string]$mapping[$stage])){Add-Failure "project adapter relay candidate field is missing: $decision/$stage"}}}
-        foreach($kind in @($adapter.Relay.IndependentReview.AllowedKinds)){if([string]::IsNullOrWhiteSpace([string]$adapter.Relay.CandidateIdentity.IndependentReviewKinds[$kind])){Add-Failure "project adapter independent review candidate field is missing: $kind"}}
-    }
-    if([string]::IsNullOrWhiteSpace([string]$adapter.Relay.OverlayFailurePattern)){Add-Failure 'project adapter relay overlay failure pattern is missing'}
-    if($null-eq$adapter.Relay.IndependentReview-or@($adapter.Relay.IndependentReview.AllowedKinds).Count-eq0){Add-Failure 'project adapter independent review configuration is missing'}
-    if([string]$adapter.Relay.Requirements.BaseCommitPolicy-cne'exact_head'){Add-Failure 'project adapter requirements base commit policy must be exact_head'}
+    if([string]$governancePolicy.Relay.Requirements.BaseCommitPolicy-cne'exact_head'){Add-Failure 'global requirements base commit policy must be exact_head'}
     if(@($adapter.Relay.Requirements.ProductIdentityReferences).Count-eq0){Add-Failure 'project adapter product identity reference allowlist is missing'}
     foreach($spec in @($adapter.Relay.Requirements.TaskMetadata)){if([string]::IsNullOrWhiteSpace([string]$spec.Field)-or[string]::IsNullOrWhiteSpace([string]$spec.Source)-or[string]$spec.Type-notin@('text','enum','boolean')){Add-Failure 'project adapter TASK metadata mapping is invalid'}}
     if($adapter.ContainsKey('TaskHistory')){
@@ -179,7 +185,7 @@ try {
                 }
                 $status=[string]$entry.Status;$phase=[string]$entry.Phase
                 if(-not(Test-TaskHistoryScalar $status)-or-not(Test-TaskHistoryScalar $phase)){Add-Failure 'RetainedTaskStates Status and Phase must be non-empty exact scalar values';continue}
-                if(@($adapter.PhaseLabels.Keys)-cnotcontains$phase){Add-Failure "RetainedTaskStates Phase is not declared in PhaseLabels: $phase"}
+                if($phaseIds-cnotcontains$phase){Add-Failure "RetainedTaskStates Phase is not declared by POLICY or PhaseExtensions: $phase"}
                 if(-not$retainedTaskPairs.Add("$status`0$phase")){Add-Failure "duplicate RetainedTaskStates pair: $status/$phase"}
             }
         }
@@ -250,15 +256,19 @@ foreach ($id in $active) {
     else {
         $taskLimit = if($adapter.ActiveTaskLimitBytes){[long]$adapter.ActiveTaskLimitBytes}else{32768}; if((Get-Item -LiteralPath $activeTaskPath).Length -gt $taskLimit){Add-Failure "active TASK size exceeds limit: $id"}
         try {
-            $activeTaskText=[IO.File]::ReadAllText($activeTaskPath);$activePhase=Read-Value $activeTaskText 'current_phase' $activeTaskPath;$activeActor=Read-Value $activeTaskText 'next_actor' $activeTaskPath;$activeRole=Read-Value $activeTaskText 'next_role' $activeTaskPath;$activeModel=Read-Value $activeTaskText 'assigned_model' $activeTaskPath;$activeEffort=Read-Value $activeTaskText 'assigned_effort' $activeTaskPath
-            if(-not$adapter.PhaseLabels.ContainsKey($activePhase)){Add-Failure "unknown active TASK phase: $activePhase"}
-            if(-not(Test-AssignmentAllowed $adapter $activeActor $activeRole $activeModel $activeEffort)){Add-Failure "active TASK assignment is not allowed by project adapter: $activeActor/$activeRole/$activeModel/$activeEffort"}
+            $activeTaskText=[IO.File]::ReadAllText($activeTaskPath)
+            Assert-GovernanceV1TaskDocument $activeTaskText "docs/ai/tasks/$id.md" | Out-Null
+            foreach($rule in @(Get-GovernanceV1MarkdownRules -Text $activeTaskText -Path "docs/ai/tasks/$id.md" -Layer task)){$governanceRules.Add($rule)}
+            $activePhase=Read-Value $activeTaskText 'current_phase' $activeTaskPath;$activeActor=Read-Value $activeTaskText 'next_actor' $activeTaskPath;$activeRole=Read-Value $activeTaskText 'next_role' $activeTaskPath;$activeModel=Read-Value $activeTaskText 'assigned_model' $activeTaskPath;$activeEffort=Read-Value $activeTaskText 'assigned_effort' $activeTaskPath
+            if($phaseIds-cnotcontains$activePhase){Add-Failure "unknown active TASK phase: $activePhase"}
+            if(-not(Test-AssignmentAllowed $governancePolicy $activeActor $activeRole $activeModel $activeEffort)){Add-Failure "active TASK assignment is not allowed by POLICY: $activeActor/$activeRole/$activeModel/$activeEffort"}
             foreach($spec in @($adapter.Relay.Requirements.TaskMetadata)){$value=Read-Value $activeTaskText ([string]$spec.Field) $activeTaskPath;if([string]$spec.Type-ceq'boolean'-and$value-notin@('true','false')){Add-Failure "active TASK metadata boolean is invalid: $($spec.Field)"};if([string]$spec.Type-ceq'enum'-and@($spec.Allowed)-cnotcontains$value){Add-Failure "active TASK metadata enum is invalid: $($spec.Field)"}}
         } catch { Add-Failure $_.Exception.Message }
     }
     if (-not (Test-Path -LiteralPath (Project-Path "docs/ai/handoffs/$id") -PathType Container)) { Add-Failure "active handoff directory missing: $id" }
     if (-not (Test-Path -LiteralPath (Project-Path "docs/ai/reports/$id") -PathType Container)) { Add-Failure "active report directory missing: $id" }
 }
+try{Assert-GovernanceV1RuleSet -Rules @($governanceRules) -ExtensionDomains $adapter.ExtensionDomains | Out-Null}catch{Add-Failure "governance rule graph invalid: $($_.Exception.Message)"}
 
 $handoff = 'none'
 try {
@@ -299,17 +309,16 @@ try {
 
     $actorRoles = @{ ChatGPT=@('ORCHESTRATOR_AND_REVIEWER','INDEPENDENT_REVIEWER'); Codex=@('IMPLEMENTER'); Claude=@('INDEPENDENT_REVIEWER'); USER=@('USER'); NONE=@('NONE') }
     if (-not $actorRoles.ContainsKey($actor) -or $actorRoles[$actor] -cnotcontains $role) { Add-Failure "invalid actor/role: $actor/$role" }
-    if ($adapter -and -not(Test-AssignmentAllowed $adapter $actor $role $nextModel $nextEffort)) { Add-Failure "NEXT_ACTION assignment is not allowed by project adapter: $actor/$role/$nextModel/$nextEffort" }
-    if ($policy -notin @('preferred_fallback', 'strict')) { Add-Failure "invalid executor_policy: $policy" }
+    if ($adapter -and -not(Test-AssignmentAllowed $governancePolicy $actor $role $nextModel $nextEffort)) { Add-Failure "NEXT_ACTION assignment is not allowed by POLICY: $actor/$role/$nextModel/$nextEffort" }
+    if ($policy -cne [string]$governancePolicy.IndependentReview.ExecutorPolicy) { Add-Failure "invalid executor_policy: $policy" }
     if ($role -eq 'INDEPENDENT_REVIEWER') {
-        if ($preferred -cne 'Claude') { Add-Failure 'independent reviewer preferred_executor must be Claude' }
-        if ($policy -eq 'preferred_fallback' -and $allowed -notmatch 'ChatGPT') { Add-Failure 'preferred_fallback must allow ChatGPT' }
-        if ($policy -eq 'strict' -and $allowed -match 'ChatGPT') { Add-Failure 'strict policy must not allow ChatGPT' }
+        if ($preferred -cne [string]$governancePolicy.IndependentReview.ActiveExecutor) { Add-Failure 'independent reviewer preferred_executor does not match POLICY' }
+        if ($policy -cne [string]$governancePolicy.IndependentReview.ExecutorPolicy) { Add-Failure 'independent reviewer executor_policy does not match POLICY' }
+        if ($allowed -cne [string]$governancePolicy.IndependentReview.ActiveExecutor) { Add-Failure 'independent reviewer allowed_executors does not match POLICY' }
         if($actualExecutor-cne$actor){Add-Failure 'independent review actual_executor must match next_actor'}
-        if($actor-ceq'Claude'-and$providerSubstitution-cne'none'){Add-Failure 'Claude independent review must not record provider substitution'}
-        if($actor-ceq'ChatGPT'-and$providerSubstitution-cne'Claude_to_ChatGPT'){Add-Failure 'ChatGPT independent review fallback must record provider substitution'}
+        if($actor-cne[string]$governancePolicy.IndependentReview.ActiveExecutor-or$providerSubstitution-cne[string]$governancePolicy.IndependentReview.ProviderSubstitution){Add-Failure 'independent review executor/substitution does not match POLICY'}
         if($reviewRole-cne'INDEPENDENT_REVIEWER'){Add-Failure 'independent review review_role must be INDEPENDENT_REVIEWER'}
-        if(@($adapter.Relay.IndependentReview.AllowedKinds)-cnotcontains$reviewKind){Add-Failure 'independent review kind is invalid'}
+        if(@($governancePolicy.IndependentReview.AllowedKinds)-cnotcontains$reviewKind){Add-Failure 'independent review kind is invalid'}
         if($executionMode-cne'separate_session'){Add-Failure 'independent review execution_mode must be separate_session'}
         if($repositoryAccess-cne'true'){Add-Failure 'independent review repository_access must be true'}
         if($reviewStatus-cne'requested'){Add-Failure 'independent review review_status must be requested'}
@@ -320,8 +329,8 @@ try {
         if($reviewRequestId-notmatch'^[A-F0-9]{64}$'){Add-Failure 'independent review request_id is invalid'}
         if($actor-ceq'Claude'-and(Read-Value $taskText "claude_${reviewKind}_review_status" "TASK $taskId")-cne'requested'){Add-Failure 'Claude provider review status must be requested'}
     } elseif ($reviewStatus -ceq 'completed') {
-        if(@($adapter.Relay.IndependentReview.AllowedKinds)-cnotcontains$reviewKind){Add-Failure 'completed independent review kind is invalid'}
-        if($actualExecutor-notin@([string]$adapter.Relay.IndependentReview.PreferredExecutor,[string]$adapter.Relay.IndependentReview.FallbackExecutor)){Add-Failure 'completed independent review actual_executor is invalid'}
+        if(@($governancePolicy.IndependentReview.AllowedKinds)-cnotcontains$reviewKind){Add-Failure 'completed independent review kind is invalid'}
+        if($actualExecutor-cne[string]$governancePolicy.IndependentReview.ActiveExecutor){Add-Failure 'completed independent review actual_executor is invalid'}
         if($executionMode-cne'separate_session'-or$repositoryAccess-cne'true'){Add-Failure 'completed independent review execution context is invalid'}
         if($reviewedCandidate-notmatch'^[0-9a-f]{40}$'-or$reviewedSpecRevision-notmatch'^\d+$'-or$reviewRequestId-notmatch'^[A-F0-9]{64}$'){Add-Failure 'completed independent review identity is invalid'}
         if($reviewStartedAt-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'-or$reviewCompletedAt-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'){Add-Failure 'completed independent review audit timestamps are invalid'}
@@ -329,7 +338,7 @@ try {
         $taskText=Read-ProjectFile "docs/ai/tasks/$taskId.md"
         foreach($field in @('review_kind','review_role','review_status','request_review_status','review_model','review_effort','preferred_executor','actual_executor','provider_substitution','executor_policy','reviewed_candidate','reviewed_spec_revision','review_request_id','review_started_at','review_completed_at','review_result','review_findings_count','review_finding_ids')){if((Read-Value $taskText $field "TASK $taskId")-cne(Read-Value $next $field 'NEXT_ACTION')){Add-Failure "completed independent review TASK field mismatch: $field"}}
         if(Test-Path -LiteralPath (Project-Path $handoff)-PathType Leaf){$auditHandoff=Read-ProjectFile $handoff;foreach($field in @('review_kind','review_role','review_status','request_review_status','review_model','review_effort','preferred_executor','actual_executor','provider_substitution','executor_policy','reviewed_candidate','reviewed_spec_revision','review_request_id','review_started_at','review_completed_at','review_result','review_findings_count','review_finding_ids')){if((Read-Value $auditHandoff $field $handoff)-cne(Read-Value $next $field 'NEXT_ACTION')){Add-Failure "completed independent review handoff mismatch: $field"}}}
-        if($actualExecutor-ceq[string]$adapter.Relay.IndependentReview.PreferredExecutor-and(Read-Value $taskText "claude_${reviewKind}_review_status" "TASK $taskId")-cne'completed'){Add-Failure 'Claude provider review status must be completed'}
+        if($actualExecutor-cne[string]$governancePolicy.IndependentReview.ActiveExecutor){Add-Failure 'independent review executor does not match POLICY'}
         if((Split-Path -Leaf $handoff)-ceq'INDEPENDENT_REVIEW_RESULT_HANDOFF.md'-and($actor-cne'ChatGPT'-or$role-cne'ORCHESTRATOR_AND_REVIEWER')){Add-Failure 'completed independent review result handoff must return to ChatGPT'}
     }
     if ($taskId -eq 'none') {
@@ -407,8 +416,7 @@ try {
                             foreach($source in @(
                                 [pscustomobject]@{Text=$taskText;Name="TASK $taskId"},
                                 [pscustomobject]@{Text=$state;Name='CURRENT_STATE'},
-                                [pscustomobject]@{Text=$relayHandoffText;Name=$handoff},
-                                [pscustomobject]@{Text=$reportText;Name=$reportRelative}
+                                [pscustomobject]@{Text=$relayHandoffText;Name=$handoff}
                             )){if((Read-Value $source.Text $field $source.Name)-cne$expectedValue){Add-Failure "implementation review convergence mismatch: $field in $($source.Name)"}}
                         }
                         if($nextChangesRequestedCycles-notmatch'^[0-3]$'-or$nextImplementationReviewAttempt-notmatch'^[1-3]$'-or$nextImplementationReviewTerminated-notin@('true','false')){Add-Failure 'implementation review convergence state contains an invalid scalar'}else{
@@ -506,85 +514,12 @@ try {
     }
 } catch { Add-Failure $_.Exception.Message }
 
-$start = if (Test-Path -LiteralPath (Project-Path 'docs/ai/generated/shared/START.md')) { Read-ProjectFile 'docs/ai/generated/shared/START.md' } else { '' }
-$chat = if (Test-Path -LiteralPath (Project-Path 'docs/ai/generated/shared/CHAT_OUTPUT.md')) { Read-ProjectFile 'docs/ai/generated/shared/CHAT_OUTPUT.md' } else { '' }
-$session = if (Test-Path -LiteralPath (Project-Path 'docs/ai/SESSION_START.md')) { Read-ProjectFile 'docs/ai/SESSION_START.md' } else { '' }
-$roles = if (Test-Path -LiteralPath (Project-Path 'docs/ai/generated/shared/ROLES.md')) { Read-ProjectFile 'docs/ai/generated/shared/ROLES.md' } else { '' }
-$go = if (Test-Path -LiteralPath (Project-Path 'docs/ai/generated/shared/GO_PROTOCOL.md')) { Read-ProjectFile 'docs/ai/generated/shared/GO_PROTOCOL.md' } else { '' }
-$route = if (Test-Path -LiteralPath (Project-Path 'docs/ai/generated/shared/tools/route-go.ps1')) { Read-ProjectFile 'docs/ai/generated/shared/tools/route-go.ps1' } else { '' }
-$graphMatch=[regex]::Match($start,'(?s)```entrypoint-graph\s*(?<graph>.*?)\s*```')
-if(-not$graphMatch.Success){Add-Failure 'entrypoint graph is missing'}else{
-    $edges=@{};$indegree=@{};$graphLines=@($graphMatch.Groups['graph'].Value-split'\r?\n'|Where-Object{$_-match'->'})
-    foreach($line in $graphLines){$parts=$line-split'\s*->\s*';if($parts.Count-ne2){Add-Failure "invalid entrypoint graph line: $line";continue};$fromNodes=@($parts[0]-split','|ForEach-Object{$_.Trim()});$toNodes=@($parts[1]-split','|ForEach-Object{$_.Trim()});foreach($node in @($fromNodes+$toNodes)){if(-not$edges.ContainsKey($node)){$edges[$node]=[Collections.Generic.List[string]]::new();$indegree[$node]=0}};foreach($from in $fromNodes){foreach($to in $toNodes){$edges[$from].Add($to);$indegree[$to]=[int]$indegree[$to]+1}}}
-    $queue=[Collections.Generic.Queue[string]]::new();foreach($node in $indegree.Keys){if($indegree[$node]-eq0){$queue.Enqueue($node)}};$visited=0;while($queue.Count){$node=$queue.Dequeue();$visited++;foreach($to in $edges[$node]){$indegree[$to]=[int]$indegree[$to]-1;if($indegree[$to]-eq0){$queue.Enqueue($to)}}};if($visited-ne$indegree.Count){Add-Failure 'entrypoint graph contains a cycle'}
-    foreach($requiredEdge in @('SESSION_START -> AGENTS','AGENTS -> START','START_CLOCK -> CURRENT_POSITION_OUTPUT')){if($graphLines-cnotcontains$requiredEdge){Add-Failure "entrypoint graph edge missing: $requiredEdge"}}
-}
-foreach ($fragment in @('## 現在地点', '- TASK-ID：', '- 機能：', '- フェーズ：', 'write bridge', 'portable relay bundle', 'active TASKがなくても')) {
-    if ($start.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "GO output contract missing: $fragment" }
-}
-foreach ($fragment in @('## 依頼先情報', '## コピペ用プロンプト', 'USER_RELAY_REQUIRED')) {
-    if ($chat.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "chat completion contract missing: $fragment" }
-}
-$chatTemplateMatch = [regex]::Match($chat, '(?ms)```text(?<template>.*?)```')
-if ($chatTemplateMatch.Success -and ($chatTemplateMatch.Groups['template'].Value -match '実行開始時刻|実行終了時刻')) {
-    Add-Failure 'normal chat template body must not expose execution timestamps'
-}
-
-foreach ($fragment in @('repository path:', 'GitHub repository:', 'entrypoint:', 'actor:', 'role:', 'session_mode:', 'routing_mode:', 'NEXT_ACTION:', 'entrypoint graph', 'silent read', 'write capability', 'USER_RELAY_REQUIRED', 'route-go.ps1', 'connector_read_only')) {
-    if ($session.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "new-session contract missing: $fragment" }
-}
-$sessionTemplateMatch = [regex]::Match($session, '(?ms)^3\..*?##\s*3 section template(?<template>[\s\S]*?)(?=^4\.|\Z)')
-if (-not $sessionTemplateMatch.Success -or
-    $sessionTemplateMatch.Groups['template'].Value -notmatch '## 現在地点' -or
-    $sessionTemplateMatch.Groups['template'].Value -notmatch '## 依頼先情報' -or
-    $sessionTemplateMatch.Groups['template'].Value -notmatch '## コピペ用プロンプト' -or
-    $sessionTemplateMatch.Groups['template'].Value -match '実行開始時刻|実行終了時刻') {
-    Add-Failure 'SESSION_START normal chat template block is missing or contains timestamp fields'
-}
-if ($session -match '依頼先情報だけを返してください|依頼先情報だけ') { Add-Failure 'SESSION_START still contains single-section return instruction' }
-if ($session -notmatch '開始時刻.*silent取得' -or $session -notmatch '実行終了時刻.*取得' -or $session -notmatch 'report') {
-    Add-Failure 'SESSION_START lacks explicit silent clock capture and audit persistence contract'
-}
-if ($session -match '通常chat.*実行開始時刻|通常chat.*実行終了時刻') { Add-Failure 'SESSION_START should not show timestamps in normal chat fields' }
-if ($sessionTemplateMatch.Success -and (
-    $sessionTemplateMatch.Groups['template'].Value -notmatch 'blocker理由' -or
-    $sessionTemplateMatch.Groups['template'].Value -notmatch '再開条件'
-)) {
-    Add-Failure 'SESSION_START prompt must keep blocker reason and resume condition'
-}
-if ($session -match '未着手|BLOCKED|mismatch' -and $session -notmatch '3 section') {
-    Add-Failure 'SESSION_START must keep 3 section format even when work cannot start'
-}
-
-foreach ($fragment in @('preferred_fallback', 'strict', 'actual_executor: ChatGPT', 'execution_mode: separate_session', 'provider_substitution: Claude_to_ChatGPT', 'repository_access: true')) {
-    if ($roles.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "review fallback contract missing: $fragment" }
-}
-foreach ($fragment in @('repository_write_access: available / unavailable', '正本を更新済みと記録せず', 'RELAY_BUNDLE.json', 'bundle name、SHA-256、bytes、format', 'artifactも作成不能な場合だけ', '完全なGO-only state transitionはwrite bridge利用時だけ')) {
-    if ($go.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "write bridge contract missing: $fragment" }
-}
-foreach ($fragment in @('tools/route-go.ps1', 'connector_read_only', 'relay_recipient_role', 'actor／role', '全7 decision')) {
-    if ($go.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "GO router contract missing: $fragment" }
-}
-foreach ($fragment in @('local_script','connector_read_only','remote_read_only','not_observable','state_write_allowed','relay_import_allowed','HANDOFF_IDENTITY_INVALID')) {
-    if ($route.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) { Add-Failure "GO route result contract missing: $fragment" }
-}
-if ($start -notmatch '(?ms)^5\..*実行開始時刻' -or $start -notmatch '(?ms)^6\..*3 section' -or $start -notmatch '(?ms)^7\..*実行終了時刻') {
-    Add-Failure 'START audit timing contract steps 5-7 is missing'
-}
-if ($start -notmatch 'report／handoffへ保存') { Add-Failure 'START timestamp audit persistence contract missing' }
-$startTemplateHasClock = $startTemplateMatch.Success -and ($startTemplateMatch.Groups['template'].Value -match '実行開始時刻|実行終了時刻')
-if ($startTemplateHasClock) { Add-Failure 'START normal chat template block contains timestamp fields' }
-$startTemplateMatch = [regex]::Match($start, '(?ms)^6\..*?```text(?<template>.*?)```(?=.*^7\.)')
-if (-not $startTemplateMatch.Success -or
-    $startTemplateMatch.Groups['template'].Value -notmatch '## 現在地点' -or
-    $startTemplateMatch.Groups['template'].Value -notmatch '## 依頼先情報' -or
-    $startTemplateMatch.Groups['template'].Value -notmatch '## コピペ用プロンプト' -or
-    $startTemplateMatch.Groups['template'].Value -match '実行開始時刻|実行終了時刻') {
-    Add-Failure 'START normal chat template block is missing or contains timestamp fields'
-}
-if ($start -notmatch '(?m)^5\.\s*' -or $start -notmatch '(?m)^6\.\s*' -or $start -notmatch '(?m)^7\.\s*' -or $start -notmatch '(?ms)^5\..*?\r?\n\s*6\..*?\r?\n\s*7\.') {
-    Add-Failure 'START steps 5,6,7 are not consecutive'
-}
+$canonicalSnapshotPaths=@('source/AGENTS.md','core/START.md','core/POLICY.psd1','core/CONSTITUTION.md','core/OUTPUT.md','core/LIFECYCLE.md','core/ARTIFACTS.md','core/EXECUTION.md')
+foreach($relative in $canonicalSnapshotPaths){if(-not(Test-Path -LiteralPath (Project-Path "docs/ai/generated/shared/$relative") -PathType Leaf)){Add-Failure "canonical governance snapshot is missing: $relative"}}
+$obsoleteSnapshotPaths=@('CHAT_OUTPUT.md','GO_PROTOCOL.md','ROLES.md','TASK_LIFECYCLE.md','HANDOFF_CONTRACT.md','REVIEW_CONTRACT.md','BROWSER_EVIDENCE.md','PROGRESS_CONTRACT.md')
+foreach($relative in $obsoleteSnapshotPaths){if(Test-Path -LiteralPath (Project-Path "docs/ai/generated/shared/$relative") -PathType Leaf){Add-Failure "obsolete governance snapshot owner remains: $relative"}}
+$session = if(Test-Path -LiteralPath (Project-Path 'docs/ai/SESSION_START.md')){Read-ProjectFile 'docs/ai/SESSION_START.md'}else{''}
+if($session.IndexOf('artifact_role',[StringComparison]::Ordinal)-lt0-or$session.IndexOf('lock_file',[StringComparison]::Ordinal)-lt0){Add-Failure 'SESSION_START artifact identity is incomplete'}
 
 if ($adapter) {
     $mode = [string]$adapter.ProductIdentity.Mode
@@ -618,7 +553,7 @@ if ($adapter) {
     }
 }
 
-$startup = @('AGENTS.md', 'docs/ai/generated/shared/START.md', 'docs/ai/PROJECT_ADAPTER.psd1', 'docs/ai/PROJECT_RULES.md', 'docs/ai/CURRENT_STATE.md', 'docs/ai/NEXT_ACTION.yml')
+$startup = @('AGENTS.md', 'docs/ai/generated/shared/core/START.md', 'docs/ai/PROJECT_ADAPTER.psd1', 'docs/ai/PROJECT_RULES.md', 'docs/ai/CURRENT_STATE.md', 'docs/ai/NEXT_ACTION.yml')
 if ($handoff -and $handoff -ne 'none') { $startup += $handoff }
 foreach ($id in $active) { $startup += "docs/ai/tasks/$id.md" }
 $startupBytes = 0

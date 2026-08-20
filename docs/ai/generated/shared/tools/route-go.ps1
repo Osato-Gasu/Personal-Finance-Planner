@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.25
-# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+# source version: 1.0.1
+# source commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -205,7 +205,9 @@ try{
     $nextRelative='docs/ai/NEXT_ACTION.yml';$adapterRelative='docs/ai/PROJECT_ADAPTER.psd1'
     $next=Read-CommitFile $routeResolvedCommit $nextRelative;$adapterText=Read-CommitFile $routeResolvedCommit $adapterRelative
     $routeNextBlob=Get-CommitBlob $routeResolvedCommit $nextRelative;$routeAdapterBlob=Get-CommitBlob $routeResolvedCommit $adapterRelative
-    $adapter=Import-AdapterText $adapterText;$routeRepository=[string]$adapter.Relay.Repository
+    $adapter=Import-AdapterText $adapterText
+    if([int]$adapter.SchemaVersion-ne2){throw "unsupported project adapter schema: $($adapter.SchemaVersion)"}
+    $routeRepository=[string]$adapter.Relay.Repository
     $taskId=Read-Key $next 'task_id' 'NEXT_ACTION';$phase=Read-Key $next 'phase' 'NEXT_ACTION';$handoff=Read-Key $next 'handoff_file' 'NEXT_ACTION'
     if([IO.Path]::IsPathRooted($handoff)-or$handoff-match'(^|[\\/])\.\.([\\/]|$)'){throw 'NEXT_ACTION handoff identity escapes project root'}
     $handoffText=Read-CommitFile $routeResolvedCommit $handoff;$routeHandoffBlob=Get-CommitBlob $routeResolvedCommit $handoff

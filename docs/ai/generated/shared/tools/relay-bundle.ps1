@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.25
-# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+# source version: 1.0.1
+# source commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -18,6 +18,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'import-adapter.ps1')
 $root=[IO.Path]::GetFullPath($ProjectRoot)
 $utf8NoBom=[Text.UTF8Encoding]::new($false)
+$policy=Import-AdapterFile -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'core/POLICY.psd1') -ExpectedBom absent
 function Resolve-SharedPowerShellExe {
     param(
         [string]$EditionOverride,
@@ -106,13 +107,12 @@ function Read-ImplementationReviewConvergenceState([string]$Text,[string]$Source
     foreach($field in @('review_stage','changes_requested_cycles','implementation_review_attempt','implementation_review_profile','implementation_review_terminated')){$values[$field]=Read-Key $Text $field $Source}
     [pscustomobject]$values
 }
-function Assert-ExistingImplementationReviewPreflight([string]$TaskText,[string]$StateText,[string]$NextText,[string]$HandoffText,[string]$ReportText,[string]$TaskSource,[string]$HandoffSource,[string]$ReportSource){
+function Assert-ExistingImplementationReviewPreflight([string]$TaskText,[string]$StateText,[string]$NextText,[string]$HandoffText,[string]$TaskSource,[string]$HandoffSource){
     $sources=[ordered]@{
         $TaskSource=(Read-ImplementationReviewConvergenceState $TaskText $TaskSource)
         'CURRENT_STATE'=(Read-ImplementationReviewConvergenceState $StateText 'CURRENT_STATE')
         'NEXT_ACTION'=(Read-ImplementationReviewConvergenceState $NextText 'NEXT_ACTION')
         $HandoffSource=(Read-ImplementationReviewConvergenceState $HandoffText $HandoffSource)
-        $ReportSource=(Read-ImplementationReviewConvergenceState $ReportText $ReportSource)
     }
     $canonical=$sources[$TaskSource]
     foreach($source in $sources.GetEnumerator()){
@@ -225,17 +225,15 @@ function Read-GitText([string]$Commit,[string]$Relative){
     ($text-join"`n")+"`n"
 }
 function Test-AssignmentAllowed($Adapter,[string]$Actor,[string]$Role,[string]$Model,[string]$Effort){
-    $core=@{'5.3 Codex Spark|high'='Spark-high';'5.3 Codex Spark|xhigh'='Spark-xhigh'}
-    $pair="$Model|$Effort"
-    if($core.ContainsKey($pair)-and@($Adapter.ModelRouting.DeprecatedRoutes)-ccontains$core[$pair]){return $false}
-    if(@($Adapter.Relay.Assignments)-ccontains"$Actor|$Role|$Model|$Effort"){return $true}
-    $review=$Adapter.Relay.IndependentReview
-    if($null-eq$review-or$Role-cne'INDEPENDENT_REVIEWER'){return $false}
-    if($Actor-ceq[string]$review.PreferredExecutor){
-        return $Model-notmatch'(?i)^(none|unknown|tbd|runtime[-_ ]selected)$'-and$Effort-notmatch'(?i)^(none|unknown|tbd|runtime[-_ ]selected)$'
-    }
-    if($Actor-ceq[string]$review.FallbackExecutor){return @($review.FallbackAssignments)-ccontains"$Actor|$Role|$Model|$Effort"}
-    return $false
+    if($Actor-in@('USER','NONE')){return $Model-ceq'none'-and$Effort-ceq'none'}
+    $assignment=if($Actor-ceq'ChatGPT'-and$Role-ceq'ORCHESTRATOR_AND_REVIEWER'){'CHATGPT_ORCHESTRATOR'}elseif($Actor-ceq'ChatGPT'-and$Role-ceq'INDEPENDENT_REVIEWER'){'CHATGPT_INDEPENDENT_REVIEWER'}elseif($Actor-ceq'Codex'-and$Role-ceq'IMPLEMENTER'){'CODEX_MAIN'}else{return $false}
+    if($Model-ceq'none'-and$Effort-ceq'none'){return $true}
+    $modelId=if($Model-match'(?i)(Spark|Luna|Terra|Sol)$'){$Matches[1]}else{$Model}
+    $modelId=(Get-Culture).TextInfo.ToTitleCase($modelId.ToLowerInvariant())
+    $effortId=if($Effort-ceq'Ultra'){'max'}else{$Effort.ToLowerInvariant()}
+    $routeId="$modelId-$effortId";if($policy.Routing.LegacyRouteMap.ContainsKey($routeId)){$routeId=[string]$policy.Routing.LegacyRouteMap[$routeId]}
+    $purpose=[string]$policy.Routing.AssignmentPurpose[$assignment]
+    return @($policy.Routing.PurposeOrders[$purpose])-ccontains$routeId
 }
 function Get-Transition([string]$Decision,$Bundle,$Adapter){
     if($Decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){
@@ -265,12 +263,7 @@ function Get-Transition([string]$Decision,$Bundle,$Adapter){
     $table[$Decision]
 }
 function Resolve-CandidateField($Bundle,$Adapter){
-    $mapping=$Adapter.Relay.CandidateIdentity
-    if($null-eq$mapping){
-        $legacy=[string]$Adapter.Relay.CanonicalCandidateField
-        if(-not[string]::IsNullOrWhiteSpace($legacy)){return $legacy}
-        throw 'project adapter candidate identity mapping is missing'
-    }
+    $mapping=$policy.Relay.CandidateIdentity
     if([string]$Bundle.decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){
         $field=[string]$mapping.IndependentReviewKinds[[string]$Bundle.independent_review.kind]
     }elseif([string]$Bundle.decision-ceq'INDEPENDENT_REVIEW_COMPLETED'){
@@ -342,21 +335,19 @@ function Validate-Bundle($Bundle,$Adapter,$FindingDispositions){
         foreach($name in @('kind','reviewed_candidate','request_id','preferred_executor','actual_executor','provider_substitution','executor_policy','review_role','execution_mode','review_status','model','effort','started_at')){Require-SingleLine $review.$name "independent_review.$name"}
         Require-NonNegativeInteger $review.reviewed_spec_revision 'independent_review.reviewed_spec_revision'
         Require-Bool $review.repository_access 'independent_review.repository_access'
-        $reviewConfig=$Adapter.Relay.IndependentReview;if($null-eq$reviewConfig){throw 'project adapter independent review configuration is missing'}
+        $reviewConfig=$policy.IndependentReview;if($null-eq$reviewConfig){throw 'global independent review configuration is missing'}
         if(@($reviewConfig.AllowedKinds)-cnotcontains[string]$review.kind){throw 'independent_review.kind is invalid'}
         if([string]$review.reviewed_candidate-cne[string]$Bundle.reviewed_candidate-or[int]$review.reviewed_spec_revision-ne[int]$Bundle.spec_revision){throw 'independent review request identity mismatch'}
         if([string]$review.model-cne[string]$Bundle.model-or[string]$review.effort-cne[string]$Bundle.effort){throw 'independent review request model/effort mismatch'}
         if([string]$review.request_id-notmatch'^[A-F0-9]{64}$'-or[string]$review.request_id-cne(Get-ReviewRequestId $review)){throw 'independent review request_id mismatch'}
-        if([string]$review.preferred_executor-cne[string]$reviewConfig.PreferredExecutor){throw 'independent_review preferred executor mismatch'}
-        if([string]$review.executor_policy-notin@('preferred_fallback','strict')){throw 'independent_review executor policy is invalid'}
-        if([string]$review.review_role-cne'INDEPENDENT_REVIEWER'){throw 'independent_review review_role must be INDEPENDENT_REVIEWER'}
+        if([string]$review.preferred_executor-cne[string]$reviewConfig.ActiveExecutor-or[string]$review.actual_executor-cne[string]$reviewConfig.ActiveExecutor){throw 'independent_review executor mismatch'}
+        if([string]$review.executor_policy-cne[string]$reviewConfig.ExecutorPolicy){throw 'independent_review executor policy is invalid'}
+        if([string]$review.review_role-cne[string]$reviewConfig.Role){throw 'independent_review review_role mismatch'}
         if([string]$review.review_status-cne'requested'){throw 'independent_review review_status must be requested'}
         if([string]$review.started_at-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'){throw 'independent_review.started_at is invalid'}
-        if([string]$review.execution_mode-cne'separate_session'){throw 'independent_review execution_mode must be separate_session'}
+        if([string]$review.execution_mode-cne[string]$reviewConfig.ExecutionMode){throw 'independent_review execution_mode mismatch'}
         if(-not[bool]$review.repository_access){throw 'independent_review repository_access must be true'}
-        if([string]$review.actual_executor-ceq[string]$reviewConfig.PreferredExecutor){if([string]$review.provider_substitution-cne'none'){throw 'preferred independent reviewer must not record provider substitution'}}
-        elseif([string]$review.actual_executor-ceq[string]$reviewConfig.FallbackExecutor){if([string]$review.executor_policy-ceq'strict'){throw 'strict independent review forbids provider substitution'};if([string]$review.provider_substitution-cne"$($reviewConfig.PreferredExecutor)_to_$($reviewConfig.FallbackExecutor)"){throw 'independent review provider substitution is invalid'}}
-        else{throw 'independent review actual executor is invalid'}
+        if([string]$review.provider_substitution-cne[string]$reviewConfig.ProviderSubstitution-or[string]$review.model-cne[string]$reviewConfig.Model-or@($reviewConfig.AllowedEfforts)-cnotcontains[string]$review.effort){throw 'independent review route/substitution is invalid'}
     }
     if([string]$Bundle.decision-ceq'INDEPENDENT_REVIEW_COMPLETED'-or$null-ne$Bundle.independent_review_result){
         $result=$Bundle.independent_review_result;if($null-eq$result){throw 'INDEPENDENT_REVIEW_COMPLETED requires independent_review_result object'}
@@ -370,24 +361,24 @@ function Validate-Bundle($Bundle,$Adapter,$FindingDispositions){
         if([string]$result.review_role-cne'INDEPENDENT_REVIEWER'){throw 'independent review result review_role must be INDEPENDENT_REVIEWER'}
         $resultRequest=Convert-ResultToRequest $result
         if([string]$result.request_id-notmatch'^[A-F0-9]{64}$'-or[string]$result.request_id-cne(Get-ReviewRequestId $resultRequest)){throw 'independent review result request_id mismatch'}
-        if([string]$result.executor_policy-notin@('preferred_fallback','strict')){throw 'independent review result executor_policy is invalid'}
+        if([string]$result.executor_policy-cne[string]$policy.IndependentReview.ExecutorPolicy){throw 'independent review result executor_policy is invalid'}
         if([string]$result.result-notin@('NO_BLOCKING_FINDINGS','CHANGES_RECOMMENDED','BLOCKED','FAILED')){throw 'independent review result is invalid'}
         if([string]$result.started_at-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'-or[string]$result.completed_at-notmatch'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST$'){throw 'independent review result timestamp is invalid'}
         if([string]$result.started_at-cgt[string]$result.completed_at){throw 'independent review result completed_at precedes started_at'}
         if([int]$result.findings_count-ne@($Bundle.findings).Count){throw 'independent review result findings_count mismatch'}
         $expectedIds=(@($Bundle.findings|ForEach-Object{[string]$_.id})-join',');if([string]::IsNullOrWhiteSpace($expectedIds)){$expectedIds='none'};if([string]$result.finding_ids-cne$expectedIds){throw 'independent review result finding_ids mismatch'}
-        $reviewConfig=$Adapter.Relay.IndependentReview
+        $reviewConfig=$policy.IndependentReview
         if(@($reviewConfig.AllowedKinds)-cnotcontains[string]$result.review_kind){throw 'independent review result review_kind is invalid'}
-        if([string]$result.preferred_executor-cne[string]$reviewConfig.PreferredExecutor){throw 'independent review result preferred executor mismatch'}
-        if([string]$result.actual_executor-ceq[string]$reviewConfig.PreferredExecutor){if([string]$result.provider_substitution-cne'none'){throw 'preferred independent review result must not record substitution'}}
-        elseif([string]$result.actual_executor-ceq[string]$reviewConfig.FallbackExecutor){if([string]$result.executor_policy-ceq'strict'){throw 'strict independent review result forbids provider substitution'};if([string]$result.provider_substitution-cne"$($reviewConfig.PreferredExecutor)_to_$($reviewConfig.FallbackExecutor)"){throw 'independent review result provider substitution is invalid'}}else{throw 'independent review result actual executor is invalid'}
-        if([string]$result.execution_mode-cne'separate_session'-or-not[bool]$result.repository_access){throw 'independent review result execution context is invalid'}
+        if([string]$result.preferred_executor-cne[string]$reviewConfig.ActiveExecutor-or[string]$result.actual_executor-cne[string]$reviewConfig.ActiveExecutor){throw 'independent review result executor mismatch'}
+        if([string]$result.executor_policy-cne[string]$reviewConfig.ExecutorPolicy-or[string]$result.provider_substitution-cne[string]$reviewConfig.ProviderSubstitution){throw 'independent review result policy/substitution is invalid'}
+        if([string]$result.execution_mode-cne[string]$reviewConfig.ExecutionMode-or-not[bool]$result.repository_access-or[string]$result.model-cne[string]$reviewConfig.Model-or@($reviewConfig.AllowedEfforts)-cnotcontains[string]$result.effort){throw 'independent review result execution context is invalid'}
     }
     $transition=Get-Transition ([string]$Bundle.decision) $Bundle $Adapter
     if([string]$Bundle.next_phase-cne$transition.Phase){throw "decision/phase mismatch: $($Bundle.decision)/$($Bundle.next_phase)"}
     if($transition.Actor-cne'dynamic'-and([string]$Bundle.next_actor-cne$transition.Actor-or[string]$Bundle.next_role-cne$transition.Role)){throw "decision actor/role mismatch: $($Bundle.decision)"}
     if($transition.ReturnTo-cne'dynamic'-and[string]$Bundle.result_return_to-cne$transition.ReturnTo){throw "decision result_return_to mismatch: $($Bundle.decision)"}
-    if(-not$Adapter.PhaseLabels.ContainsKey([string]$Bundle.next_phase)){throw "unknown relay phase: $($Bundle.next_phase)"}
+    $phaseIds=@($policy.Lifecycle.InternalPhases+@($Adapter.PhaseExtensions|ForEach-Object{[string]$_.Id}))
+    if($phaseIds-cnotcontains[string]$Bundle.next_phase){throw "unknown relay phase: $($Bundle.next_phase)"}
     $assignment="$($Bundle.next_actor)|$($Bundle.next_role)|$($Bundle.model)|$($Bundle.effort)"
     if(-not(Test-AssignmentAllowed $Adapter ([string]$Bundle.next_actor) ([string]$Bundle.next_role) ([string]$Bundle.model) ([string]$Bundle.effort))){throw "invalid relay model/effort assignment: $assignment"}
     if($null-eq$Bundle.findings){throw 'relay bundle findings must be an array'}
@@ -437,19 +428,19 @@ function Validate-Bundle($Bundle,$Adapter,$FindingDispositions){
         $requirements=$Bundle.requirements;if($null-eq$requirements){throw 'REQUIREMENTS_DEFINED requires requirements object'}
         foreach($name in @('title','priority','base_commit','base_tree','accepted_product_identity_reference','claude_design_review_recommendation','claude_implementation_review_recommendation','claude_design_review_status','claude_implementation_review_status','preferred_executor','allowed_executors','executor_policy','rollback','handoff_mode')){Require-SingleLine $requirements.$name "requirements.$name"}
         foreach($name in @('base_commit','base_tree')){if([string]$requirements.$name-notmatch'^[0-9a-f]{40}$'){throw "requirements.$name must be an exact commit"}}
-        if(@($Adapter.Relay.Requirements.Priorities)-cnotcontains[string]$requirements.priority){throw 'requirements.priority is invalid'}
+        if(@($policy.Relay.Requirements.Priorities)-cnotcontains[string]$requirements.priority){throw 'requirements.priority is invalid'}
         if([bool]$Adapter.Relay.Requirements.RequireProductIdentityReference-and[string]$requirements.accepted_product_identity_reference-ceq'none'){throw 'requirements accepted product identity reference is required'}
         if(@($Adapter.Relay.Requirements.ProductIdentityReferences)-cnotcontains[string]$requirements.accepted_product_identity_reference){throw 'requirements accepted product identity reference is not allowed by project adapter'}
         Require-Bool $requirements.browser_evidence_required 'requirements.browser_evidence_required';Require-Bool $requirements.claude_design_review_required 'requirements.claude_design_review_required';Require-Bool $requirements.claude_implementation_review_required 'requirements.claude_implementation_review_required'
         foreach($name in @('claude_design_review_recommendation','claude_implementation_review_recommendation')){if([string]$requirements.$name-notin@('not_needed','optional','recommended','strongly_recommended')){throw "requirements.$name is invalid"}}
         foreach($name in @('claude_design_review_status','claude_implementation_review_status')){if([string]$requirements.$name-notin@('not_requested','completed','skipped_quota','declined','not_applicable')){throw "requirements.$name is invalid"}}
-        if([string]$requirements.executor_policy-notin@('preferred_fallback','strict')){throw 'requirements.executor_policy is invalid'}
+        if([string]$requirements.executor_policy-cne[string]$policy.IndependentReview.ExecutorPolicy){throw 'requirements.executor_policy is invalid'}
         if([string]$requirements.handoff_mode-notin@('existing','new')){throw 'requirements.handoff_mode is invalid'}
-        $allowedExecutorValues=@($Adapter.Relay.Requirements.Executors);if($allowedExecutorValues-cnotcontains[string]$requirements.preferred_executor){throw 'requirements.preferred_executor is invalid'}
-        if([string]$requirements.preferred_executor-cne[string]$Adapter.Relay.IndependentReview.PreferredExecutor){throw 'requirements.preferred_executor must be Claude'}
+        $allowedExecutorValues=@($policy.Relay.Requirements.Executors);if($allowedExecutorValues-cnotcontains[string]$requirements.preferred_executor){throw 'requirements.preferred_executor is invalid'}
+        if([string]$requirements.preferred_executor-cne[string]$policy.IndependentReview.ActiveExecutor){throw 'requirements.preferred_executor does not match global policy'}
         $selectedExecutors=@(([string]$requirements.allowed_executors)-split','|ForEach-Object{$_.Trim()}|Where-Object{$_})
         if($selectedExecutors.Count-eq0-or@($selectedExecutors|Where-Object{$allowedExecutorValues-cnotcontains$_}).Count-ne0-or@($selectedExecutors|Select-Object -Unique).Count-ne$selectedExecutors.Count){throw 'requirements.allowed_executors is invalid'}
-        $expectedExecutors=if([string]$requirements.executor_policy-ceq'strict'){@([string]$Adapter.Relay.IndependentReview.PreferredExecutor)}else{@([string]$Adapter.Relay.IndependentReview.PreferredExecutor,[string]$Adapter.Relay.IndependentReview.FallbackExecutor)}
+        $expectedExecutors=@([string]$policy.IndependentReview.ActiveExecutor)
         if(@($selectedExecutors|Where-Object{$expectedExecutors-cnotcontains$_}).Count-ne0-or@($expectedExecutors|Where-Object{$selectedExecutors-cnotcontains$_}).Count-ne0){throw 'requirements.allowed_executors does not match executor_policy'}
         $metadata=$requirements.project_metadata
         foreach($spec in @($Adapter.Relay.Requirements.TaskMetadata)){
@@ -496,10 +487,10 @@ function Validate-ImplementationReviewFindingScope($Bundle,[int]$CurrentCycles,$
     $reviewCycles=if($Reset){0}else{$CurrentCycles}
     if($reviewCycles-ge3){throw 'implementation review terminated; no fourth implementation review is permitted'}
     $actionable=Get-ActionableFindings $Bundle $FindingDispositions
-    if($reviewCycles-le1-and$actionable.Count-gt2){throw 'implementation review allows at most two actionable findings on standard/narrowed attempts'}
+    if($reviewCycles-le1-and$actionable.Count-gt[int]$policy.Lifecycle.StandardActionableFindingLimit){throw 'implementation review exceeds the POLICY actionable finding limit'}
     if($reviewCycles-ge1){
-        $allowedNarrowed=@('accepted_prior_finding','new_regression','requirement_violation','major_functionality','security','data_loss','data_integrity','required_test','backward_compatibility','release_gate')
-        $allowedTerminal=@('accepted_prior_finding','new_regression','requirement_violation','major_functionality','security','data_loss','data_integrity','required_test','backward_compatibility','release_gate')
+        $allowedNarrowed=@($policy.Lifecycle.NarrowedReviewScopes)
+        $allowedTerminal=@($policy.Lifecycle.TerminalReviewScopes)
         foreach($finding in @($actionable)){
             $priorProperty=$finding.PSObject.Properties['prior_finding_id'];$prior=if($null-ne$priorProperty){[string]$priorProperty.Value}else{''}
             if(-not[string]::IsNullOrWhiteSpace($prior)){
@@ -510,8 +501,8 @@ function Validate-ImplementationReviewFindingScope($Bundle,[int]$CurrentCycles,$
             if($allowed-cnotcontains$scope){throw "implementation review scope is not allowed on attempt $([int]$reviewCycles+1): $($finding.id)"}
             if($scope-ceq'accepted_prior_finding' -and ([string]::IsNullOrWhiteSpace($prior) -or $OpenFindingIds-cnotcontains$prior)){throw "accepted prior finding must be an exact open finding: $($finding.id)"}
             if($scope-ceq'new_regression' -and [string]::IsNullOrWhiteSpace($prior)){ }
-            if($reviewCycles-eq2 -and [string]$finding.severity-notin@('BLOCKER','MAJOR')){throw "terminal implementation review rejects non-blocking finding: $($finding.id)"}
-            if($reviewCycles-eq1 -and $scope-ne'accepted_prior_finding' -and [string]$finding.severity-notin@('BLOCKER','MAJOR')){throw "narrowed implementation review rejects new non-blocking finding: $($finding.id)"}
+            if($reviewCycles-eq2 -and [string]$finding.severity-notin@($policy.Lifecycle.TerminalReviewSeverities)){throw "terminal implementation review rejects non-blocking finding: $($finding.id)"}
+            if($reviewCycles-eq1 -and $scope-ne'accepted_prior_finding' -and [string]$finding.severity-notin@($policy.Lifecycle.TerminalReviewSeverities)){throw "narrowed implementation review rejects new non-blocking finding: $($finding.id)"}
         }
     }
 }
@@ -540,7 +531,7 @@ function Get-OverlayFailures($Adapter){
     $previousPreference=$ErrorActionPreference;$ErrorActionPreference='Continue'
     try{$output=& $powershellExe -NoProfile -ExecutionPolicy Bypass -File (Project-Path $relative) 2>&1;$exitCode=$LASTEXITCODE}finally{$ErrorActionPreference=$previousPreference}
     $text=($output-join"`n")
-    $pattern=[string]$Adapter.Relay.OverlayFailurePattern;if([string]::IsNullOrWhiteSpace($pattern)){throw 'project adapter relay overlay failure pattern is missing'}
+    $pattern=[string]$policy.Relay.OverlayFailurePattern;if([string]::IsNullOrWhiteSpace($pattern)){throw 'global relay overlay failure pattern is missing'}
     $failures=@([regex]::Matches($text,$pattern)|ForEach-Object{if($_.Groups.Count-gt1){$_.Groups[1].Value.Trim()}else{$_.Value.Trim()}}|Sort-Object -Unique)
     if($exitCode-ne0-and$failures.Count-eq0){throw "project overlay failed without comparable failure identity: $relative"}
     return @($failures)
@@ -550,8 +541,8 @@ $inputPath=[IO.Path]::GetFullPath($BundlePath)
 if(-not(Test-Path -LiteralPath $inputPath -PathType Leaf)){throw "relay bundle missing: $inputPath"}
 $adapterPath=Project-Path 'docs/ai/PROJECT_ADAPTER.psd1'
 if(-not(Test-Path -LiteralPath $adapterPath -PathType Leaf)){throw 'project adapter is missing'}
-$adapter=Import-AdapterFile -Path $adapterPath -ExpectedBom present
-if(-not$adapter.Relay-or[string]::IsNullOrWhiteSpace([string]$adapter.Relay.Repository)-or@($adapter.Relay.Assignments).Count-eq0){throw 'project adapter relay configuration is incomplete'}
+$adapter=Import-AdapterFile -Path $adapterPath -ExpectedBom absent
+if([int]$adapter.SchemaVersion-ne[int]$policy.ProjectAdapter.SchemaVersion-or-not$adapter.Relay-or[string]::IsNullOrWhiteSpace([string]$adapter.Relay.Repository)-or$null-eq$adapter.Relay.Requirements){throw 'project adapter relay configuration is incomplete'}
 $bundle=([IO.File]::ReadAllText($inputPath)|ConvertFrom-Json)
 $findingDispositions=Normalize-OptionalCollection $bundle.finding_dispositions
 $transition=Validate-Bundle $bundle $adapter $findingDispositions
@@ -602,14 +593,14 @@ $origin=(git -C $root remote get-url origin).Trim();if($LASTEXITCODE-ne0-or$orig
     $statePath=Project-Path 'docs/ai/CURRENT_STATE.md';$nextPath=Project-Path 'docs/ai/NEXT_ACTION.yml';$state=[IO.File]::ReadAllText($statePath);$next=[IO.File]::ReadAllText($nextPath);$taskId=[string]$bundle.task_id
 $active=@([regex]::Matches($state,'(?m)^\s+-\s+(TASK-[0-9]+)\s*$')|ForEach-Object{$_.Groups[1].Value}|Select-Object -Unique);if($state-match'(?m)^active_tasks:\s*\[\]\s*$'){$active=@()}
 $taskRelative="docs/ai/tasks/$taskId.md";$taskPath=Project-Path $taskRelative
-$lock=[IO.File]::ReadAllText((Project-Path 'docs/ai/SHARED_RULES.lock.yml'));if((Read-Key $lock 'commit' 'SHARED_RULES.lock.yml')-cne[string]$bundle.shared_candidate){throw 'relay bundle shared candidate mismatch'}
+    $lock=[IO.File]::ReadAllText((Project-Path 'docs/ai/SHARED_RULES.lock.yml'));$lockCommitKey=if($lock-match'(?m)^source_commit:'){'source_commit'}else{'commit'};if((Read-Key $lock $lockCommitKey 'SHARED_RULES.lock.yml')-cne[string]$bundle.shared_candidate){throw 'relay bundle shared candidate mismatch'}
 $specRevisionReset=$false
 $openFindingIds=@()
 if([string]$bundle.decision-eq'REQUIREMENTS_DEFINED'){
     if($active.Count-ne0){throw 'REQUIREMENTS_DEFINED relay requires zero active TASKs'}
     if(Test-Path -LiteralPath $taskPath){throw 'REQUIREMENTS_DEFINED target TASK already exists'}
     $baseCommit=[string]$bundle.requirements.base_commit;$actualTree=(git -C $root rev-parse "$baseCommit`^{tree}").Trim();if($LASTEXITCODE-ne0-or$actualTree-cne[string]$bundle.requirements.base_tree){throw 'REQUIREMENTS_DEFINED base commit/tree mismatch'}
-    if([string]$adapter.Relay.Requirements.BaseCommitPolicy-cne'exact_head'-or$head-cne$baseCommit){throw 'REQUIREMENTS_DEFINED base commit must equal current HEAD'}
+    if([string]$policy.Relay.Requirements.BaseCommitPolicy-cne'exact_head'-or$head-cne$baseCommit){throw 'REQUIREMENTS_DEFINED base commit must equal current HEAD'}
 }else{
     if($active.Count-ne1-or$active[0]-cne$taskId){throw 'relay bundle task does not match active TASK'}
     if(-not(Test-Path -LiteralPath $taskPath -PathType Leaf)){throw 'active TASK file is missing'}
@@ -631,7 +622,7 @@ if([string]$bundle.decision-eq'REQUIREMENTS_DEFINED'){
     $acceptedPriorFindingIds=@(Read-HandoffFindingIds $currentHandoff 'Required changes' $currentHandoffRelative)
     $dispositionFindingIds=@(Read-HandoffFindingIds $currentHandoff 'Independent review disposition audit' $currentHandoffRelative)
     $currentReportRelative="docs/ai/reports/$taskId/RELAY_IMPORT.md";$currentReportPath=Project-Path $currentReportRelative;if(-not(Test-Path -LiteralPath $currentReportPath -PathType Leaf)){throw 'current relay import report is missing'};$currentReport=[IO.File]::ReadAllText($currentReportPath)
-    Assert-ExistingImplementationReviewPreflight $taskExisting $state $next $currentHandoff $currentReport $taskRelative $currentHandoffRelative $currentReportRelative|Out-Null
+    Assert-ExistingImplementationReviewPreflight $taskExisting $state $next $currentHandoff $taskRelative $currentHandoffRelative|Out-Null
     $candidateField=Resolve-CandidateField $bundle $adapter
     if((Read-Key $currentHandoff $candidateField $currentHandoffRelative)-cne[string]$bundle.reviewed_candidate){throw 'relay bundle candidate does not match canonical review candidate'}
     $canonicalRelative="docs/ai/reports/$taskId/RELAY_BUNDLE.json";$currentCanonicalPath=Project-Path $canonicalRelative
@@ -741,7 +732,7 @@ $effectiveModel=if($materializedFromChangesRequested){'none'}else{[string]$bundl
 $effectiveEffort=if($materializedFromChangesRequested){'none'}else{[string]$bundle.effort}
 $effectiveReturnTo=if($materializedFromChangesRequested){[string]$transition.ReturnTo}else{[string]$bundle.result_return_to}
 $handoffRelative="docs/ai/handoffs/$taskId/$($transition.Handoff)";$reportRelative="docs/ai/reports/$taskId/RELAY_IMPORT.md";$canonicalRelative="docs/ai/reports/$taskId/RELAY_BUNDLE.json"
-$nextTemplate=[string]$adapter.Relay.NextActionTemplates[$effectiveDecision];if([string]::IsNullOrWhiteSpace($nextTemplate)){throw 'project adapter relay next_action template is missing'}
+$nextTemplate=[string]$policy.Relay.NextActionTemplates[$effectiveDecision];if([string]::IsNullOrWhiteSpace($nextTemplate)){throw 'global relay next_action template is missing'}
 $nextAction=$nextTemplate
 $nextAction=$nextAction.Replace('{task_id}',$taskId)
 $nextAction=$nextAction.Replace('{decision}',$effectiveDecision)
@@ -767,14 +758,12 @@ if(Test-Path -LiteralPath $taskPath){
     $task=Set-OrAdd-Key $task 'implementation_review_terminated' $implementationReviewTerminated $taskRelative
     $task=Set-OrAdd-Key $task 'implementation_review_open_finding_ids' $implementationReviewOpenFindingValue $taskRelative
     if([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_REQUESTED'){
-        $review=$bundle.independent_review;$allowed=if([string]$review.executor_policy-ceq'strict'){[string]$review.preferred_executor}else{"$($review.preferred_executor), $($adapter.Relay.IndependentReview.FallbackExecutor)"}
+        $review=$bundle.independent_review;$allowed=[string]$policy.IndependentReview.ActiveExecutor
         $repositoryAccess=([string][bool]$review.repository_access).ToLowerInvariant()
         $reviewValues=[ordered]@{preferred_executor=[string]$review.preferred_executor;allowed_executors=$allowed;executor_policy=[string]$review.executor_policy;review_kind=[string]$review.kind;review_role=[string]$review.review_role;execution_mode=[string]$review.execution_mode;repository_access=$repositoryAccess;review_status=[string]$review.review_status;request_review_status=[string]$review.review_status;review_model=[string]$review.model;review_effort=[string]$review.effort;actual_executor=[string]$review.actual_executor;provider_substitution=[string]$review.provider_substitution;reviewed_candidate=[string]$review.reviewed_candidate;reviewed_spec_revision=[string]$review.reviewed_spec_revision;review_request_id=[string]$review.request_id;review_started_at=[string]$review.started_at;review_completed_at='none';review_result='none';review_findings_count='0';review_finding_ids='none'}
-        if([string]$review.actual_executor-ceq[string]$adapter.Relay.IndependentReview.PreferredExecutor){$reviewValues["claude_$($review.kind)_review_status"]=[string]$review.review_status}
         foreach($pair in $reviewValues.GetEnumerator()){$task=Set-OrAdd-Key $task $pair.Key $pair.Value $taskRelative}
     }elseif([string]$bundle.decision-ceq'INDEPENDENT_REVIEW_COMPLETED'){
         $result=$bundle.independent_review_result;$resultValues=[ordered]@{preferred_executor=[string]$result.preferred_executor;review_kind=[string]$result.review_kind;review_role=[string]$result.review_role;execution_mode=[string]$result.execution_mode;repository_access=(([string][bool]$result.repository_access).ToLowerInvariant());review_status=[string]$result.review_status;request_review_status=[string]$result.request_review_status;review_model=[string]$result.model;review_effort=[string]$result.effort;actual_executor=[string]$result.actual_executor;provider_substitution=[string]$result.provider_substitution;executor_policy=[string]$result.executor_policy;reviewed_candidate=[string]$result.reviewed_candidate;reviewed_spec_revision=[string]$result.spec_revision;review_request_id=[string]$result.request_id;review_started_at=[string]$result.started_at;review_completed_at=[string]$result.completed_at;review_result=[string]$result.result;review_findings_count=[string]$result.findings_count;review_finding_ids=[string]$result.finding_ids}
-        if([string]$result.actual_executor-ceq[string]$adapter.Relay.IndependentReview.PreferredExecutor){$resultValues["claude_$($result.review_kind)_review_status"]='completed'}
         foreach($pair in $resultValues.GetEnumerator()){$task=Set-OrAdd-Key $task $pair.Key $pair.Value $taskRelative}
     }elseif([string]$bundle.decision-in@('APPROVED','CHANGES_REQUESTED','BLOCKED','NEEDS_USER_DECISION')){
         $task=Set-OrAdd-Key $task 'review_stage' ([string]$bundle.review_stage) $taskRelative

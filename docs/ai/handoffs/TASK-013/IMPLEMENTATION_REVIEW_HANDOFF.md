@@ -18,9 +18,9 @@ own lifecycle state or normative rules.
 - branch: `codex/task-013-public-audit-stable-id`
 - baseline_commit: `d96ebe1bcfe258185956fd0db3acf1ca15050af6`
 - baseline_tree: `90f97b3e16aa3d0ce36cd872d1b59b9b8d49908a`
-- candidate_commit: `1285f6745062545bb4e73a937cde141f6ab620d4`
+- candidate_commit: `none`
 - candidate_tree: `3fb36efc2fd13b9321baf11a63e798d54fe48a12`
-- shared_candidate: `f07571d3e8745b9a49a28b1ac77e211c210146a3`
+- shared_candidate: `4aa53fbe67edcbe2d7b6a147144b7b07022e5951`
 - target_shared_candidate: `4aa53fbe67edcbe2d7b6a147144b7b07022e5951`
 - canonical_candidate_field: `active TASK candidate_commit/candidate_tree`
 - product_identity: `docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*`

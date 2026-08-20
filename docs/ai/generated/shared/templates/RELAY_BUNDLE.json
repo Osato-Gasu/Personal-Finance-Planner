@@ -1,9 +1,10 @@
 # GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.25
-# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+# source version: 1.0.1
+# source commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
 # 直接編集禁止
 
 {
+  "artifact_role": "handoff_payload",
   "schema_version": 2,
   "status": "USER_RELAY_REQUIRED",
   "task_id": "TASK-000",

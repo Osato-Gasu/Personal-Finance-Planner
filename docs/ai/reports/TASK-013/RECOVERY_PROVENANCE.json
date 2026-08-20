@@ -4,7 +4,7 @@
   "task_id": "TASK-013",
   "spec_revision": 3,
   "recovery_design_revision": 6,
-  "phase_state": "PHASE_A_PRE_SYNC",
+  "phase_state": "PHASE_B_PRE_MATERIALIZATION",
   "phase_a_baseline": {
     "commit": "d96ebe1bcfe258185956fd0db3acf1ca15050af6",
     "tree": "90f97b3e16aa3d0ce36cd872d1b59b9b8d49908a"
@@ -53,11 +53,11 @@
     "rendered_candidate_blob": "a7e7dd2f3992df2469375b28a83624c1724f93ac",
     "rendered_candidate_byte_length": 1319,
     "rendered_candidate_sha256": "A00F013797E5554357F31D5D3329CEE2AF5B20F507CA9147684B38B8AD87C619",
-    "semantic_review_decision": "pending",
-    "semantic_review_plan_sha256": "none",
-    "approved_baseline_commit": "none",
-    "approved_baseline_tree": "none",
-    "approved_classification_sha256": "none"
+    "semantic_review_decision": "APPROVED",
+    "semantic_review_plan_sha256": "0B96CDB132726286C0BA591C72015C6BFC7D77FDF218142A2E59E3050860EF43",
+    "approved_baseline_commit": "ec50a76eb3049337e65247782a632b7f7324d7f9",
+    "approved_baseline_tree": "780f4a76b5947aa661ebeca0db606d72e4c65888",
+    "approved_classification_sha256": "FAB3D1FDF528B576CB43276C03E7857F84E74522FE417CBB0F53E419F96034E0"
   },
   "allowed_recovery_exact_paths": [
     "AGENTS.md",
@@ -68,6 +68,7 @@
     "docs/ai/PROJECT_ADAPTER.psd1",
     "docs/ai/PROJECT_RULES.md",
     "docs/ai/SHARED_RULES.lock.yml",
+    "docs/ai/SESSION_START.md",
     "docs/ai/WORKFLOW.md",
     "docs/ai/handoffs/TASK-013/IMPLEMENTATION_REVIEW_HANDOFF.md",
     "docs/ai/tasks/TASK-013.md",

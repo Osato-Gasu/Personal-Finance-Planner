@@ -1,6 +1,6 @@
 ﻿# GENERATED FILE: DO NOT EDIT.
-# source version: 0.12.25
-# source commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
+# source version: 1.0.1
+# source commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
 # 直接編集禁止
 
 [CmdletBinding()]
@@ -11,6 +11,7 @@ $ErrorActionPreference='Stop'
 
 $root=[IO.Path]::GetFullPath($ProjectRoot)
 $utf8NoBom=[Text.UTF8Encoding]::new($false)
+$policy=Import-AdapterFile -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'core/POLICY.psd1') -ExpectedBom absent
 
 function ReadText([string]$Relative){return [IO.File]::ReadAllText((Join-Path $root $Relative), $utf8NoBom)}
 function Value([string]$Text,[string]$Key,[string]$Source){
@@ -18,6 +19,7 @@ function Value([string]$Text,[string]$Key,[string]$Source){
     if(-not $m.Success){throw "Missing '$Key' in $Source"}
     return $m.Groups[1].Value.Trim()
 }
+function OptionalValue([string]$Text,[string]$Key,[string]$Default){$m=[regex]::Match($Text,"(?m)^\s*$([regex]::Escape($Key)):\s*(.*?)\s*$");if(-not$m.Success){return $Default};$m.Groups[1].Value.Trim()}
 function Html([AllowNull()][string]$Text){if($null -eq $Text){return ''};return [Net.WebUtility]::HtmlEncode($Text)}
 function MapValue([hashtable]$Labels,[string]$Raw,[string]$Kind,[string]$Source){
     if(-not $Labels.ContainsKey($Raw)){throw "Unknown $Kind '$Raw' in $Source"}
@@ -90,8 +92,28 @@ function Parse-CompletedLedger([string]$Relative,[string]$Text){
 
 $adapterPath=Join-Path $root 'docs/ai/PROJECT_ADAPTER.psd1'
 if(-not(Test-Path -LiteralPath $adapterPath -PathType Leaf)){throw 'Missing docs/ai/PROJECT_ADAPTER.psd1.'}
-$adapter=Import-AdapterFile -Path $adapterPath -ExpectedBom present
-if([int]$adapter.SchemaVersion -ne 1){throw "Unsupported project adapter schema: $($adapter.SchemaVersion)"}
+$adapter=Import-AdapterFile -Path $adapterPath -ExpectedBom absent
+if([int]$adapter.SchemaVersion -ne[int]$policy.ProjectAdapter.SchemaVersion){throw "Unsupported project adapter schema: $($adapter.SchemaVersion)"}
+
+function Resolve-PublicPhase([string]$Phase,[string]$TaskText,[string]$Source,[int]$Depth=0){
+    if($Depth-gt2){throw "Delegated phase origin cycle in $Source"}
+    $direct=$policy.Lifecycle.PublicPhaseDerivation.Direct
+    if($direct.ContainsKey($Phase)){return [string]$direct[$Phase]}
+    if($Phase-ceq'implementation'){
+        $mode=OptionalValue $TaskText 'implementation_mode' 'normal'
+        $values=$policy.Lifecycle.PublicPhaseDerivation.Discriminated.implementation.Values
+        if(-not$values.ContainsKey($mode)){throw "Unknown implementation_mode '$mode' in $Source"}
+        return [string]$values[$mode]
+    }
+    $extension=@($adapter.PhaseExtensions|Where-Object{[string]$_.Id-ceq$Phase})
+    if($extension.Count-eq1){return [string]$extension[0].PublicPhase}
+    if($Phase-in@('user_decision','blocked')){
+        $origin=OptionalValue $TaskText 'origin_phase' ''
+        if([string]::IsNullOrWhiteSpace($origin)){throw "Missing origin_phase for delegated phase '$Phase' in $Source"}
+        return Resolve-PublicPhase $origin $TaskText $Source ($Depth+1)
+    }
+    throw "Unknown phase '$Phase' in $Source"
+}
 
 $columns=@($adapter.Backlog.Columns)
 if($columns.Count -lt 2){throw 'Project adapter must define at least two BACKLOG columns.'}
@@ -123,15 +145,16 @@ foreach($id in $active){
     $text=ReadText $relative
     $phase=Value $text 'current_phase' $relative
     $role=Value $text 'current_role_id' $relative
-    if(-not $adapter.PhaseLabels.ContainsKey($phase)){throw "Unknown phase '$phase' in $relative"}
-    if(-not $adapter.RoleLabels.ContainsKey($role)){throw "Unknown role '$role' in $relative"}
+    if(-not $policy.Output.RoleLabels.ContainsKey($role)){throw "Unknown role '$role' in $relative"}
+    $effort=Value $text 'assigned_effort' $relative
+    $effortId=if($effort-ceq'Ultra'){'max'}else{$effort}
     $taskCards+=[pscustomobject]@{
         Id=$id
         Title=(Value $text 'title' $relative)
-        Phase=[string]$adapter.PhaseLabels[$phase]
-        Role=[string]$adapter.RoleLabels[$role]
+        Phase=(Resolve-PublicPhase $phase $text $relative)
+        Role=[string]$policy.Output.RoleLabels[$role]
         Model=(Value $text 'assigned_model' $relative)
-        Effort=(Value $text 'assigned_effort' $relative)
+        Effort=if($policy.Output.EffortLabels.ContainsKey($effortId)){[string]$policy.Output.EffortLabels[$effortId]}else{$effort}
     }
 }
 

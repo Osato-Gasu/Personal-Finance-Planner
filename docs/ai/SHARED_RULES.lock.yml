@@ -1,8 +1,23 @@
 schema_version: 1
 source_name: ai-development-governance
 source_repository: Osato-Gasu/shared
-version: 0.12.25
-commit: f07571d3e8745b9a49a28b1ac77e211c210146a3
-manifest_sha256: ADA91C21DF52BA7DF2B61D0CBCA5EC990E718A22339FF924A24B85D3B7016FBE
-generated_root: docs/ai/generated/shared
-synced_at: 2026-08-15T21:01:58+09:00
+source_version: 1.0.1
+source_commit: 4aa53fbe67edcbe2d7b6a147144b7b07022e5951
+source_tree: 366ed1ed65cf9481b37759a9caf9a1aac38e97f2
+manifest_sha256: B85F3B6730FB242C81359DB25BA498259DA52C961F8259682862E5C0246D9114
+payload_sha256: 1905AD1B5407DD5EB60B02617764381615AB96C92AB4C69D87DB96FA6CC9133E
+source_paths:
+  - path: AGENTS.md
+    blob: cba57d3916888b6b2bd2d794808582889340d4df
+  - path: core/POLICY.psd1
+    blob: 2d0212f17a86528d1f1a21de3d9b00ea0b710fe6
+  - path: core/CONSTITUTION.md
+    blob: d811dcd58cf2e9dec882f85fde337a1c20f764b3
+  - path: core/OUTPUT.md
+    blob: f22f7c04febf66f8a413483881f0721f0cbf40f5
+  - path: core/LIFECYCLE.md
+    blob: 2efcb7161bb051410b9fddcc0ca242ecf4ea4b01
+  - path: core/ARTIFACTS.md
+    blob: 0b39be8a9d0dda373b01be88a9916aaef0fe2aa0
+  - path: core/EXECUTION.md
+    blob: aae553a59f4e4ad2a7318b742e4b7677e8d4377d
