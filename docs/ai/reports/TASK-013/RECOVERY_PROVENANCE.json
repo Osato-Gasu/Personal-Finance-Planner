@@ -55,7 +55,10 @@
     "rendered_candidate_byte_length": 1319,
     "rendered_candidate_sha256": "A00F013797E5554357F31D5D3329CEE2AF5B20F507CA9147684B38B8AD87C619",
     "semantic_review_decision": "pending",
-    "semantic_review_plan_sha256": "none"
+    "semantic_review_plan_sha256": "none",
+    "approved_baseline_commit": "none",
+    "approved_baseline_tree": "none",
+    "approved_classification_sha256": "none"
   },
   "allowed_recovery_exact_paths": [
     "AGENTS.md",
