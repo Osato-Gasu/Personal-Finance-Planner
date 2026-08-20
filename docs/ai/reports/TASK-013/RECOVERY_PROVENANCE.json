@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "artifact_role": "report_evidence",
+  "task_id": "TASK-013",
+  "spec_revision": 3,
+  "recovery_design_revision": 4,
+  "phase_state": "PHASE_A_PRE_SYNC",
+  "phase_a_baseline": {
+    "commit": "d96ebe1bcfe258185956fd0db3acf1ca15050af6",
+    "tree": "90f97b3e16aa3d0ce36cd872d1b59b9b8d49908a"
+  },
+  "original_product_review": {
+    "candidate_commit": "1285f6745062545bb4e73a937cde141f6ab620d4",
+    "candidate_tree": "3fb36efc2fd13b9321baf11a63e798d54fe48a12",
+    "reviewed_handoff_commit": "d96ebe1bcfe258185956fd0db3acf1ca15050af6",
+    "reviewed_handoff_tree": "90f97b3e16aa3d0ce36cd872d1b59b9b8d49908a",
+    "decision": "APPROVED",
+    "findings_count": 0,
+    "implementation_review_attempt": 1,
+    "implementation_review_profile": "standard",
+    "result_path": "docs/ai/reports/TASK-013/ORIGINAL_PRODUCT_IMPLEMENTATION_REVIEW_RESULT.md",
+    "result_byte_length": 2074,
+    "result_sha256": "364AC5653DE793ADE054A4C2D30D38A4C410DCDFD9D922266DA2F5E5EAAE85D6",
+    "relay_path": "docs/ai/reports/TASK-013/ORIGINAL_PRODUCT_APPROVED_RELAY.json",
+    "relay_byte_length": 6023,
+    "relay_sha256": "3618C7CDE53CBA70A604C3E55EEC6E7AAA218384101189DA800F69B57C021F6B"
+  },
+  "shared_source": {
+    "repository": "Osato-Gasu/shared",
+    "version": "1.0.1",
+    "commit": "4aa53fbe67edcbe2d7b6a147144b7b07022e5951",
+    "tree": "366ed1ed65cf9481b37759a9caf9a1aac38e97f2",
+    "version_blob": "7dea76edb3dc51b6e5e8223e9f941a35c1e364d6",
+    "version_byte_length": 6,
+    "version_sha256": "44E161E4495CAC2CF7858043E9E6418E9579F0DDCFAE826F9A372622968CE066",
+    "manifest_schema_version": 2,
+    "manifest_entry_count": 37,
+    "manifest_blob": "025664e13f9ee0307f2174ba10773dd95f5156ca",
+    "manifest_byte_length": 6202,
+    "manifest_sha256": "B85F3B6730FB242C81359DB25BA498259DA52C961F8259682862E5C0246D9114"
+  },
+  "recovery_candidate": {
+    "commit": "none",
+    "tree": "none",
+    "materialization_handoff_commit": "none",
+    "materialization_handoff_tree": "none"
+  },
+  "managed_adoption": {
+    "target": "AGENTS.md",
+    "source_path": "templates/AGENTS.md",
+    "phase_a_classification_path": "docs/ai/reports/TASK-013/AGENTS_CLASSIFICATION.json",
+    "phase_a_classification_sha256": "BA3554A9BF96EEAC5B5F60E0ACF9AAC188580647035BB568364EF88B317A4093",
+    "rendered_candidate_path": "docs/ai/reports/TASK-013/MANAGED_AGENTS_RENDERED_CANDIDATE.md",
+    "rendered_candidate_blob": "a7e7dd2f3992df2469375b28a83624c1724f93ac",
+    "rendered_candidate_byte_length": 1319,
+    "rendered_candidate_sha256": "A00F013797E5554357F31D5D3329CEE2AF5B20F507CA9147684B38B8AD87C619",
+    "semantic_review_decision": "pending",
+    "semantic_review_plan_sha256": "none"
+  },
+  "allowed_recovery_exact_paths": [
+    "AGENTS.md",
+    "board/PROGRESS.html",
+    "docs/ai/BACKLOG.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/NEXT_ACTION.yml",
+    "docs/ai/PROJECT_ADAPTER.psd1",
+    "docs/ai/PROJECT_RULES.md",
+    "docs/ai/SHARED_RULES.lock.yml",
+    "docs/ai/WORKFLOW.md",
+    "docs/ai/handoffs/TASK-013/IMPLEMENTATION_REVIEW_HANDOFF.md",
+    "docs/ai/tasks/TASK-013.md",
+    "tools/sync-shared-governance.ps1",
+    "tools/validate-project-overlay.ps1",
+    "tools/validate-task-013-recovery-provenance.ps1"
+  ],
+  "allowed_recovery_path_prefixes": [
+    "docs/ai/generated/shared/",
+    "docs/ai/reports/TASK-013/"
+  ],
+  "public_side_effect_authority": false,
+  "release_authority": false
+}
