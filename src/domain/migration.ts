@@ -1,6 +1,7 @@
 import {
   SCHEMA_VERSION,
   parseAppState,
+  parseSchemaVersion6AppState,
   parseSchemaVersion5AppState,
   parseLegacyAppState,
   parseSchemaVersion4AppState,
@@ -16,7 +17,9 @@ import {
   type SchemaVersion3AppState,
   type SchemaVersion4AppState,
   type SchemaVersion5AppState,
+  type SchemaVersion6AppState,
   defaultBackupMetadata,
+  defaultLifePlanState,
 } from "./state";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -34,15 +37,21 @@ function uniqueId(preferred: string, used: Set<string>): string {
 export function migrateToCurrentState(value: unknown): AppState {
   if (!isRecord(value)) throw new Error("state must be an object");
   if (value.schemaVersion === SCHEMA_VERSION) return parseAppState(value);
+  if (value.schemaVersion === 6)
+    return migrateV6(parseSchemaVersion6AppState(value));
   if (value.schemaVersion === 5)
-    return migrateV5(parseSchemaVersion5AppState(value));
+    return migrateV6(migrateV5(parseSchemaVersion5AppState(value)));
   if (value.schemaVersion === 4)
-    return migrateV5(migrateV4(parseSchemaVersion4AppState(value)));
+    return migrateV6(migrateV5(migrateV4(parseSchemaVersion4AppState(value))));
   if (value.schemaVersion === 3)
-    return migrateV5(migrateV4(migrateV3(parseSchemaVersion3AppState(value))));
+    return migrateV6(
+      migrateV5(migrateV4(migrateV3(parseSchemaVersion3AppState(value)))),
+    );
   if (value.schemaVersion === 2)
-    return migrateV5(
-      migrateV4(migrateV3(migrateV2(parseSchemaVersion2AppState(value)))),
+    return migrateV6(
+      migrateV5(
+        migrateV4(migrateV3(migrateV2(parseSchemaVersion2AppState(value)))),
+      ),
     );
   if (value.schemaVersion !== 1) throw new Error("unsupported schema version");
 
@@ -128,7 +137,7 @@ export function migrateToCurrentState(value: unknown): AppState {
       ...source,
     })),
   };
-  return migrateV5(migrateV4(migrateV3(migrateV2(migrated))));
+  return migrateV6(migrateV5(migrateV4(migrateV3(migrateV2(migrated)))));
 }
 
 function migrateV2(previous: SchemaVersion2AppState): SchemaVersion3AppState {
@@ -185,11 +194,20 @@ function migrateV4(previous: SchemaVersion4AppState): SchemaVersion5AppState {
   return migrated;
 }
 
-function migrateV5(previous: SchemaVersion5AppState): AppState {
-  const migrated: AppState = {
+function migrateV5(previous: SchemaVersion5AppState): SchemaVersion6AppState {
+  const migrated: SchemaVersion6AppState = {
     ...structuredClone(previous),
     schemaVersion: 6,
     backup: defaultBackupMetadata(),
+  };
+  return migrated;
+}
+
+export function migrateV6(previous: SchemaVersion6AppState): AppState {
+  const migrated: AppState = {
+    ...structuredClone(previous),
+    schemaVersion: 7,
+    lifePlan: defaultLifePlanState(),
   };
   validateAppState(migrated);
   return migrated;

@@ -23,8 +23,9 @@ import {
   type IdecoPlan,
 } from "./ideco";
 
-export const SCHEMA_VERSION = 6 as const;
-export const PREVIOUS_SCHEMA_VERSION = 5 as const;
+export const SCHEMA_VERSION = 7 as const;
+export const PREVIOUS_SCHEMA_VERSION = 6 as const;
+export const SCHEMA_VERSION_5 = 5 as const;
 export const SCHEMA_VERSION_4 = 4 as const;
 export const SCHEMA_VERSION_3 = 3 as const;
 export const SCHEMA_VERSION_2 = 2 as const;
@@ -32,8 +33,9 @@ export const LEGACY_SCHEMA_VERSION = 1 as const;
 
 export type MemberRole = "self" | "partner";
 export type MemberId = string;
-export type RouteId =
+export type LegacyRouteIdV1ToV6 =
   "overview" | "budget" | "take-home" | "investments" | "settings";
+export type RouteId = LegacyRouteIdV1ToV6 | "life-plan";
 export type ShareMode = "inherit" | "custom";
 export type ExpenseScope = "shared" | "self" | "partner";
 export type CycleUnit = "day" | "week" | "month" | "year";
@@ -120,9 +122,51 @@ export interface ExpenseItem {
   active: boolean;
 }
 
+export interface LifePlanEvent {
+  id: string;
+  name: string;
+  kind: "income" | "expense";
+  startYear: number;
+  endYear: number;
+  annualAmountYen: number;
+  memo: string;
+  active: boolean;
+}
+
+export interface LifePlanState {
+  baseReferenceDate: string | null;
+  projectionStartYear: number | null;
+  startingLiquidAssetsYen: number;
+  projectionYears: number;
+  events: LifePlanEvent[];
+}
+
 export interface AppState {
-  schemaVersion: 6;
+  schemaVersion: 7;
   activeRoute: RouteId;
+  members: HouseholdMember[];
+  takeHomePlans: TakeHomePlan[];
+  incomeTargets: IncomeTarget[];
+  links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+  nisaPlans: NisaPlan[];
+  investmentScenarios: InvestmentScenario[];
+  idecoPlans: IdecoPlan[];
+  backup: BackupMetadata;
+  lifePlan: LifePlanState;
+}
+
+export interface BackupMetadata {
+  lastSuccessfulSaveAt: string | null;
+  lastExportedAt: string | null;
+  reminderIntervalDays: number;
+  reminderDismissedUntil: string | null;
+}
+
+export interface SchemaVersion6AppState {
+  schemaVersion: 6;
+  activeRoute: LegacyRouteIdV1ToV6;
   members: HouseholdMember[];
   takeHomePlans: TakeHomePlan[];
   incomeTargets: IncomeTarget[];
@@ -135,16 +179,9 @@ export interface AppState {
   backup: BackupMetadata;
 }
 
-export interface BackupMetadata {
-  lastSuccessfulSaveAt: string | null;
-  lastExportedAt: string | null;
-  reminderIntervalDays: number;
-  reminderDismissedUntil: string | null;
-}
-
 export interface SchemaVersion5AppState {
   schemaVersion: 5;
-  activeRoute: RouteId;
+  activeRoute: LegacyRouteIdV1ToV6;
   members: HouseholdMember[];
   takeHomePlans: TakeHomePlan[];
   incomeTargets: IncomeTarget[];
@@ -158,7 +195,7 @@ export interface SchemaVersion5AppState {
 
 export interface SchemaVersion4AppState {
   schemaVersion: 4;
-  activeRoute: RouteId;
+  activeRoute: LegacyRouteIdV1ToV6;
   members: HouseholdMember[];
   takeHomePlans: TakeHomePlan[];
   incomeTargets: IncomeTarget[];
@@ -171,7 +208,7 @@ export interface SchemaVersion4AppState {
 
 export interface SchemaVersion3AppState {
   schemaVersion: 3;
-  activeRoute: RouteId;
+  activeRoute: LegacyRouteIdV1ToV6;
   members: HouseholdMember[];
   takeHomePlans: TakeHomePlan[];
   incomeTargets: IncomeTarget[];
@@ -182,7 +219,7 @@ export interface SchemaVersion3AppState {
 
 export interface SchemaVersion2AppState {
   schemaVersion: 2;
-  activeRoute: RouteId;
+  activeRoute: LegacyRouteIdV1ToV6;
   members: HouseholdMember[];
   takeHomeInputs: TakeHomeInput[];
   incomeTargets: IncomeTarget[];
@@ -193,7 +230,7 @@ export interface SchemaVersion2AppState {
 
 export interface LegacyAppState {
   schemaVersion: 1;
-  activeRoute: RouteId;
+  activeRoute: LegacyRouteIdV1ToV6;
   members: HouseholdMember[];
   takeHomeInputs: TakeHomeInput[];
   incomeTargets: IncomeTarget[];
@@ -299,9 +336,37 @@ export type AppAction =
       scenarioId: string;
       scenario: InvestmentScenario;
     }
-  | { type: "delete-investment-scenario"; scenarioId: string };
+  | { type: "delete-investment-scenario"; scenarioId: string }
+  | {
+      type: "update-life-plan-settings";
+      baseReferenceDate: string | null;
+      projectionStartYear: number | null;
+      startingLiquidAssetsYen: number;
+      projectionYears: number;
+    }
+  | { type: "add-life-plan-event"; event: LifePlanEvent }
+  | {
+      type: "update-life-plan-event";
+      eventId: string;
+      event: Omit<LifePlanEvent, "id">;
+    }
+  | {
+      type: "set-life-plan-event-active";
+      eventId: string;
+      active: boolean;
+    }
+  | { type: "delete-life-plan-event"; eventId: string };
 
 export const routeIds: readonly RouteId[] = [
+  "overview",
+  "budget",
+  "take-home",
+  "investments",
+  "life-plan",
+  "settings",
+];
+
+export const legacyRouteIdsV1ToV6: readonly LegacyRouteIdV1ToV6[] = [
   "overview",
   "budget",
   "take-home",
@@ -408,6 +473,74 @@ function assertTrimmedText(
       `${field} length must be ${String(minimum)}..${String(maximum)} after trim`,
     );
   }
+}
+
+function assertIsoDate(value: string, field: string): void {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) throw new Error(`${field} must be YYYY-MM-DD`);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (
+    year < 1 ||
+    year > 9999 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > (days[month - 1] ?? 0)
+  )
+    throw new Error(`${field} must be a real calendar date`);
+}
+
+function validateLifePlanEvent(event: LifePlanEvent): void {
+  if (typeof event.id !== "string" || event.id.length === 0)
+    throw new Error("life plan event id must be a non-empty string");
+  assertTrimmedText(event.name, "life plan event name", 1, 80);
+  const eventKind = opaque(event.kind);
+  if (eventKind !== "income" && eventKind !== "expense")
+    throw new Error("life plan event kind is invalid");
+  for (const [field, year] of [
+    ["startYear", event.startYear],
+    ["endYear", event.endYear],
+  ] as const) {
+    if (!Number.isInteger(year) || year < 1 || year > 9999)
+      throw new Error(`${field} must be an integer from 1 to 9999`);
+  }
+  if (event.endYear < event.startYear)
+    throw new Error("life plan event endYear must not precede startYear");
+  assertSafeYen(event.annualAmountYen, "life plan event annualAmountYen");
+  if (typeof event.memo !== "string" || event.memo.length > 500)
+    throw new Error("life plan event memo must be at most 500 characters");
+  if (typeof opaque(event.active) !== "boolean")
+    throw new Error("life plan event active must be boolean");
+}
+
+function validateLifePlanState(lifePlan: LifePlanState): void {
+  if (lifePlan.baseReferenceDate !== null)
+    assertIsoDate(lifePlan.baseReferenceDate, "baseReferenceDate");
+  if (
+    lifePlan.projectionStartYear !== null &&
+    (!Number.isInteger(lifePlan.projectionStartYear) ||
+      lifePlan.projectionStartYear < 1 ||
+      lifePlan.projectionStartYear > 9999)
+  )
+    throw new Error("projectionStartYear must be null or 1..9999");
+  assertSafeYen(lifePlan.startingLiquidAssetsYen, "startingLiquidAssetsYen");
+  if (
+    !Number.isInteger(lifePlan.projectionYears) ||
+    lifePlan.projectionYears < 1 ||
+    lifePlan.projectionYears > 60
+  )
+    throw new Error("projectionYears must be 1..60");
+  if (
+    lifePlan.projectionStartYear !== null &&
+    lifePlan.projectionStartYear + lifePlan.projectionYears - 1 > 9999
+  )
+    throw new Error("life plan projection horizon exceeds year 9999");
+  uniqueIds(lifePlan.events, "life plan event");
+  lifePlan.events.forEach(validateLifePlanEvent);
 }
 
 function assertPersistedDisplayName(value: unknown): asserts value is string {
@@ -630,6 +763,7 @@ export function validateAppState(state: AppState): void {
     throw new Error("unsupported schema version");
   if (!routeIds.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
+  validateLifePlanState(state.lifePlan);
   validateBackupMetadata(state.backup);
   validateCurrentMembersAndIncome(state);
   uniqueIds(state.nisaPlans, "NISA plan");
@@ -799,7 +933,7 @@ function validateBackupMetadata(metadata: BackupMetadata): void {
 export function validateLegacyAppState(state: LegacyAppState): void {
   if (opaque(state.schemaVersion) !== LEGACY_SCHEMA_VERSION)
     throw new Error("unsupported schema version");
-  if (!routeIds.includes(state.activeRoute))
+  if (!legacyRouteIdsV1ToV6.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
   validateLegacyMembersAndIncome(state);
   uniqueIds(state.livingExpenses, "living expense");
@@ -816,7 +950,7 @@ export function validateSchemaVersion2AppState(
 ): void {
   if (opaque(state.schemaVersion) !== SCHEMA_VERSION_2)
     throw new Error("unsupported schema version");
-  if (!routeIds.includes(state.activeRoute))
+  if (!legacyRouteIdsV1ToV6.includes(state.activeRoute))
     throw new Error("activeRoute is invalid");
   validateLegacyMembersAndIncome(state);
   uniqueIds(state.budget.categories, "budget category");
@@ -925,11 +1059,11 @@ function parseContributions(
 function parseLegacyBase(value: Record<string, unknown>) {
   if (
     typeof value.activeRoute !== "string" ||
-    !routeIds.includes(value.activeRoute as RouteId)
+    !legacyRouteIdsV1ToV6.includes(value.activeRoute as LegacyRouteIdV1ToV6)
   )
     throw new Error("activeRoute is invalid");
   return {
-    activeRoute: value.activeRoute as RouteId,
+    activeRoute: value.activeRoute as LegacyRouteIdV1ToV6,
     members: parseMembers(value, false),
     takeHomeInputs: parseTakeHomeInputs(value),
     incomeTargets: parseIncomeTargets(value),
@@ -1046,7 +1180,7 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
@@ -1081,6 +1215,7 @@ export function parseAppState(value: unknown): AppState {
     ),
     idecoPlans: requireArray(value, "idecoPlans").map(parseIdecoPlan),
     backup: parseBackupMetadata(value.backup),
+    lifePlan: parseLifePlanState(value.lifePlan),
   };
   validateAppState(state);
   return state;
@@ -1104,10 +1239,64 @@ function parseBackupMetadata(value: unknown): BackupMetadata {
   return result;
 }
 
+function parseLifePlanState(value: unknown): LifePlanState {
+  if (!isRecord(value)) throw new Error("lifePlan must be an object");
+  const baseReferenceDate = value.baseReferenceDate;
+  if (baseReferenceDate !== null && typeof baseReferenceDate !== "string")
+    throw new Error("baseReferenceDate must be a string or null");
+  const projectionStartYear = value.projectionStartYear;
+  if (projectionStartYear !== null && typeof projectionStartYear !== "number")
+    throw new Error("projectionStartYear must be a number or null");
+  const result: LifePlanState = {
+    baseReferenceDate,
+    projectionStartYear,
+    startingLiquidAssetsYen: value.startingLiquidAssetsYen as number,
+    projectionYears: value.projectionYears as number,
+    events: requireArray(value, "events").map((item): LifePlanEvent => {
+      if (!isRecord(item)) throw new Error("life plan event must be an object");
+      if (item.kind !== "income" && item.kind !== "expense")
+        throw new Error("life plan event kind is invalid");
+      return {
+        id: requireString(item, "id"),
+        name: requireString(item, "name"),
+        kind: item.kind,
+        startYear: item.startYear as number,
+        endYear: item.endYear as number,
+        annualAmountYen: item.annualAmountYen as number,
+        memo: requireOptionalString(item, "memo") ?? "",
+        active: requireBoolean(item, "active"),
+      };
+    }),
+  };
+  validateLifePlanState(result);
+  return result;
+}
+
+export function parseSchemaVersion6AppState(
+  value: unknown,
+): SchemaVersion6AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  if (
+    typeof value.activeRoute !== "string" ||
+    !legacyRouteIdsV1ToV6.includes(value.activeRoute as LegacyRouteIdV1ToV6)
+  )
+    throw new Error("activeRoute is invalid");
+  const currentLike = {
+    ...value,
+    schemaVersion: 7,
+    lifePlan: defaultLifePlanState(),
+  };
+  const parsed = parseAppState(currentLike);
+  const previous = structuredClone(parsed) as Partial<AppState>;
+  Reflect.deleteProperty(previous, "lifePlan");
+  return { ...previous, schemaVersion: 6 } as SchemaVersion6AppState;
+}
+
 export function parseSchemaVersion5AppState(
   value: unknown,
 ): SchemaVersion5AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_5)
     throw new Error("unsupported schema version");
   const currentLike = {
     ...value,
@@ -1119,8 +1308,8 @@ export function parseSchemaVersion5AppState(
       reminderDismissedUntil: null,
     },
   };
-  const parsed = parseAppState(currentLike);
-  const previous = structuredClone(parsed) as Partial<AppState>;
+  const parsed = parseSchemaVersion6AppState(currentLike);
+  const previous = structuredClone(parsed) as Partial<SchemaVersion6AppState>;
   Reflect.deleteProperty(previous, "backup");
   return { ...previous, schemaVersion: 5 } as SchemaVersion5AppState;
 }
@@ -1137,10 +1326,10 @@ export function parseSchemaVersion4AppState(
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
-        !routeIds.includes(value.activeRoute as RouteId)
+        !legacyRouteIdsV1ToV6.includes(value.activeRoute as LegacyRouteIdV1ToV6)
       )
         throw new Error("activeRoute is invalid");
-      return value.activeRoute as RouteId;
+      return value.activeRoute as LegacyRouteIdV1ToV6;
     })(),
     members,
     takeHomePlans: requireArray(value, "takeHomePlans").map((plan) => {
@@ -1161,9 +1350,10 @@ export function parseSchemaVersion4AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 6,
+    schemaVersion: 7,
     idecoPlans: [],
     backup: defaultBackupMetadata(),
+    lifePlan: defaultLifePlanState(),
   });
   return state;
 }
@@ -1180,10 +1370,10 @@ export function parseSchemaVersion3AppState(
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
-        !routeIds.includes(value.activeRoute as RouteId)
+        !legacyRouteIdsV1ToV6.includes(value.activeRoute as LegacyRouteIdV1ToV6)
       )
         throw new Error("activeRoute is invalid");
-      return value.activeRoute as RouteId;
+      return value.activeRoute as LegacyRouteIdV1ToV6;
     })(),
     members,
     takeHomePlans: requireArray(value, "takeHomePlans").map((plan) => {
@@ -1200,11 +1390,12 @@ export function parseSchemaVersion3AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 6,
+    schemaVersion: 7,
     nisaPlans: [],
     investmentScenarios: [],
     idecoPlans: [],
     backup: defaultBackupMetadata(),
+    lifePlan: defaultLifePlanState(),
   });
   return state;
 }
@@ -1226,6 +1417,7 @@ export function parseSchemaVersion2AppState(
 export function cloneState<
   T extends
     | AppState
+    | SchemaVersion6AppState
     | SchemaVersion5AppState
     | SchemaVersion4AppState
     | SchemaVersion3AppState
@@ -1584,6 +1776,39 @@ export function reduceState(state: AppState, action: AppAction): AppState {
     case "delete-investment-scenario":
       next.investmentScenarios = next.investmentScenarios.filter(
         (scenario) => scenario.id !== action.scenarioId,
+      );
+      break;
+    case "update-life-plan-settings":
+      next.lifePlan = {
+        ...next.lifePlan,
+        baseReferenceDate: action.baseReferenceDate,
+        projectionStartYear: action.projectionStartYear,
+        startingLiquidAssetsYen: action.startingLiquidAssetsYen,
+        projectionYears: action.projectionYears,
+      };
+      break;
+    case "add-life-plan-event":
+      next.lifePlan.events.push(structuredClone(action.event));
+      break;
+    case "update-life-plan-event": {
+      const index = next.lifePlan.events.findIndex(
+        (event) => event.id === action.eventId,
+      );
+      next.lifePlan.events[index] = {
+        id: action.eventId,
+        ...structuredClone(action.event),
+      };
+      break;
+    }
+    case "set-life-plan-event-active":
+      requirePresent(
+        next.lifePlan.events.find((event) => event.id === action.eventId),
+        "life plan event is missing",
+      ).active = action.active;
+      break;
+    case "delete-life-plan-event":
+      next.lifePlan.events = next.lifePlan.events.filter(
+        (event) => event.id !== action.eventId,
       );
       break;
   }
@@ -2052,6 +2277,43 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       )
         throw new Error("active iDeCo scenario cannot be deleted");
       return;
+    case "update-life-plan-settings":
+      validateLifePlanState({
+        ...structuredClone(state.lifePlan),
+        baseReferenceDate: action.baseReferenceDate,
+        projectionStartYear: action.projectionStartYear,
+        startingLiquidAssetsYen: action.startingLiquidAssetsYen,
+        projectionYears: action.projectionYears,
+      });
+      return;
+    case "add-life-plan-event":
+      if (state.lifePlan.events.some((event) => event.id === action.event.id))
+        throw new Error("life plan event ID is already in use");
+      validateLifePlanState({
+        ...structuredClone(state.lifePlan),
+        events: [...state.lifePlan.events, structuredClone(action.event)],
+      });
+      return;
+    case "update-life-plan-event":
+      if (!state.lifePlan.events.some((event) => event.id === action.eventId))
+        throw new Error("life plan event is missing");
+      validateLifePlanState({
+        ...structuredClone(state.lifePlan),
+        events: state.lifePlan.events.map((event) =>
+          event.id === action.eventId
+            ? { id: action.eventId, ...structuredClone(action.event) }
+            : structuredClone(event),
+        ),
+      });
+      return;
+    case "set-life-plan-event-active":
+      if (!state.lifePlan.events.some((event) => event.id === action.eventId))
+        throw new Error("life plan event is missing");
+      return;
+    case "delete-life-plan-event":
+      if (!state.lifePlan.events.some((event) => event.id === action.eventId))
+        throw new Error("life plan event is missing");
+      return;
   }
 }
 
@@ -2090,7 +2352,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },
@@ -2119,6 +2381,17 @@ export function createInitialState(): AppState {
     investmentScenarios: [],
     idecoPlans: [],
     backup: defaultBackupMetadata(),
+    lifePlan: defaultLifePlanState(),
+  };
+}
+
+export function defaultLifePlanState(): LifePlanState {
+  return {
+    baseReferenceDate: null,
+    projectionStartYear: null,
+    startingLiquidAssetsYen: 0,
+    projectionYears: 30,
+    events: [],
   };
 }
 

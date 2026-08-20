@@ -89,6 +89,16 @@
 - release checklist
 - 配布version管理、制度確認日表示
 
+## TASK-014 ライフプラン年間キャッシュフローMVP
+
+- schema v7と決定的なv6→v7 migration
+- 保存した基準日・開始年・開始時現預金残高・1～60年の投影設定
+- 収入／支出ライフイベントの安定ID CRUDと暦年inclusive適用
+- 総合サマリーの投資後手残りを固定年間キャッシュフローとして参照
+- signed safe integer検証、入力不足・範囲外・最初の負残高警告
+- 6 routeのstandalone `file://`、v6 byte preservation、再読み込み、runtime network 0
+- TASK-013/shared recovery、制度rule変更、将来制度予測、main統合、releaseは対象外
+
 ## 実装順序の制約
 
 - TASK-002のspikeを通過するまで本格的な制度計算を実装しない。

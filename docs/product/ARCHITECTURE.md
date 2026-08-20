@@ -34,7 +34,7 @@ UIフレームワークを導入しない。状態管理・ルーティングも
 
 end user向けの通常起動fileは常設main folder直下の`Personal-Finance-Planner.html`とする。root launcherはstandalone buildから決定的に同期し、手編集しない。source buildに対するfreshness checkをCI gateとし、launcher単体を空白・日本語pathへコピーしたportable browser testでも検証する。
 
-portable browser testは生成HTMLだけを空白・日本語を含む一時folderへコピーし、system Chromium browserで5 route、hash正規化、navigation、history、reload、console／page error、runtime request、same-path localStorageを動的に検証する。
+portable browser testは生成HTMLだけを空白・日本語を含む一時folderへコピーし、system Chromium browserで6 route、hash正規化、navigation、history、reload、console／page error、runtime request、same-path localStorageを動的に検証する。
 
 ## 3. モジュール境界
 
@@ -51,6 +51,7 @@ modules
 ├─ budget
 ├─ take-home
 ├─ investments
+├─ life-plan
 └─ settings
 
 domain
@@ -62,6 +63,7 @@ domain
 ├─ social-insurance
 ├─ nisa
 ├─ ideco
+├─ life-plan
 └─ investment-projection
 
 rules/jp
@@ -78,6 +80,7 @@ ui
 #/budget
 #/take-home
 #/investments
+#/life-plan
 #/settings
 ```
 
@@ -146,7 +149,13 @@ NISA・iDeCoから生成する拠出は`asset-contribution`であり、生活費
 
 名称・金額・カテゴリの類似判定は正本の重複防止には使わない。手入力で似た項目がある場合は補助警告に限る。
 
-## 9. 制度ルール解決
+## 9. ライフプラン投影
+
+`src/domain/life-plan.ts`はDOM、storage、network、現在時刻へ依存しない。保存済み`baseReferenceDate`で`selectOverview`を実行し、世帯の投資後手残りを正本として参照する。保存済み`projectionStartYear`から全暦年行を生成し、UIの現在日付は未保存の候補値にだけ利用する。
+
+月額×12、イベント収支合計、期首から期末への各演算はsigned safe integerを検証する。null前提を0へ変換せず、範囲外では誤解を招く後続行を生成しない。`src/modules/life-plan/life-plan-view.ts`はフォーム、local編集buffer、DOM描画とStore dispatchだけを担当する。
+
+## 10. 制度ルール解決
 
 `RuleResolver`はdomainと対象日を受け、有効期間が一意に一致するruleを返す。
 
@@ -160,9 +169,11 @@ resolve(domain, targetDate, context)
 
 登録済み最新ルールの将来継続は既定で行わない。利用者が明示的に仮定モードを有効にした場合だけ、警告付きで実行する。
 
-## 10. 保存
+## 11. 保存
 
 `StorageRepository`だけがlocalStorageへアクセスする。
+
+current schemaはv7、current storage keyは`personal-finance-planner:state:v7`とする。v7が存在する場合はparse失敗をfail closedとし、旧keyへfallbackしない。v7がなくv6が存在する場合だけ決定的なv6→v7 migrationを実行し、v6 bytesを保持したままv7をatomic saveする。
 
 ```text
 load()
@@ -201,7 +212,7 @@ preview前、confirmation前、cancel、途中失敗時に現行データとstor
 
 mainまたはTASK worktreeがdirty/untracked、main folderを一意に特定できない、fast-forward不能、完成commitがorigin/mainから到達不能、未解決operationがある場合はBLOCKEDとする。reset、stash、clean、restoreによる差分破棄、rebase、history rewrite、force push、filesystem先行削除は禁止する。
 
-## 11. セキュリティ・プライバシー
+## 12. セキュリティ・プライバシー
 
 - 初期版は外部送信しない。
 - ユーザー入力は`textContent`等で描画する。
@@ -210,7 +221,7 @@ mainまたはTASK worktreeがdirty/untracked、main folderを一意に特定で�
 - 制度source URLは許可された`https`文字列として表示する。
 - CSPは静的配信環境と整合する範囲で導入する。
 
-## 12. 推奨ディレクトリ
+## 13. 推奨ディレクトリ
 
 ```text
 src/
@@ -250,7 +261,7 @@ tests/
 └─ fixtures/
 ```
 
-## 13. M1アーキテクチャスパイク
+## 14. M1アーキテクチャスパイク
 
 本機能を大量実装する前に次だけを縦断実装する。
 
@@ -273,4 +284,4 @@ tests/
 - 同一sourceを二重計上しない。
 - rule境界日で選択が変わる。
 - import失敗で現行Stateが変わらない。
-- HTML単体を別folderへコピーしても5 routeとsame-path保存が動作し、runtime network requestが発生しない。
+- HTML単体を別folderへコピーしても6 routeとsame-path保存が動作し、runtime network requestが発生しない。

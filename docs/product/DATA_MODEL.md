@@ -27,14 +27,40 @@ interface AppState {
   scenarios: InvestmentScenario[];
   links: LinkDefinition[];
   backup: BackupMetadata;
+  lifePlan: LifePlanState;
   createdAt: string;
   updatedAt: string;
 }
 ```
 
-TASK-008の開始正本はschemaVersion 5とする。永続化shapeを変更する場合だけ次versionを追加し、既存v1～v5 migrationの意味を変更しない。
+current正本はschemaVersion 7とする。schema v6は旧shapeをそのまま保持し、v6→v7では決定的な空ライフプランだけを追加する。既存v1～v6 migrationの意味を変更しない。
 
-## 3. 人物
+## 3. ライフプラン
+
+```ts
+interface LifePlanState {
+  baseReferenceDate: ISODate | null;
+  projectionStartYear: number | null;
+  startingLiquidAssetsYen: Yen;
+  projectionYears: number; // 1..60
+  events: LifePlanEvent[];
+}
+
+interface LifePlanEvent {
+  id: EntityId;
+  name: string; // trim済み1..80
+  kind: 'income' | 'expense';
+  startYear: number; // 1..9999
+  endYear: number; // startYear..9999
+  annualAmountYen: Yen;
+  memo: string; // 0..500
+  active: boolean;
+}
+```
+
+`baseReferenceDate`は上流の投資後手残りを計算する固定日、`projectionStartYear`は`startingLiquidAssetsYen`が1月1日に属する暦年であり、別の時間anchorとして保存する。derivedな月額・年額・年次行は永続化しない。
+
+## 4. 人物
 
 ```ts
 interface HouseholdMember {
@@ -51,7 +77,7 @@ interface HouseholdMember {
 
 schema v1由来のotherwise-validな`displayName`はLF、CR、CRLF、前後空白、50文字超を含み得る。migrationと通常表示では文字列をlosslessに保持し、UIのsingle-line編集bufferとpersisted valueを区別する。明示的な編集・保存時だけ新しい入力制約を適用する。
 
-## 4. 手取り計画
+## 5. 手取り計画
 
 ```ts
 interface IncomePlan {
@@ -83,7 +109,7 @@ interface SocialInsuranceSettings {
 
 組合健保・共済等を`kyokai-kenpo`として保存してはならない。
 
-## 5. 家計
+## 6. 家計
 
 ```ts
 interface BudgetState {
@@ -129,7 +155,7 @@ interface ExpenseItem {
 
 `asset-contribution`は通常のカテゴリCRUDから手入力できない。NISA・iDeCo計画から導出する表示専用項目とする。
 
-## 6. 資産形成
+## 7. 資産形成
 
 ```ts
 interface InvestmentPlan {
@@ -171,7 +197,7 @@ interface IdecoPlan {
 
 制度区分はUI文言ではなくrule packageが認識できる安定キーで保存する。
 
-## 7. 連携
+## 8. 連携
 
 ```ts
 type ValueSource =
@@ -201,7 +227,7 @@ interface LinkDefinition {
 
 同一`targetType + targetId`にactive linkは1件まで。同一の資産形成`sourceType + sourceId`から導出するactive contributionも1件まで。
 
-## 8. 制度ルール
+## 9. 制度ルール
 
 ```ts
 interface RuleMetadata {
@@ -224,7 +250,7 @@ interface RuleMetadata {
 
 Rule本体はmetadataと値を分離しない。同じversioned moduleからexportする。
 
-## 9. バックアップ
+## 10. バックアップ
 
 ```ts
 interface BackupMetadata {
@@ -239,7 +265,7 @@ interface BackupMetadata {
 
 `reminderDismissedUntil`は期限付き表示抑制だけを表し、`lastExportedAt`を更新しない。backup metadataは金融計算へ影響せず、warningは注入可能なreference dateから導出する。
 
-## 10. 不変条件
+## 11. 不変条件
 
 - entity IDは一度発行したら名称変更で変えない。
 - 参照先の存在しないactive linkを保存しない。
@@ -257,3 +283,6 @@ interface BackupMetadata {
 - corrupt currentをlegacyでsilent fallback/overwriteしない。
 - importはschema・全invariant検証とユーザー確認後だけAppState全体をatomic replacementする。
 - legacy表示名のCR/LFをDOM正規化だけでpersisted valueへ書き戻さない。
+- ライフプランの基準日はnullまたは実在するISO日付、開始年はnullまたは1..9999、投影終了年は9999以下とする。
+- ライフイベントIDは一意かつ更新で不変とし、存在しない更新・有効切替・削除を拒否する。
+- ライフプラン設定の4項目は一括検証し、不正時にState publishまたはstorage writeを行わない。

@@ -14,6 +14,7 @@ import {
 import { createTakeHomeRenderer } from "../modules/take-home/take-home-view";
 import { createInvestmentsRenderer } from "../modules/investments/investments-view";
 import { createOverviewRenderer } from "../modules/overview/overview-view";
+import { createLifePlanRenderer } from "../modules/life-plan/life-plan-view";
 import {
   createSettingsRenderer,
   type BackupDownload,
@@ -24,6 +25,7 @@ const routeLabels: Record<RouteId, string> = {
   budget: "家計・生活費",
   "take-home": "手取り計算",
   investments: "NISA・iDeCo",
+  "life-plan": "ライフプラン",
   settings: "設定",
 };
 
@@ -131,6 +133,13 @@ export function startApp(
     store,
     getReferenceDate,
   });
+  const lifePlanRenderer = createLifePlanRenderer({
+    document,
+    store,
+    createId: options.createId ?? defaultIdFactory(browserWindow),
+    getSuggestedReferenceDate: getReferenceDate,
+    requestRender: () => render(currentRoute),
+  });
   const settingsRenderer = createSettingsRenderer({
     document,
     store,
@@ -171,6 +180,8 @@ export function startApp(
       takeHomeRenderer(main);
     } else if (route === "investments") {
       investmentsRenderer(main);
+    } else if (route === "life-plan") {
+      lifePlanRenderer(main);
     } else settingsRenderer(main);
     shell.append(main);
     root.append(shell);

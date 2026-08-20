@@ -175,5 +175,12 @@ export function createFixtureState(): AppState {
       reminderIntervalDays: 30,
       reminderDismissedUntil: null,
     },
+    lifePlan: {
+      baseReferenceDate: null,
+      projectionStartYear: null,
+      startingLiquidAssetsYen: 0,
+      projectionYears: 30,
+      events: [],
+    },
   };
 }

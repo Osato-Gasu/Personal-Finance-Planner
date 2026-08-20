@@ -5,6 +5,7 @@ export const routeIds = [
   "budget",
   "take-home",
   "investments",
+  "life-plan",
   "settings",
 ] as const satisfies readonly RouteId[];
 

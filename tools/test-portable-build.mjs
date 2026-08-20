@@ -9,13 +9,15 @@ import { chromium } from "playwright-core";
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "Personal-Finance-Planner.html");
 const distHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v6";
+const storageKey = "personal-finance-planner:state:v7";
+const schemaVersion6StorageKey = "personal-finance-planner:state:v6";
 const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
   ["overview", "総合サマリー"],
   ["budget", "家計・生活費"],
   ["take-home", "手取り計算"],
   ["investments", "NISA・iDeCo"],
+  ["life-plan", "ライフプラン"],
   ["settings", "設定"],
 ];
 
@@ -149,7 +151,7 @@ try {
       .getByRole("navigation", { name: "主要画面" })
       .getByRole("link")
       .count(),
-    5,
+    6,
   );
   await page.waitForURL(`${standaloneUrl}#/overview`);
 
@@ -965,7 +967,7 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 6);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 7);
   await page.reload({ waitUntil: "load" });
   await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -1345,6 +1347,143 @@ try {
     ),
     beforeInvalidDisplayNameEdit,
   );
+
+  const migratedV6Bytes = await page.evaluate(
+    ({ currentKey, previousKey, sourceBytes }) => {
+      const previous = JSON.parse(sourceBytes);
+      for (const member of previous.members)
+        if (member.role === "partner") member.active = false;
+      previous.schemaVersion = 6;
+      delete previous.lifePlan;
+      const bytes = JSON.stringify(previous);
+      globalThis.localStorage.setItem(previousKey, bytes);
+      globalThis.localStorage.removeItem(currentKey);
+      return bytes;
+    },
+    {
+      currentKey: storageKey,
+      previousKey: schemaVersion6StorageKey,
+      sourceBytes: overviewBytesBeforeReload,
+    },
+  );
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      schemaVersion6StorageKey,
+    ),
+    migratedV6Bytes,
+  );
+  assert.equal(
+    JSON.parse(
+      await page.evaluate(
+        (key) => globalThis.localStorage.getItem(key),
+        storageKey,
+      ),
+    ).schemaVersion,
+    7,
+  );
+
+  await page.getByRole("link", { name: "ライフプラン" }).click();
+  await page.waitForURL(`${standaloneUrl}#/life-plan`);
+  await assertContains(
+    page.getByTestId("life-plan-disclosure"),
+    "将来の制度や運用成果を予測するものではありません",
+  );
+  assert.equal(
+    await page.evaluate(
+      (key) =>
+        JSON.parse(globalThis.localStorage.getItem(key)).lifePlan
+          .baseReferenceDate,
+      storageKey,
+    ),
+    null,
+  );
+  const lifePlanSettings = page.getByTestId("life-plan-settings-form");
+  await lifePlanSettings.getByLabel("手残り計算の基準日").fill("2026-08-13");
+  await lifePlanSettings.getByLabel("投影開始年（1月1日時点）").fill("2027");
+  await lifePlanSettings
+    .getByLabel("開始年1月1日の現預金残高（円）")
+    .fill("10000");
+  await lifePlanSettings.getByLabel("投影年数（1～60年）").fill("3");
+  await lifePlanSettings.getByRole("button", { name: "設定を保存" }).click();
+
+  let addLifeEvent = page.getByTestId("life-plan-add-event-form");
+  await addLifeEvent.getByLabel("イベント名").fill("住宅購入");
+  await addLifeEvent.getByLabel("種類").selectOption("expense");
+  await addLifeEvent.getByLabel("開始年").fill("2027");
+  await addLifeEvent.getByLabel("終了年").fill("2027");
+  await addLifeEvent.getByLabel("年間金額（円）").fill("900000000");
+  await addLifeEvent.getByRole("button", { name: "イベントを追加" }).click();
+
+  addLifeEvent = page.getByTestId("life-plan-add-event-form");
+  await addLifeEvent.getByLabel("イベント名").fill("副収入");
+  await addLifeEvent.getByLabel("種類").selectOption("income");
+  await addLifeEvent.getByLabel("開始年").fill("2028");
+  await addLifeEvent.getByLabel("終了年").fill("2029");
+  await addLifeEvent.getByLabel("年間金額（円）").fill("100000");
+  await addLifeEvent.getByRole("button", { name: "イベントを追加" }).click();
+
+  await assertContains(
+    page.getByTestId("life-plan-result"),
+    "2027年に現預金残高が初めてマイナス",
+  );
+  assert.equal(await page.locator("table.life-plan-table tbody tr").count(), 3);
+  const housingCard = page
+    .locator(".life-plan-event")
+    .filter({ hasText: "住宅購入" });
+  await housingCard.getByRole("button", { name: "編集", exact: true }).click();
+  const housingEdit = page
+    .locator(".life-plan-event")
+    .filter({ hasText: "住宅購入" });
+  await housingEdit.getByLabel("イベント名").fill("住宅購入（更新）");
+  await housingEdit.getByRole("button", { name: "変更を保存" }).click();
+  await page.getByText("住宅購入（更新）", { exact: true }).waitFor();
+  const incomeCard = page
+    .locator(".life-plan-event")
+    .filter({ hasText: "副収入" });
+  await incomeCard.getByRole("button", { name: "無効にする" }).click();
+  await assertContains(
+    page.locator(".life-plan-event").filter({ hasText: "副収入" }),
+    "無効",
+  );
+  const lifePlanBytesBeforeReload = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  await page.reload({ waitUntil: "load" });
+  assert.equal(
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    lifePlanBytesBeforeReload,
+  );
+  await page.setViewportSize({ width: 360, height: 800 });
+  assert.equal(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.document.documentElement.clientWidth,
+    ),
+    true,
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole("link", { name: "総合サマリー" }).click();
+  await page.getByRole("link", { name: "ライフプラン" }).click();
+  await page.waitForURL(`${standaloneUrl}#/life-plan`);
+  await page
+    .locator(".life-plan-event")
+    .filter({ hasText: "住宅購入（更新）" })
+    .getByRole("button", { name: "削除" })
+    .click();
+  assert.equal(
+    await page
+      .locator(".life-plan-event")
+      .filter({ hasText: "住宅購入（更新）" })
+      .count(),
+    0,
+  );
   await page.getByRole("link", { name: "家計・生活費" }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
 
@@ -1353,7 +1492,30 @@ try {
     if (!bytes) throw new Error("v4 state is missing");
     const state = JSON.parse(bytes);
     state.activeRoute = "budget";
-    const source = state.budget.items[0];
+    if (state.budget.categories.length === 0)
+      state.budget.categories.push({
+        id: "overflow-category",
+        name: "範囲検証",
+        description: "",
+        shareMode: "inherit",
+        sortOrder: 0,
+        active: true,
+      });
+    const source = state.budget.items[0] ?? {
+      id: "overflow-first",
+      categoryId: state.budget.categories[0].id,
+      purpose: "範囲検証費",
+      kind: "living-expense",
+      scope: "self",
+      amountYen: 1,
+      cycleValue: 1,
+      cycleUnit: "month",
+      occurrencesPerCycle: 1,
+      shareMode: "inherit",
+      source: { type: "manual" },
+      memo: "",
+      active: true,
+    };
     state.budget.items = [
       { ...source, amountYen: Number.MAX_SAFE_INTEGER },
       { ...source, id: "overflow-second", amountYen: 1 },
@@ -1397,7 +1559,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=284, routes=${routes.length}, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK014-extended, routes=${routes.length}, lifePlan=crud-persistence-negative-warning, lifePlanV6Migration=bytes-preserved, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

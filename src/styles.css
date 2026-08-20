@@ -261,6 +261,28 @@ fieldset input {
   padding: 0.75rem;
 }
 
+.life-plan-disclosure {
+  background: #fff8c5;
+  border-left: 0.35rem solid #bf8700;
+  padding: 1rem;
+}
+
+.life-plan-event.inactive-event {
+  opacity: 0.9;
+}
+
+.life-plan-warnings {
+  background: #fff1f2;
+  border-left: 0.35rem solid #be123c;
+  padding: 0.75rem 0.75rem 0.75rem 2rem;
+}
+
+.negative-balance th,
+.negative-balance td {
+  background: #fff1f2;
+  font-weight: 700;
+}
+
 .nisa-result dd {
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -352,6 +374,30 @@ fieldset input {
   }
 
   .overview-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 700;
+  }
+
+  .life-plan-table,
+  .life-plan-table tbody,
+  .life-plan-table tr,
+  .life-plan-table td,
+  .life-plan-table th[scope="row"] {
+    display: block;
+  }
+
+  .life-plan-table thead {
+    display: none;
+  }
+
+  .life-plan-table tr {
+    border: 1px solid #d0d7de;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+  }
+
+  .life-plan-table td::before {
     content: attr(data-label);
     display: block;
     font-weight: 700;
