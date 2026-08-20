@@ -1390,6 +1390,17 @@ try {
     page.getByTestId("life-plan-disclosure"),
     "将来の制度や運用成果を予測するものではありません",
   );
+  for (const requiredDisclosure of [
+    "開始時現預金は、保存した投影開始年の1月1日期首残高として使用します",
+    "最初の投影行も完全な1暦年です",
+    "経過月による按分は行いません",
+    "ブラウザーの年越しでは、保存済みの基準日と開始年は変わりません",
+  ]) {
+    await assertContains(
+      page.getByTestId("life-plan-disclosure"),
+      requiredDisclosure,
+    );
+  }
   assert.equal(
     await page.evaluate(
       (key) =>

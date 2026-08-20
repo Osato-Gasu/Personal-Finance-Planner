@@ -15,7 +15,7 @@ import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
 
 const baseReferenceDate = "2026-08-20";
 
-function completeState(): AppState {
+function completeState(referenceDate = baseReferenceDate): AppState {
   const state = createInitialState();
   const member = state.members[0];
   if (!member) throw new Error("self member is missing");
@@ -24,7 +24,7 @@ function completeState(): AppState {
   const plan = createCalculatedTakeHomePlan({
     id: "take-home-self",
     memberId: member.id,
-    targetYear: 2026,
+    targetYear: Number(referenceDate.slice(0, 4)),
     birthDate: member.birthDate,
     residencePrefecture: "JP-13",
   });
@@ -46,7 +46,7 @@ function completeState(): AppState {
   state.budget.mode = "simple";
   state.budget.simpleMonthlyExpenseYen = 100_000;
   state.lifePlan = {
-    baseReferenceDate,
+    baseReferenceDate: referenceDate,
     projectionStartYear: 2027,
     startingLiquidAssetsYen: 1_000_000,
     projectionYears: 3,
@@ -175,6 +175,44 @@ describe("life plan annual cashflow", () => {
     });
   });
 
+  it.each([
+    ["both anchors", null, null],
+    ["baseReferenceDate only", null, 2027],
+    ["projectionStartYear only", baseReferenceDate, null],
+  ])(
+    "returns deterministic incomplete when %s are cleared",
+    (_caseName, referenceDate, projectionStartYear) => {
+      const state = completeState();
+      state.lifePlan.baseReferenceDate = referenceDate;
+      state.lifePlan.projectionStartYear = projectionStartYear;
+      const first = selectLifePlan(state);
+      const second = selectLifePlan(structuredClone(state));
+      expect(first).toEqual(second);
+      expect(first).toMatchObject({
+        status: "incomplete",
+        baseMonthlyCashflowYen: null,
+        baseAnnualCashflowYen: null,
+        years: [],
+      });
+    },
+  );
+
+  it("keeps the full-calendar projection identical for January 1 and December 31 base dates", () => {
+    const january = selectLifePlan(completeState("2026-01-01"));
+    const december = selectLifePlan(completeState("2026-12-31"));
+    expect(january.status).toBe("complete");
+    expect(december.status).toBe("complete");
+    expect(january.projectionStartYear).toBe(2027);
+    expect(december.projectionStartYear).toBe(2027);
+    expect(january.baseMonthlyCashflowYen).toBe(
+      december.baseMonthlyCashflowYen,
+    );
+    expect(january.baseAnnualCashflowYen).toBe(december.baseAnnualCashflowYen);
+    expect(january.years).toEqual(december.years);
+    expect(january.years[0]?.openingLiquidAssetsYen).toBe(1_000_000);
+    expect(december.years[0]?.openingLiquidAssetsYen).toBe(1_000_000);
+  });
+
   it("fails closed on annual multiplication, event sum, and cumulative overflow", () => {
     expect(
       annualizeMonthlyCashflowYen(Math.floor(Number.MAX_SAFE_INTEGER / 12) + 1),
@@ -249,6 +287,15 @@ describe("life plan state actions", () => {
       },
     ],
     [
+      "malformed date",
+      {
+        baseReferenceDate: "2026-2-01",
+        projectionStartYear: 2027,
+        startingLiquidAssetsYen: 0,
+        projectionYears: 30,
+      },
+    ],
+    [
       "start range",
       {
         baseReferenceDate,
@@ -258,12 +305,39 @@ describe("life plan state actions", () => {
       },
     ],
     [
+      "start above range",
+      {
+        baseReferenceDate,
+        projectionStartYear: 10_000,
+        startingLiquidAssetsYen: 0,
+        projectionYears: 1,
+      },
+    ],
+    [
       "years low",
       {
         baseReferenceDate,
         projectionStartYear: 2027,
         startingLiquidAssetsYen: 0,
         projectionYears: 0,
+      },
+    ],
+    [
+      "non-integer assets",
+      {
+        baseReferenceDate,
+        projectionStartYear: 2027,
+        startingLiquidAssetsYen: 1.5,
+        projectionYears: 30,
+      },
+    ],
+    [
+      "unsafe assets",
+      {
+        baseReferenceDate,
+        projectionStartYear: 2027,
+        startingLiquidAssetsYen: Number.MAX_SAFE_INTEGER + 1,
+        projectionYears: 30,
       },
     ],
     [
@@ -360,5 +434,48 @@ describe("life plan state actions", () => {
       type: "delete-life-plan-event",
       eventId: "missing",
     });
+  });
+
+  it("preserves every non-target event during update, toggle, and delete", () => {
+    const other = event({
+      id: "event-2",
+      name: "対象外イベント",
+      kind: "income",
+      startYear: 2028,
+      endYear: 2029,
+      annualAmountYen: 321_000,
+      memo: "保持される値",
+      active: false,
+    });
+    const actions: AppAction[] = [
+      {
+        type: "update-life-plan-event",
+        eventId: "event-1",
+        event: {
+          name: "更新対象",
+          kind: "expense",
+          startYear: 2027,
+          endYear: 2027,
+          annualAmountYen: 999,
+          memo: "updated",
+          active: true,
+        },
+      },
+      {
+        type: "set-life-plan-event-active",
+        eventId: "event-1",
+        active: false,
+      },
+      { type: "delete-life-plan-event", eventId: "event-1" },
+    ];
+    for (const action of actions) {
+      const state = completeState();
+      state.lifePlan.events = [event(), structuredClone(other)];
+      const store = new Store(state);
+      store.dispatch(action);
+      expect(
+        store.getState().lifePlan.events.find((item) => item.id === other.id),
+      ).toEqual(other);
+    }
   });
 });
