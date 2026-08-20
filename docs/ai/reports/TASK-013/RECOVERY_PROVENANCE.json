@@ -3,7 +3,7 @@
   "artifact_role": "report_evidence",
   "task_id": "TASK-013",
   "spec_revision": 3,
-  "recovery_design_revision": 5,
+  "recovery_design_revision": 6,
   "phase_state": "PHASE_A_PRE_SYNC",
   "phase_a_baseline": {
     "commit": "d96ebe1bcfe258185956fd0db3acf1ca15050af6",
@@ -42,8 +42,7 @@
   "recovery_candidate": {
     "commit": "none",
     "tree": "none",
-    "materialization_handoff_commit": "none",
-    "materialization_handoff_tree": "none"
+    "materialization_identity_mode": "none"
   },
   "managed_adoption": {
     "target": "AGENTS.md",

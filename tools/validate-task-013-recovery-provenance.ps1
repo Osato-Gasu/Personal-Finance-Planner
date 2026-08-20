@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('RepositoryState','ExternalRelayPreflight','CanonicalRelay','StateContractFixture','RelayContractFixture')]
+    [ValidateSet('RepositoryState','ExternalRelayPreflight','CanonicalRelay','StateContractFixture','RelayContractFixture','MaterializationGitFixture')]
     [string]$Mode = 'RepositoryState',
     [string]$ProjectRoot,
     [string]$RelayPath,
@@ -185,7 +185,7 @@ function Assert-RecoveryStateContract($Context,$Provenance) {
     $originalTree = '3fb36efc2fd13b9321baf11a63e798d54fe48a12'
     if ($state -ceq 'PHASE_A_PRE_SYNC') {
         Assert-True ([string]$Context.recovery_commit -ceq 'none' -and [string]$Context.recovery_tree -ceq 'none') 'Phase A must not materialize recovery candidate B'
-        Assert-True ([string]$Context.materialization_commit -ceq 'none' -and [string]$Context.materialization_tree -ceq 'none') 'Phase A must not materialize C0'
+        Assert-True ([string]$Context.materialization_identity_mode -ceq 'none') 'Phase A must not select a materialization identity mode'
         Assert-True ([string]$Context.task_candidate_commit -ceq $originalCommit -and [string]$Context.task_candidate_tree -ceq $originalTree) 'Phase A TASK candidate is not the immutable product candidate'
         Assert-True ([string]$Context.semantic_review_decision -ceq 'pending' -and [string]$Context.semantic_review_plan_sha256 -ceq 'none') 'Phase A semantic approval state is invalid'
         Assert-True ([string]$Context.approved_baseline_commit -ceq 'none' -and [string]$Context.approved_baseline_tree -ceq 'none' -and [string]$Context.approved_classification_sha256 -ceq 'none') 'Phase A must not contain future approval bindings'
@@ -197,7 +197,7 @@ function Assert-RecoveryStateContract($Context,$Provenance) {
         Assert-ApprovedManagedBinding $Context
         Assert-ManagedAndSharedIdentities $Context
         Assert-True ([string]$Context.recovery_commit -ceq 'none' -and [string]$Context.recovery_tree -ceq 'none') 'Phase B must keep recovery candidate B unmaterialized'
-        Assert-True ([string]$Context.materialization_commit -ceq 'none' -and [string]$Context.materialization_tree -ceq 'none') 'Phase B must keep C0 unmaterialized'
+        Assert-True ([string]$Context.materialization_identity_mode -ceq 'none') 'Phase B must keep C0 identity derivation inactive'
         Assert-True ([string]$Context.task_candidate_commit -ceq $originalCommit -and [string]$Context.task_candidate_tree -ceq $originalTree) 'Phase B TASK candidate must remain the immutable product candidate'
         $atBaseline = [string]$Context.current_head -ceq [string]$Context.approved_baseline_commit -and [string]$Context.current_tree -ceq [string]$Context.approved_baseline_tree
         if (-not $atBaseline) {
@@ -212,19 +212,8 @@ function Assert-RecoveryStateContract($Context,$Provenance) {
         Assert-True ([string]$Context.recovery_commit -cmatch '^[0-9a-f]{40}$' -and [string]$Context.recovery_tree -cmatch '^[0-9a-f]{40}$') 'Phase C0 recovery candidate identity is incomplete'
         Assert-True ([string]$Context.recovery_actual_tree -ceq [string]$Context.recovery_tree) 'Phase C0 recovery candidate tree changed'
         Assert-True ([string]$Context.task_candidate_commit -ceq [string]$Context.recovery_commit -and [string]$Context.task_candidate_tree -ceq [string]$Context.recovery_tree) 'Phase C0 TASK candidate does not equal recovery B'
-        Assert-True ([string]$Context.materialization_commit -cmatch '^[0-9a-f]{40}$' -and [string]$Context.materialization_tree -cmatch '^[0-9a-f]{40}$') 'Phase C0 materialization handoff identity is incomplete'
-        Assert-True ([string]$Context.materialization_actual_tree -ceq [string]$Context.materialization_tree) 'Phase C0 materialization tree changed'
-        Assert-True ([string]$Context.materialization_parent -ceq [string]$Context.recovery_commit) 'Phase C0 materialization handoff is not the direct child of recovery B'
-        Assert-True ([string]$Context.current_head -cmatch '^[0-9a-f]{40}$' -and [string]$Context.current_tree -cmatch '^[0-9a-f]{40}$') 'post-materialization current HEAD identity is invalid'
-        if ([string]$Context.current_head -ceq [string]$Context.materialization_commit) {
-            Assert-True ([string]$Context.current_tree -ceq [string]$Context.materialization_tree) 'exact C0 current tree changed'
-        } else {
-            Assert-True ([bool]$Context.materialization_is_ancestor) 'current HEAD is not a descendant of C0'
-            Assert-True ([bool]$Context.post_materialization_linear) 'post-C0 history is not linear'
-            foreach ($path in @($Context.post_materialization_diff_paths)) {
-                Assert-True (Test-AllowedPostMaterializationPath ([string]$path)) "unauthorized post-C0 path: $path"
-            }
-        }
+        Assert-True ([string]$Context.materialization_identity_mode -ceq 'derive_first_child_of_recovery_candidate') 'Phase C0 materialization identity mode is invalid'
+        Assert-True ([bool]$Context.materialization_git_contract_valid) 'Git-derived C0 materialization contract is invalid'
         return
     }
     throw "TASK-013 recovery provenance BLOCKED: unknown phase_state: $state"
@@ -247,29 +236,106 @@ function Test-AllowedPostMaterializationPath([string]$Path) {
         'docs/ai/handoffs/TASK-013/RELEASE_HANDOFF.md'
     ) -ccontains $Path
 }
+function Test-AllowedC0MaterializationPath([string]$Path) {
+    @(
+        'board/PROGRESS.html',
+        'docs/ai/CURRENT_STATE.md',
+        'docs/ai/NEXT_ACTION.yml',
+        'docs/ai/tasks/TASK-013.md',
+        'docs/ai/handoffs/TASK-013/IMPLEMENTATION_REVIEW_HANDOFF.md',
+        'docs/ai/reports/TASK-013/IMPLEMENTATION_REPORT.md',
+        'docs/ai/reports/TASK-013/RECOVERY_PROVENANCE.json'
+    ) -ccontains $Path
+}
 function Test-GitAncestor([string]$Ancestor,[string]$Descendant) {
     $null = & git -C $root merge-base --is-ancestor $Ancestor $Descendant 2>$null
     if ($LASTEXITCODE -eq 0) { return $true }
     if ($LASTEXITCODE -eq 1) { return $false }
     throw "TASK-013 recovery provenance BLOCKED: cannot evaluate ancestry from $Ancestor to $Descendant"
 }
-function Test-LinearGitRange([string]$Base,[string]$Head) {
-    $commits = @(Invoke-GitText @('rev-list','--ancestry-path','--reverse',"$Base..$Head") 'post-C0 history is unavailable')
-    if ($commits.Count -eq 0 -or [string]$commits[-1] -cne $Head) { return $false }
-    $expectedParent = $Base
+function Read-GitCanonicalFile([string]$Commit,[string]$Relative) {
+    $bytes = Get-GitBlobBytes "$Commit`:$Relative"
+    Assert-True (-not ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)) "Git snapshot UTF-8 BOM is forbidden: $Commit`:$Relative"
+    try { $text = $utf8Strict.GetString($bytes) } catch { throw "TASK-013 recovery provenance BLOCKED: invalid Git snapshot UTF-8: $Commit`:$Relative" }
+    Assert-True (-not $text.Contains("`r") -and $text.EndsWith("`n")) "Git snapshot canonical LF/final-LF shape is invalid: $Commit`:$Relative"
+    [pscustomobject]@{ Bytes=$bytes; Text=$text; Sha256=(Get-Sha256 $bytes); Blob=(Get-GitBlobId $bytes) }
+}
+function Assert-RecoveryProvenanceCore($Snapshot,[string]$Label) {
+    Assert-True ([int]$Snapshot.schema_version -eq 1 -and [string]$Snapshot.artifact_role -ceq 'report_evidence' -and [string]$Snapshot.task_id -ceq 'TASK-013' -and [int]$Snapshot.spec_revision -eq 3 -and [int]$Snapshot.recovery_design_revision -eq 6) "$Label root identity is invalid"
+    Assert-True ([bool]$Snapshot.public_side_effect_authority -eq $false -and [bool]$Snapshot.release_authority -eq $false) "$Label grants unauthorized public/release authority"
+    Assert-True ([string]$Snapshot.phase_a_baseline.commit -ceq 'd96ebe1bcfe258185956fd0db3acf1ca15050af6' -and [string]$Snapshot.phase_a_baseline.tree -ceq '90f97b3e16aa3d0ce36cd872d1b59b9b8d49908a') "$Label Phase A baseline identity changed"
+    $review = $Snapshot.original_product_review
+    Assert-True ([string]$review.candidate_commit -ceq '1285f6745062545bb4e73a937cde141f6ab620d4' -and [string]$review.candidate_tree -ceq '3fb36efc2fd13b9321baf11a63e798d54fe48a12') "$Label original product candidate identity changed"
+    Assert-True ([string]$review.reviewed_handoff_commit -ceq 'd96ebe1bcfe258185956fd0db3acf1ca15050af6' -and [string]$review.reviewed_handoff_tree -ceq '90f97b3e16aa3d0ce36cd872d1b59b9b8d49908a' -and [string]$review.decision -ceq 'APPROVED' -and [int]$review.findings_count -eq 0 -and [int]$review.implementation_review_attempt -eq 1 -and [string]$review.implementation_review_profile -ceq 'standard') "$Label original product review identity changed"
+    Assert-True ([string]$review.result_path -ceq 'docs/ai/reports/TASK-013/ORIGINAL_PRODUCT_IMPLEMENTATION_REVIEW_RESULT.md' -and [int]$review.result_byte_length -eq 2074 -and [string]$review.result_sha256 -ceq '364AC5653DE793ADE054A4C2D30D38A4C410DCDFD9D922266DA2F5E5EAAE85D6') "$Label original product review-result evidence changed"
+    Assert-True ([string]$review.relay_path -ceq 'docs/ai/reports/TASK-013/ORIGINAL_PRODUCT_APPROVED_RELAY.json' -and [int]$review.relay_byte_length -eq 6023 -and [string]$review.relay_sha256 -ceq '3618C7CDE53CBA70A604C3E55EEC6E7AAA218384101189DA800F69B57C021F6B') "$Label original product relay evidence changed"
+    $shared = $Snapshot.shared_source
+    Assert-True ([string]$shared.repository -ceq 'Osato-Gasu/shared' -and [string]$shared.version -ceq '1.0.1' -and [string]$shared.commit -ceq '4aa53fbe67edcbe2d7b6a147144b7b07022e5951' -and [string]$shared.tree -ceq '366ed1ed65cf9481b37759a9caf9a1aac38e97f2' -and [string]$shared.manifest_sha256 -ceq 'B85F3B6730FB242C81359DB25BA498259DA52C961F8259682862E5C0246D9114') "$Label shared v1.0.1 identity changed"
+    Assert-True ([string]$shared.version_blob -ceq '7dea76edb3dc51b6e5e8223e9f941a35c1e364d6' -and [int]$shared.version_byte_length -eq 6 -and [string]$shared.version_sha256 -ceq '44E161E4495CAC2CF7858043E9E6418E9579F0DDCFAE826F9A372622968CE066') "$Label shared VERSION identity changed"
+    Assert-True ([int]$shared.manifest_schema_version -eq 2 -and [int]$shared.manifest_entry_count -eq 37 -and [string]$shared.manifest_blob -ceq '025664e13f9ee0307f2174ba10773dd95f5156ca' -and [int]$shared.manifest_byte_length -eq 6202) "$Label shared manifest identity changed"
+    $expectedRecoveryPaths = @('AGENTS.md','board/PROGRESS.html','docs/ai/BACKLOG.md','docs/ai/CURRENT_STATE.md','docs/ai/NEXT_ACTION.yml','docs/ai/PROJECT_ADAPTER.psd1','docs/ai/PROJECT_RULES.md','docs/ai/SHARED_RULES.lock.yml','docs/ai/WORKFLOW.md','docs/ai/handoffs/TASK-013/IMPLEMENTATION_REVIEW_HANDOFF.md','docs/ai/tasks/TASK-013.md','tools/sync-shared-governance.ps1','tools/validate-project-overlay.ps1','tools/validate-task-013-recovery-provenance.ps1')
+    $expectedRecoveryPrefixes = @('docs/ai/generated/shared/','docs/ai/reports/TASK-013/')
+    Assert-True ((@($Snapshot.allowed_recovery_exact_paths) -join '|') -ceq ($expectedRecoveryPaths -join '|') -and (@($Snapshot.allowed_recovery_path_prefixes) -join '|') -ceq ($expectedRecoveryPrefixes -join '|')) "$Label recovery path authority changed"
+}
+function Assert-DerivedMaterializationProvenance($Snapshot,[string]$RecoveryCommit,[string]$RecoveryTree,[string]$Label) {
+    Assert-RecoveryProvenanceCore $Snapshot $Label
+    Assert-True ([string]$Snapshot.phase_state -ceq 'PHASE_C0_MATERIALIZED') "$Label phase_state is not materialized"
+    Assert-True ([string]$Snapshot.recovery_candidate.commit -ceq $RecoveryCommit -and [string]$Snapshot.recovery_candidate.tree -ceq $RecoveryTree) "$Label recovery B identity changed"
+    Assert-True ([string]$Snapshot.recovery_candidate.materialization_identity_mode -ceq 'derive_first_child_of_recovery_candidate') "$Label materialization identity mode is invalid"
+    foreach ($legacy in @('materialization_handoff_commit','materialization_handoff_tree')) {
+        $property = $Snapshot.recovery_candidate.PSObject.Properties[$legacy]
+        if ($null -ne $property) { Assert-True ([string]$property.Value -ceq 'none') "$Label asserts legacy self-C0 authority: $legacy" }
+    }
+}
+function Assert-SharedLockSnapshot([string]$Text,[string]$Label) {
+    $versionKey = if ($Text -match '(?m)^source_version:') { 'source_version' } else { 'version' }
+    $commitKey = if ($Text -match '(?m)^source_commit:') { 'source_commit' } else { 'commit' }
+    Assert-True ((Get-RequiredYamlValue $Text 'source_repository') -ceq 'Osato-Gasu/shared' -and (Get-RequiredYamlValue $Text $versionKey) -ceq '1.0.1' -and (Get-RequiredYamlValue $Text $commitKey) -ceq '4aa53fbe67edcbe2d7b6a147144b7b07022e5951' -and (Get-RequiredYamlValue $Text 'source_tree') -ceq '366ed1ed65cf9481b37759a9caf9a1aac38e97f2' -and (Get-RequiredYamlValue $Text 'manifest_sha256') -ceq 'B85F3B6730FB242C81359DB25BA498259DA52C961F8259682862E5C0246D9114') "$Label shared lock identity changed"
+}
+function Assert-MaterializedGitContract([string]$CurrentHead) {
+    Assert-True ($CurrentHead -cmatch '^[0-9a-f]{40}$') 'materialized current HEAD identity is invalid'
+    $currentProvenanceRecord = Read-GitCanonicalFile $CurrentHead 'docs/ai/reports/TASK-013/RECOVERY_PROVENANCE.json'
+    $currentProvenance = $currentProvenanceRecord.Text | ConvertFrom-Json -ErrorAction Stop
+    Assert-RecoveryProvenanceCore $currentProvenance 'current provenance snapshot'
+    $recoveryCommit = [string]$currentProvenance.recovery_candidate.commit
+    $recoveryTree = [string]$currentProvenance.recovery_candidate.tree
+    Assert-True ($recoveryCommit -cmatch '^[0-9a-f]{40}$' -and $recoveryTree -cmatch '^[0-9a-f]{40}$') 'materialized recovery B identity is incomplete'
+    Assert-True ((Get-GitTree $recoveryCommit) -ceq $recoveryTree) 'materialized recovery B tree changed'
+    Assert-True ($CurrentHead -cne $recoveryCommit) 'materialized current HEAD must not equal recovery B'
+    Assert-True (Test-GitAncestor $recoveryCommit $CurrentHead) 'materialized current HEAD is not a descendant of recovery B'
+    $commits = @(Invoke-GitText @('rev-list','--ancestry-path','--reverse',"$recoveryCommit..$CurrentHead") 'B-to-HEAD ancestry path is unavailable')
+    Assert-True ($commits.Count -gt 0 -and [string]$commits[-1] -ceq $CurrentHead) 'B-to-HEAD ancestry path is empty or ambiguous'
+    $expectedParent = $recoveryCommit
     foreach ($commit in $commits) {
-        $parts = @((((Invoke-GitText @('rev-list','--parents','-n','1',[string]$commit) 'post-C0 commit parents are unavailable') -join '').Trim()) -split '\s+')
-        if ($parts.Count -ne 2 -or [string]$parts[1] -cne $expectedParent) { return $false }
+        $parts = @((((Invoke-GitText @('rev-list','--parents','-n','1',[string]$commit) 'materialization commit parents are unavailable') -join '').Trim()) -split '\s+')
+        Assert-True ($parts.Count -eq 2 -and [string]$parts[1] -ceq $expectedParent) "materialization history is not a strict direct-parent chain at $commit"
         $expectedParent = [string]$commit
     }
-    $expectedParent -ceq $Head
-}
-function Get-GitRangeChangedPaths([string]$Base,[string]$Head) {
-    $paths = @()
-    foreach ($commit in @(Invoke-GitText @('rev-list','--ancestry-path','--reverse',"$Base..$Head") 'post-C0 history is unavailable')) {
-        $paths += @(Invoke-GitText @('diff-tree','--no-commit-id','--name-only','-r',[string]$commit) 'post-C0 commit diff is unavailable')
+    $derivedC0 = [string]$commits[0]
+    $derivedC0Tree = Get-GitTree $derivedC0
+    $c0Task = Read-GitCanonicalFile $derivedC0 'docs/ai/tasks/TASK-013.md'
+    Assert-True ((Get-RequiredTaskValue $c0Task.Text 'candidate_commit') -ceq $recoveryCommit -and (Get-RequiredTaskValue $c0Task.Text 'candidate_tree') -ceq $recoveryTree) 'derived C0 TASK candidate does not equal recovery B'
+    $c0ProvenanceRecord = Read-GitCanonicalFile $derivedC0 'docs/ai/reports/TASK-013/RECOVERY_PROVENANCE.json'
+    $c0Provenance = $c0ProvenanceRecord.Text | ConvertFrom-Json -ErrorAction Stop
+    Assert-DerivedMaterializationProvenance $c0Provenance $recoveryCommit $recoveryTree 'derived C0 provenance snapshot'
+    $c0Lock = Read-GitCanonicalFile $derivedC0 'docs/ai/SHARED_RULES.lock.yml'
+    Assert-SharedLockSnapshot $c0Lock.Text 'derived C0 snapshot'
+    foreach ($path in @(Invoke-GitText @('diff-tree','--no-commit-id','--name-only','-r',$derivedC0) 'derived C0 diff is unavailable')) {
+        Assert-True (Test-AllowedC0MaterializationPath ([string]$path)) "unauthorized derived C0 materialization path: $path"
     }
-    @($paths | Sort-Object -Unique)
+    for ($index=0; $index -lt $commits.Count; $index++) {
+        $commit = [string]$commits[$index]
+        $task = Read-GitCanonicalFile $commit 'docs/ai/tasks/TASK-013.md'
+        Assert-True ((Get-RequiredTaskValue $task.Text 'candidate_commit') -ceq $recoveryCommit -and (Get-RequiredTaskValue $task.Text 'candidate_tree') -ceq $recoveryTree) "TASK candidate changed after materialization at $commit"
+        $provenanceRecord = Read-GitCanonicalFile $commit 'docs/ai/reports/TASK-013/RECOVERY_PROVENANCE.json'
+        Assert-DerivedMaterializationProvenance ($provenanceRecord.Text | ConvertFrom-Json -ErrorAction Stop) $recoveryCommit $recoveryTree "materialization provenance at $commit"
+        if ($index -gt 0) {
+            foreach ($path in @(Invoke-GitText @('diff-tree','--no-commit-id','--name-only','-r',$commit) 'post-C0 commit diff is unavailable')) {
+                Assert-True (Test-AllowedPostMaterializationPath ([string]$path)) "unauthorized post-C0 path at $commit`: $path"
+            }
+        }
+    }
+    [pscustomobject]@{ RecoveryCommit=$recoveryCommit;RecoveryTree=$recoveryTree;DerivedC0=$derivedC0;DerivedC0Tree=$derivedC0Tree;CurrentHead=$CurrentHead;CommitCount=$commits.Count }
 }
 function Get-ReviewRequestId($Review) {
     $repositoryAccess = ([string][bool]$Review.repository_access).ToLowerInvariant()
@@ -398,13 +464,23 @@ function Get-RepositoryRelayContext($Provenance,$ProvenanceRecord,$Task,[string]
     }
 }
 
+if ($Mode -ceq 'MaterializationGitFixture') {
+    $fixtureRecord = Read-ExternalCanonicalFile $FixturePath 'materialization Git fixture'
+    $fixture = $fixtureRecord.Text | ConvertFrom-Json -ErrorAction Stop
+    $evidence = Assert-MaterializedGitContract ([string]$fixture.current_head)
+    Assert-True ([string]$evidence.RecoveryCommit -ceq [string]$fixture.expected_recovery_commit -and [string]$evidence.RecoveryTree -ceq [string]$fixture.expected_recovery_tree) 'materialization fixture recovery B evidence mismatch'
+    Assert-True ([string]$evidence.DerivedC0 -ceq [string]$fixture.expected_derived_c0 -and [string]$evidence.DerivedC0Tree -ceq [string]$fixture.expected_derived_c0_tree) 'materialization fixture derived C0 evidence mismatch'
+    Write-Output "TASK-013 recovery provenance validation passed. mode=$Mode derived_c0=$($evidence.DerivedC0) head=$($evidence.CurrentHead) commits=$($evidence.CommitCount)"
+    return
+}
+
 $provenanceRecord = if ([string]::IsNullOrWhiteSpace($ProvenanceOverridePath)) {
     Read-CanonicalFile 'docs/ai/reports/TASK-013/RECOVERY_PROVENANCE.json'
 } else {
     Read-ExternalCanonicalFile $ProvenanceOverridePath 'provenance override'
 }
 $provenance = $provenanceRecord.Text | ConvertFrom-Json -ErrorAction Stop
-Assert-True ([int]$provenance.schema_version -eq 1 -and [string]$provenance.artifact_role -ceq 'report_evidence' -and [string]$provenance.task_id -ceq 'TASK-013' -and [int]$provenance.spec_revision -eq 3 -and [int]$provenance.recovery_design_revision -eq 5) 'provenance root identity is invalid'
+Assert-RecoveryProvenanceCore $provenance 'current recovery provenance'
 Assert-True ([bool]$provenance.public_side_effect_authority -eq $false -and [bool]$provenance.release_authority -eq $false) 'recovery provenance grants unauthorized public/release authority'
 $review = $provenance.original_product_review
 Assert-True ([string]$review.candidate_commit -ceq '1285f6745062545bb4e73a937cde141f6ab620d4' -and [string]$review.candidate_tree -ceq '3fb36efc2fd13b9321baf11a63e798d54fe48a12') 'original product candidate identity changed'
@@ -448,7 +524,8 @@ if ($Mode -ceq 'StateContractFixture') {
     $relayFixtureRecord = Read-ExternalCanonicalFile $RelayFixturePath 'relay-contract fixture'
     $relayFixture = $relayFixtureRecord.Text | ConvertFrom-Json -ErrorAction Stop
     if ($null -ne $relayFixture.state_context) { Assert-RecoveryStateContract $relayFixture.state_context $provenance }
-    Assert-Relay $relayFixture.relay $provenance $relayFixtureRecord.Text $relayFixture.context
+    $relayFixtureRaw = $relayFixture.relay | ConvertTo-Json -Depth 100 -Compress
+    Assert-Relay $relayFixture.relay $provenance $relayFixtureRaw $relayFixture.context
 } else {
     $task = Read-CanonicalFile 'docs/ai/tasks/TASK-013.md'
     $agents = Read-CanonicalFile 'AGENTS.md'
@@ -465,29 +542,17 @@ if ($Mode -ceq 'StateContractFixture') {
     }
     $recoveryActualTree = 'none'
     if ([string]$provenance.recovery_candidate.commit -cmatch '^[0-9a-f]{40}$') { $recoveryActualTree = Get-GitTree ([string]$provenance.recovery_candidate.commit) }
-    $materializationActualTree = 'none'
-    $materializationParent = 'none'
-    $materializationIsAncestor = $false
-    $postMaterializationLinear = $false
-    $postMaterializationDiffPaths = @()
-    $materializationCommit = [string]$provenance.recovery_candidate.materialization_handoff_commit
-    if ($materializationCommit -cmatch '^[0-9a-f]{40}$') {
-        $materializationActualTree = Get-GitTree $materializationCommit
-        $materializationParent = ((Invoke-GitText @('rev-parse',"$materializationCommit^1") 'C0 materialization parent is unavailable') -join '').Trim()
-        if ($currentHead -cne $materializationCommit) {
-            $materializationIsAncestor = Test-GitAncestor $materializationCommit $currentHead
-            if ($materializationIsAncestor) {
-                $postMaterializationLinear = Test-LinearGitRange $materializationCommit $currentHead
-                $postMaterializationDiffPaths = @(Get-GitRangeChangedPaths $materializationCommit $currentHead)
-            }
-        }
+    $materializationGitContractValid = $false
+    if ([string]$provenance.phase_state -ceq 'PHASE_C0_MATERIALIZED') {
+        Assert-True ($provenanceRecord.Blob -ceq (Get-GitBlobAtCommit $currentHead 'docs/ai/reports/TASK-013/RECOVERY_PROVENANCE.json')) 'working provenance does not match current HEAD'
+        $null = Assert-MaterializedGitContract $currentHead
+        $materializationGitContractValid = $true
     }
     $context = [pscustomobject]@{
         phase_state=[string]$provenance.phase_state
         recovery_commit=[string]$provenance.recovery_candidate.commit
         recovery_tree=[string]$provenance.recovery_candidate.tree
-        materialization_commit=[string]$provenance.recovery_candidate.materialization_handoff_commit
-        materialization_tree=[string]$provenance.recovery_candidate.materialization_handoff_tree
+        materialization_identity_mode=[string]$provenance.recovery_candidate.materialization_identity_mode
         semantic_review_decision=[string]$provenance.managed_adoption.semantic_review_decision
         semantic_review_plan_sha256=[string]$provenance.managed_adoption.semantic_review_plan_sha256
         approved_baseline_commit=[string]$provenance.managed_adoption.approved_baseline_commit
@@ -512,11 +577,7 @@ if ($Mode -ceq 'StateContractFixture') {
         current_parent=$currentParent
         head_diff_paths=$headDiffPaths
         recovery_actual_tree=$recoveryActualTree
-        materialization_actual_tree=$materializationActualTree
-        materialization_parent=$materializationParent
-        materialization_is_ancestor=$materializationIsAncestor
-        post_materialization_linear=$postMaterializationLinear
-        post_materialization_diff_paths=$postMaterializationDiffPaths
+        materialization_git_contract_valid=$materializationGitContractValid
     }
     Assert-RecoveryStateContract $context $provenance
     if ([string]$provenance.phase_state -ceq 'PHASE_C0_MATERIALIZED') {
