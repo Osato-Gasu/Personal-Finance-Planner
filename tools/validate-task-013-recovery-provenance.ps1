@@ -213,7 +213,18 @@ function Assert-RecoveryStateContract($Context,$Provenance) {
         Assert-True ([string]$Context.recovery_actual_tree -ceq [string]$Context.recovery_tree) 'Phase C0 recovery candidate tree changed'
         Assert-True ([string]$Context.task_candidate_commit -ceq [string]$Context.recovery_commit -and [string]$Context.task_candidate_tree -ceq [string]$Context.recovery_tree) 'Phase C0 TASK candidate does not equal recovery B'
         Assert-True ([string]$Context.materialization_commit -cmatch '^[0-9a-f]{40}$' -and [string]$Context.materialization_tree -cmatch '^[0-9a-f]{40}$') 'Phase C0 materialization handoff identity is incomplete'
-        Assert-True ([string]$Context.current_head -ceq [string]$Context.materialization_commit -and [string]$Context.current_tree -ceq [string]$Context.materialization_tree -and [string]$Context.current_parent -ceq [string]$Context.recovery_commit) 'Phase C0 materialization handoff is not the direct child of recovery B'
+        Assert-True ([string]$Context.materialization_actual_tree -ceq [string]$Context.materialization_tree) 'Phase C0 materialization tree changed'
+        Assert-True ([string]$Context.materialization_parent -ceq [string]$Context.recovery_commit) 'Phase C0 materialization handoff is not the direct child of recovery B'
+        Assert-True ([string]$Context.current_head -cmatch '^[0-9a-f]{40}$' -and [string]$Context.current_tree -cmatch '^[0-9a-f]{40}$') 'post-materialization current HEAD identity is invalid'
+        if ([string]$Context.current_head -ceq [string]$Context.materialization_commit) {
+            Assert-True ([string]$Context.current_tree -ceq [string]$Context.materialization_tree) 'exact C0 current tree changed'
+        } else {
+            Assert-True ([bool]$Context.materialization_is_ancestor) 'current HEAD is not a descendant of C0'
+            Assert-True ([bool]$Context.post_materialization_linear) 'post-C0 history is not linear'
+            foreach ($path in @($Context.post_materialization_diff_paths)) {
+                Assert-True (Test-AllowedPostMaterializationPath ([string]$path)) "unauthorized post-C0 path: $path"
+            }
+        }
         return
     }
     throw "TASK-013 recovery provenance BLOCKED: unknown phase_state: $state"
@@ -222,6 +233,43 @@ function Test-AllowedRecoveryPath([string]$Path,$Provenance) {
     if (@($Provenance.allowed_recovery_exact_paths) -ccontains $Path) { return $true }
     foreach ($prefix in @($Provenance.allowed_recovery_path_prefixes)) { if ($Path.StartsWith([string]$prefix,[StringComparison]::Ordinal)) { return $true } }
     $false
+}
+function Test-AllowedPostMaterializationPath([string]$Path) {
+    @(
+        'board/PROGRESS.html',
+        'docs/ai/CURRENT_STATE.md',
+        'docs/ai/NEXT_ACTION.yml',
+        'docs/ai/tasks/TASK-013.md',
+        'docs/ai/reports/TASK-013/RELAY_IMPORT.md',
+        'docs/ai/reports/TASK-013/RELAY_BUNDLE.json',
+        'docs/ai/handoffs/TASK-013/INDEPENDENT_REVIEW_HANDOFF.md',
+        'docs/ai/handoffs/TASK-013/INDEPENDENT_REVIEW_RESULT_HANDOFF.md',
+        'docs/ai/handoffs/TASK-013/RELEASE_HANDOFF.md'
+    ) -ccontains $Path
+}
+function Test-GitAncestor([string]$Ancestor,[string]$Descendant) {
+    $null = & git -C $root merge-base --is-ancestor $Ancestor $Descendant 2>$null
+    if ($LASTEXITCODE -eq 0) { return $true }
+    if ($LASTEXITCODE -eq 1) { return $false }
+    throw "TASK-013 recovery provenance BLOCKED: cannot evaluate ancestry from $Ancestor to $Descendant"
+}
+function Test-LinearGitRange([string]$Base,[string]$Head) {
+    $commits = @(Invoke-GitText @('rev-list','--ancestry-path','--reverse',"$Base..$Head") 'post-C0 history is unavailable')
+    if ($commits.Count -eq 0 -or [string]$commits[-1] -cne $Head) { return $false }
+    $expectedParent = $Base
+    foreach ($commit in $commits) {
+        $parts = @((((Invoke-GitText @('rev-list','--parents','-n','1',[string]$commit) 'post-C0 commit parents are unavailable') -join '').Trim()) -split '\s+')
+        if ($parts.Count -ne 2 -or [string]$parts[1] -cne $expectedParent) { return $false }
+        $expectedParent = [string]$commit
+    }
+    $expectedParent -ceq $Head
+}
+function Get-GitRangeChangedPaths([string]$Base,[string]$Head) {
+    $paths = @()
+    foreach ($commit in @(Invoke-GitText @('rev-list','--ancestry-path','--reverse',"$Base..$Head") 'post-C0 history is unavailable')) {
+        $paths += @(Invoke-GitText @('diff-tree','--no-commit-id','--name-only','-r',[string]$commit) 'post-C0 commit diff is unavailable')
+    }
+    @($paths | Sort-Object -Unique)
 }
 function Get-ReviewRequestId($Review) {
     $repositoryAccess = ([string][bool]$Review.repository_access).ToLowerInvariant()
@@ -399,6 +447,7 @@ if ($Mode -ceq 'StateContractFixture') {
 } elseif ($Mode -ceq 'RelayContractFixture') {
     $relayFixtureRecord = Read-ExternalCanonicalFile $RelayFixturePath 'relay-contract fixture'
     $relayFixture = $relayFixtureRecord.Text | ConvertFrom-Json -ErrorAction Stop
+    if ($null -ne $relayFixture.state_context) { Assert-RecoveryStateContract $relayFixture.state_context $provenance }
     Assert-Relay $relayFixture.relay $provenance $relayFixtureRecord.Text $relayFixture.context
 } else {
     $task = Read-CanonicalFile 'docs/ai/tasks/TASK-013.md'
@@ -416,6 +465,23 @@ if ($Mode -ceq 'StateContractFixture') {
     }
     $recoveryActualTree = 'none'
     if ([string]$provenance.recovery_candidate.commit -cmatch '^[0-9a-f]{40}$') { $recoveryActualTree = Get-GitTree ([string]$provenance.recovery_candidate.commit) }
+    $materializationActualTree = 'none'
+    $materializationParent = 'none'
+    $materializationIsAncestor = $false
+    $postMaterializationLinear = $false
+    $postMaterializationDiffPaths = @()
+    $materializationCommit = [string]$provenance.recovery_candidate.materialization_handoff_commit
+    if ($materializationCommit -cmatch '^[0-9a-f]{40}$') {
+        $materializationActualTree = Get-GitTree $materializationCommit
+        $materializationParent = ((Invoke-GitText @('rev-parse',"$materializationCommit^1") 'C0 materialization parent is unavailable') -join '').Trim()
+        if ($currentHead -cne $materializationCommit) {
+            $materializationIsAncestor = Test-GitAncestor $materializationCommit $currentHead
+            if ($materializationIsAncestor) {
+                $postMaterializationLinear = Test-LinearGitRange $materializationCommit $currentHead
+                $postMaterializationDiffPaths = @(Get-GitRangeChangedPaths $materializationCommit $currentHead)
+            }
+        }
+    }
     $context = [pscustomobject]@{
         phase_state=[string]$provenance.phase_state
         recovery_commit=[string]$provenance.recovery_candidate.commit
@@ -446,6 +512,11 @@ if ($Mode -ceq 'StateContractFixture') {
         current_parent=$currentParent
         head_diff_paths=$headDiffPaths
         recovery_actual_tree=$recoveryActualTree
+        materialization_actual_tree=$materializationActualTree
+        materialization_parent=$materializationParent
+        materialization_is_ancestor=$materializationIsAncestor
+        post_materialization_linear=$postMaterializationLinear
+        post_materialization_diff_paths=$postMaterializationDiffPaths
     }
     Assert-RecoveryStateContract $context $provenance
     if ([string]$provenance.phase_state -ceq 'PHASE_C0_MATERIALIZED') {
