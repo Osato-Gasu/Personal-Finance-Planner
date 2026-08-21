@@ -92,7 +92,11 @@
 
 同一人物・同一年の給与計画は`TakeHomeCompensationBinding`で手取り計算へ連携できる。連携中はpersist済み直接入力を変更せず、給与結果から月次modeの一時的なcompensationを作る。賞与は一度だけ含め、不正・欠落・曖昧な連携は直接入力へfallbackしない。
 
+新規v8アプリの通常フローでは、計算手取りplanの作成時に同一人物・同一年のactive給与計画がexact 1件なら、plan追加とactive binding追加を同じStore遷移で行う。0件または複数なら自動選択せずdirectのままにし、runtime resolverが未binding recordを暗黙連携してはならない。作成後は利用者がdirectまたは有効な給与計画へ明示的に切り替えられ、非active側の直接入力bytesを保全する。
+
 家計収入は`BudgetIncomePolicy`により、従来の手入力／`LinkDefinition`または対象年の唯一のactive計算手取りを選ぶ。autoで0件、複数、未計算なら利用不可とし、手入力0円へ置換しない。家計簿後の残額は「投資可能額」であり、自動投資額ではない。
+
+`createInitialState()`が作る本人・相手の既定IncomeTargetは`auto-take-home` policyを持つ。completeな対象年手取りがない間は収入を利用不可とし、exact 1件が完成した時点で追加操作なしに家計と投資可能額へ反映する。利用者はlegacyへ切り替え、後からautoへ戻せる。v7以前のmigration/importではbindingとpolicyを合成せず、空配列と従来authorityを保つ。
 
 ## 6. 家計・生活費
 

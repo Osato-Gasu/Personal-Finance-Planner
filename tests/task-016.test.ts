@@ -10,6 +10,7 @@ import { calculatePayroll, type PayrollPlan } from "../src/domain/payroll";
 import {
   createInitialState,
   parseAppState,
+  reduceState,
   validateAppState,
   type AppState,
 } from "../src/domain/state";
@@ -233,6 +234,144 @@ describe("TASK-016 payroll arithmetic", () => {
 });
 
 describe("TASK-016 payroll to take-home authority", () => {
+  it("auto-links the new-user workflow without copying derived values", () => {
+    const memory = new MemoryStorage();
+    const repository = new StorageRepository(memory);
+    const store = new Store(
+      createInitialState(),
+      repository,
+      () => "2026-08-21T00:00:00.000Z",
+    );
+    expect(store.getState().budgetIncomePolicies).toEqual([
+      { targetId: "budget-income-self", mode: "auto-take-home" },
+      { targetId: "budget-income-partner", mode: "auto-take-home" },
+    ]);
+    expect(
+      calculateBudgetSummary(store.getState(), "2026-08-21").self,
+    ).toMatchObject({
+      incomeYen: null,
+      unresolvedIncome: true,
+    });
+    expect(
+      selectInvestmentFundingContext(store.getState(), "2026-08-21").household
+        .status,
+    ).toBe("unavailable");
+
+    const directPlan = completeTakeHomePlan();
+    const directBytes = structuredClone(directPlan.compensation);
+    const manualIncomeBytes = structuredClone(store.getState().incomeTargets);
+    store.dispatch({ type: "add-payroll-plan", plan: payroll() });
+    store.dispatch({ type: "add-take-home-plan", plan: directPlan });
+
+    const linked = store.getState();
+    expect(linked.takeHomeCompensationBindings).toEqual([
+      {
+        takeHomePlanId: directPlan.id,
+        payrollPlanId: "payroll-self-2026",
+        active: true,
+      },
+    ]);
+    const savedPlan = required(
+      linked.takeHomePlans[0],
+      "take-home plan is missing",
+    );
+    const takeHome = calculateTakeHomeFromState(
+      linked,
+      savedPlan,
+      required(linked.members[0], "member is missing"),
+      "2026-08-21",
+    );
+    expect(takeHome.status, takeHome.warnings.join(" ")).toBe("complete");
+    expect(takeHome.annualGrossYen).toBe(
+      calculatePayroll(required(linked.payrollPlans[0], "payroll missing"))
+        .annualGrossYen,
+    );
+    const budget = calculateBudgetSummary(linked, "2026-08-21");
+    expect(budget.self.incomeYen).toBe(takeHome.averageMonthlyTakeHomeYen);
+    expect(budget.self.unresolvedIncome).toBe(false);
+    const funding = selectInvestmentFundingContext(linked, "2026-08-21");
+    expect(funding.household).toMatchObject({
+      status: "available",
+      availableYen: budget.householdRemainingYen,
+      totalContributionYen: 0,
+      remainingAfterInvestmentYen: budget.householdRemainingYen,
+    });
+    expect(savedPlan.mode).toBe("calculated");
+    if (savedPlan.mode !== "calculated") return;
+    expect(savedPlan.compensation).toEqual(directBytes);
+    expect(linked.incomeTargets).toEqual(manualIncomeBytes);
+    expect(repository.load()).toEqual(linked);
+
+    store.dispatch({
+      type: "set-take-home-compensation-binding",
+      takeHomePlanId: directPlan.id,
+      payrollPlanId: null,
+    });
+    const direct = store.getState();
+    expect(
+      resolveEffectiveTakeHomePlan(
+        direct,
+        required(direct.takeHomePlans[0], "direct plan is missing"),
+      ).status,
+    ).toBe("direct");
+    expect(required(direct.takeHomePlans[0], "direct plan is missing")).toEqual(
+      savedPlan,
+    );
+    store.dispatch({
+      type: "set-take-home-compensation-binding",
+      takeHomePlanId: directPlan.id,
+      payrollPlanId: "payroll-self-2026",
+    });
+    expect(
+      resolveEffectiveTakeHomePlan(
+        store.getState(),
+        required(store.getState().takeHomePlans[0], "linked plan is missing"),
+      ).status,
+    ).toBe("payroll-linked");
+  });
+
+  it("does not guess an automatic payroll source for zero or multiple matches", () => {
+    const plan = completeTakeHomePlan();
+    const withoutPayroll = new Store(createInitialState());
+    withoutPayroll.dispatch({ type: "add-take-home-plan", plan });
+    expect(withoutPayroll.getState().takeHomeCompensationBindings).toEqual([]);
+
+    const ambiguous = createInitialState();
+    ambiguous.payrollPlans = [payroll(), payroll({ id: "payroll-other" })];
+    const reduced = reduceState(ambiguous, {
+      type: "add-take-home-plan",
+      plan,
+    });
+    expect(reduced.takeHomePlans).toHaveLength(1);
+    expect(reduced.takeHomeCompensationBindings).toEqual([]);
+  });
+
+  it("publishes no partial plan or automatic binding on persistence failure", () => {
+    const state = createInitialState();
+    state.payrollPlans = [payroll()];
+    let writes = 0;
+    let published = 0;
+    const store = new Store(state, {
+      save: () => {
+        writes += 1;
+        throw new Error("quota");
+      },
+    });
+    store.subscribe(() => {
+      published += 1;
+    });
+    expect(() =>
+      store.dispatch({
+        type: "add-take-home-plan",
+        plan: completeTakeHomePlan(),
+      }),
+    ).toThrow("quota");
+    expect(writes).toBe(1);
+    expect(published).toBe(0);
+    expect(store.getState().takeHomePlans).toEqual([]);
+    expect(store.getState().takeHomeCompensationBindings).toEqual([]);
+  });
+
   it("preserves direct mode and builds the exact transient monthly contract", () => {
     const directState = createInitialState();
     const plan = completeTakeHomePlan();
@@ -502,6 +641,10 @@ describe("TASK-016 budget policy and funding context", () => {
 
   it("reports oversubscription and propagates unavailable contributions without mutation", () => {
     const state = createInitialState();
+    state.budgetIncomePolicies = state.budgetIncomePolicies.map((policy) => ({
+      ...policy,
+      mode: "legacy",
+    }));
     required(state.incomeTargets[0], "income target is missing").manualYen =
       100;
     state.nisaPlans = [
@@ -544,6 +687,20 @@ describe("TASK-016 budget policy and funding context", () => {
 describe("TASK-016 schema and routes", () => {
   it("migrates frozen v7 losslessly, maps life-plan and adds only empty v8 arrays", () => {
     const current = createFixtureState();
+    const direct = completeTakeHomePlan();
+    direct.id = "direct-self-2026";
+    direct.memberId = "self";
+    current.takeHomePlans.push(direct);
+    const directBefore = calculateTakeHomeFromState(
+      current,
+      direct,
+      required(
+        current.members.find((member) => member.id === "self"),
+        "self member is missing",
+      ),
+      "2026-08-21",
+    );
+    const budgetBefore = calculateBudgetSummary(current, "2026-08-21");
     const v7 = structuredClone(current) as unknown as Record<string, unknown>;
     v7.schemaVersion = 7;
     v7.activeRoute = "life-plan";
@@ -560,6 +717,23 @@ describe("TASK-016 schema and routes", () => {
       takeHomeCompensationBindings: [],
       budgetIncomePolicies: [],
     });
+    expect(
+      calculateTakeHomeFromState(
+        migrated,
+        required(
+          migrated.takeHomePlans.find((plan) => plan.id === direct.id),
+          "migrated direct plan is missing",
+        ),
+        required(
+          migrated.members.find((member) => member.id === "self"),
+          "migrated self member is missing",
+        ),
+        "2026-08-21",
+      ),
+    ).toEqual(directBefore);
+    expect(calculateBudgetSummary(migrated, "2026-08-21")).toEqual(
+      budgetBefore,
+    );
   });
 
   it("requires all v8 arrays and exposes the exact six canonical routes", () => {

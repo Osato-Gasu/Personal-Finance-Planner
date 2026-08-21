@@ -113,6 +113,7 @@
 - top-levelを総合サマリ、給与計算、手取り計算、家計簿、NISA + iDeCo、設定の6 routeへ再編
 - schema v8でPayrollPlan、TakeHomeCompensationBinding、BudgetIncomePolicyをtop-level追加
 - 給与→手取り→家計→投資資金の一方向DAGとfail-closed authority
+- 新規v8通常フローでunique給与計画を手取りplan作成時にatomic auto-bindし、既定家計policyをauto-take-homeにする（migrationは空binding/policyを維持）
 - TASK-014/TASK-015を総合サマリ内「将来資産シミュレーション」に保持
 - responsiveな共有dashboard UI、standalone `file://`、runtime network 0を維持
 - 負債・純資産、dynamic cashflow再計算、chart、TASK-013/shared、Release、Distribution、Pagesは対象外

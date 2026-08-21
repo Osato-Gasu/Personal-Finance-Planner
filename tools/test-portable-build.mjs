@@ -182,57 +182,58 @@ try {
     }
   }
 
-  const portableBonuses = [
+  const portableBonusObservations = [
     {
-      id: "portable-bonus-summer",
       paymentDate: "2026-06-30",
       grossYen: 400_000,
       socialInsuranceEligible: true,
       employmentInsuranceEligible: true,
     },
     {
-      id: "portable-bonus-winter",
       paymentDate: "2026-12-10",
       grossYen: 500_000,
       socialInsuranceEligible: true,
       employmentInsuranceEligible: false,
     },
   ];
-  await page.evaluate(
-    ({ key, bonuses }) => {
-      const state = JSON.parse(globalThis.localStorage.getItem(key));
-      state.payrollPlans.push({
-        id: "portable-payroll-self-2026",
-        memberId: "member-self",
-        targetYear: 2026,
-        active: true,
-        baseMonthlyYen: 320_000,
-        taxableAllowanceMonthlyYen: 20_000,
-        averageMonthlyOvertimeMinutes: 600,
-        scheduledMonthlyMinutes: 9_600,
-        overtimeRateBasisPoints: 12_500,
-        monthlyNonTaxableCommutingYen: 10_000,
-        bonuses,
-      });
-      state.activeRoute = "payroll";
-      globalThis.localStorage.setItem(key, JSON.stringify(state));
-    },
-    { key: storageKey, bonuses: portableBonuses },
-  );
-  await page.reload({ waitUntil: "load" });
   await expectRoute(page, standaloneUrl, "payroll", "給与計算");
+  await page.getByLabel("基本給（月額）").fill("320000");
+  await page.getByLabel("月平均残業時間").fill("10");
+  await page.getByLabel("固定手当（月額・課税）").fill("20000");
   await page.getByText("賞与（任意）", { exact: true }).click();
+  const firstBonusRow = page.locator(".payroll-bonus-row").first();
+  await firstBonusRow.getByLabel("支給日").fill("2026-06-30");
+  await firstBonusRow.getByLabel("賞与総額").fill("400000");
+  await page.getByRole("button", { name: "+ 賞与を追加" }).click();
   assert.equal(await page.locator(".payroll-bonus-row").count(), 2);
+  const secondBonusRow = page.locator(".payroll-bonus-row").nth(1);
+  await secondBonusRow.getByLabel("支給日").fill("2026-12-10");
+  await secondBonusRow.getByLabel("賞与総額").fill("500000");
+  await secondBonusRow.getByLabel("雇用保険対象").uncheck();
+  await page.getByRole("button", { name: "給与計画を保存" }).click();
+  await page.getByRole("button", { name: "給与計画を更新" }).waitFor();
+  const createdPayroll = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return state.payrollPlans[0];
+  }, storageKey);
+  assert.ok(createdPayroll?.id);
+  assert.deepEqual(
+    createdPayroll.bonuses.map((bonus) => ({
+      paymentDate: bonus.paymentDate,
+      grossYen: bonus.grossYen,
+      socialInsuranceEligible: bonus.socialInsuranceEligible,
+      employmentInsuranceEligible: bonus.employmentInsuranceEligible,
+    })),
+    portableBonusObservations,
+  );
   await page.getByLabel("基本給（月額）").fill("321000");
   await page.getByRole("button", { name: "給与計画を更新" }).click();
   const savedPayroll = await page.evaluate((key) => {
     const state = JSON.parse(globalThis.localStorage.getItem(key));
-    return state.payrollPlans.find(
-      (plan) => plan.id === "portable-payroll-self-2026",
-    );
+    return state.payrollPlans[0];
   }, storageKey);
   assert.equal(savedPayroll.baseMonthlyYen, 321_000);
-  assert.deepEqual(savedPayroll.bonuses, portableBonuses);
+  assert.deepEqual(savedPayroll.bonuses, createdPayroll.bonuses);
   await expectRoute(page, standaloneUrl, "settings", "設定");
 
   await assertContains(
@@ -625,6 +626,30 @@ try {
 
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("button", { name: "2026年計算プランを作成" }).click();
+  assert.equal(
+    await page.getByLabel("給与情報の入力元").inputValue(),
+    savedPayroll.id,
+  );
+  const automaticallyLinkedState = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return {
+      policies: state.budgetIncomePolicies,
+      bindings: state.takeHomeCompensationBindings,
+      takeHomePlanId: state.takeHomePlans[0]?.id,
+      payrollPlanId: state.payrollPlans[0]?.id,
+    };
+  }, storageKey);
+  assert.deepEqual(automaticallyLinkedState.policies, [
+    { targetId: "budget-income-self", mode: "auto-take-home" },
+    { targetId: "budget-income-partner", mode: "auto-take-home" },
+  ]);
+  assert.deepEqual(automaticallyLinkedState.bindings, [
+    {
+      takeHomePlanId: automaticallyLinkedState.takeHomePlanId,
+      payrollPlanId: automaticallyLinkedState.payrollPlanId,
+      active: true,
+    },
+  ]);
   await page.getByLabel("生年月日", { exact: true }).fill("1990-01-01");
   await page.getByLabel("生年月日", { exact: true }).press("Tab");
   await page.getByLabel("計算プランの生年月日").fill("1990-01-01");
@@ -704,6 +729,29 @@ try {
   await page.getByLabel("住民税年額", { exact: true }).fill("0");
   await page.getByLabel("住民税年額", { exact: true }).press("Tab");
   await page.getByLabel("住民税0円を確認").check();
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  const automaticTakeHomeMonthly = await page
+    .locator(".take-home-result dt", { hasText: "平均月間手取り" })
+    .locator("xpath=following-sibling::dd[1]")
+    .textContent();
+  assert.match(automaticTakeHomeMonthly ?? "", /^[\d,]+円$/u);
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("本人手取りの連携方法").inputValue(),
+    "auto-take-home",
+  );
+  await assertContains(
+    page.getByTestId("household-income"),
+    automaticTakeHomeMonthly,
+  );
+  const automaticRemaining = (
+    (await page.getByTestId("household-remaining").textContent()) ?? ""
+  ).match(/[\d,]+円/u)?.[0];
+  assert.ok(automaticRemaining);
+  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
+  await assertContains(page.locator(".funding-context"), automaticRemaining);
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.getByLabel("給与情報の入力元").selectOption("");
   await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
   await assertContains(page.locator(".take-home-result"), "年間手取り");
   await assertContains(
@@ -824,6 +872,10 @@ try {
   await page.getByLabel("その他法定控除年額").fill("0");
   await page.getByLabel("その他法定控除年額").press("Tab");
   await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
+  await page.getByLabel("本人手取りの連携方法").selectOption("legacy");
+  await page.getByLabel("相手手取りの連携方法").selectOption("legacy");
+  await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
   await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await assertContains(page.getByTestId("household-income"), "439,597円");
@@ -1724,7 +1776,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK016-extended, routes=${routes.length}, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v8, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK016-autolink-extended, routes=${routes.length}, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v8, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

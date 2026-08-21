@@ -99,6 +99,10 @@ ui
 
 Reducerまたは同等の一方向更新を使う。UIからStateオブジェクトを直接変更しない。保存は有効なState遷移後にRepositoryへ委譲する。
 
+新しい計算手取りplanの`add-take-home-plan`遷移は、同一人物・同一年のactive`PayrollPlan`がexact 1件の場合だけ`TakeHomeCompensationBinding`も同じnext stateへ追加する。Repository保存が成功してからplanとbindingを一括publishし、失敗時はどちらもpublishしない。0件または複数時はbindingを追加しない。runtime selectorはpersist済みbindingだけをauthorityとし、未binding planを暗黙に自動連携しない。
+
+新規`createInitialState()`は既定2 IncomeTargetの`BudgetIncomePolicy`を`auto-take-home`で作る。一方、migrationはlegacy authority境界であり、v7→v8のpolicy/bindingは空配列のままにする。
+
 ## 6. 計算パイプライン
 
 循環参照を防ぐため順序を固定する。

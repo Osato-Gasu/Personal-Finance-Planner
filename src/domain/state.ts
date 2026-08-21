@@ -1759,6 +1759,24 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       break;
     case "add-take-home-plan":
       next.takeHomePlans.push(structuredClone(action.plan));
+      if (action.plan.mode === "calculated") {
+        const payrollMatches = next.payrollPlans.filter(
+          (plan) =>
+            plan.active &&
+            plan.memberId === action.plan.memberId &&
+            plan.targetYear === action.plan.targetYear,
+        );
+        if (payrollMatches.length === 1) {
+          next.takeHomeCompensationBindings.push({
+            takeHomePlanId: action.plan.id,
+            payrollPlanId: requirePresent(
+              payrollMatches[0],
+              "automatic payroll source is missing",
+            ).id,
+            active: true,
+          });
+        }
+      }
       break;
     case "update-take-home-plan":
       next.takeHomePlans[
@@ -2678,7 +2696,10 @@ export function createInitialState(): AppState {
       { id: "budget-income-self", memberId: "member-self", manualYen: 0 },
       { id: "budget-income-partner", memberId: "member-partner", manualYen: 0 },
     ],
-    budgetIncomePolicies: [],
+    budgetIncomePolicies: [
+      { targetId: "budget-income-self", mode: "auto-take-home" },
+      { targetId: "budget-income-partner", mode: "auto-take-home" },
+    ],
     links: [],
     budget: {
       mode: "detailed",
