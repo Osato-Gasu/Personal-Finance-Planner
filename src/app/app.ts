@@ -22,7 +22,7 @@ import {
 } from "../modules/settings/settings-view";
 
 const routeLabels: Record<RouteId, string> = {
-  overview: "総合サマリー",
+  overview: "総合サマリ",
   payroll: "給与計算",
   "take-home": "手取り計算",
   budget: "家計簿",

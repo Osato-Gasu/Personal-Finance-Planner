@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { Store } from "../src/app/store";
 import { routeFromHash, routeIds } from "../src/app/router";
 import { calculateBudgetSummary } from "../src/domain/budget";
+import { createIdecoPlan, type IdecoPlan } from "../src/domain/ideco";
 import { selectInvestmentFundingContext } from "../src/domain/investment-funding";
 import { migrateToCurrentState } from "../src/domain/migration";
+import type { InvestmentScenario } from "../src/domain/nisa";
 import { calculatePayroll, type PayrollPlan } from "../src/domain/payroll";
 import {
   createInitialState,
@@ -17,7 +19,28 @@ import {
 } from "../src/domain/take-home-linked-calculator";
 import { calculateTakeHome } from "../src/domain/take-home-calculator";
 import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
+import {
+  StorageRepository,
+  type StorageLike,
+} from "../src/data/storage-repository";
+import investmentFundingSource from "../src/domain/investment-funding.ts?raw";
 import { createFixtureState } from "./fixtures/state";
+
+class MemoryStorage implements StorageLike {
+  readonly values = new Map<string, string>();
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
+}
 
 function required<T>(value: T | undefined, message: string): T {
   if (value === undefined) throw new Error(message);
@@ -64,6 +87,42 @@ function completeTakeHomePlan() {
   plan.residentTax.annualResidentTaxYen = 0;
   plan.residentTax.zeroYenConfirmed = true;
   return plan;
+}
+
+function investmentScenario(): InvestmentScenario {
+  return {
+    id: "scenario-self",
+    memberId: "member-self",
+    kind: "standard",
+    annualReturnBasisPoints: 300,
+    annualFeeBasisPoints: 50,
+    annualInflationBasisPoints: 100,
+  };
+}
+
+function linkedIdecoPlan(): IdecoPlan {
+  return {
+    ...createIdecoPlan({
+      id: "ideco-self",
+      memberId: "member-self",
+      activeScenarioId: "scenario-self",
+    }),
+    participantCategory: "category2",
+    participantCategoryConfirmed: true,
+    employerPensionType: "none",
+    matchingContributionActive: false,
+    idecoPlusActive: false,
+    annualUnitContributionActive: false,
+    startMonth: "2026-01",
+    monthlyContributionYen: 10_000,
+    currentBalanceYen: 100_000,
+    currentContributionTotalYen: 80_000,
+    monthlyFeeYen: 0,
+    projectionTarget: { type: "month", month: "2026-12" },
+    taxContributionSnapshots: [
+      { taxYear: 2026, paidThroughMonth: "2026-07", paidYen: 60_000 },
+    ],
+  };
 }
 
 function workflowState(): AppState {
@@ -259,10 +318,43 @@ describe("TASK-016 payroll to take-home authority", () => {
       required(state.members[0], "member is missing"),
       "2026-08-21",
     );
-    expect(result.status).toBe("complete");
+    expect(result.status, result.warnings.join(" ")).toBe("complete");
     expect(result.annualGrossYen).toBe(
       calculatePayroll(payrollPlan).annualGrossYen,
     );
+  });
+
+  it("applies a linked iDeCo deduction after resolving payroll compensation", () => {
+    const state = workflowState();
+    required(state.members[0], "member is missing").birthDate = "1990-01-01";
+    const takeHomePlan = required(
+      state.takeHomePlans[0],
+      "take-home plan is missing",
+    );
+    if (takeHomePlan.mode !== "calculated")
+      throw new Error("calculated take-home plan is required");
+    takeHomePlan.deductions.annualIdecoContributionYen = 123_456;
+    takeHomePlan.deductions.idecoContributionMode = "linked";
+    takeHomePlan.deductions.linkedIdecoPlanId = "ideco-self";
+    state.investmentScenarios = [investmentScenario()];
+    state.idecoPlans = [linkedIdecoPlan()];
+    validateAppState(state);
+
+    const before = structuredClone(takeHomePlan);
+    const result = calculateTakeHomeFromState(
+      state,
+      takeHomePlan,
+      required(state.members[0], "member is missing"),
+      "2026-08-21",
+    );
+    expect(result.status, result.warnings.join(" ")).toBe("complete");
+    expect(result.annualGrossYen).toBe(
+      calculatePayroll(required(state.payrollPlans[0], "payroll missing"))
+        .annualGrossYen,
+    );
+    expect(result.incomeTaxBenefitFromIdecoYen).toBeGreaterThan(0);
+    expect(takeHomePlan.deductions.annualIdecoContributionYen).toBe(123_456);
+    expect(takeHomePlan).toEqual(before);
   });
 
   it("fails closed for inactive, wrong-year or ambiguous payroll sources", () => {
@@ -370,7 +462,9 @@ describe("TASK-016 budget policy and funding context", () => {
     expect(published).toBe(0);
     expect(store.getState().budgetIncomePolicies).toEqual([]);
 
-    const writable = new Store(state);
+    const memory = new MemoryStorage();
+    const repository = new StorageRepository(memory);
+    const writable = new Store(state, repository);
     const action = {
       type: "set-budget-income-policy" as const,
       targetId: "budget-income-self",
@@ -384,6 +478,26 @@ describe("TASK-016 budget policy and funding context", () => {
     );
     expect(writable.getState().incomeTargets).toEqual(beforeTargets);
     expect(writable.getState().links).toEqual(beforeLinks);
+
+    writable.dispatch({
+      type: "set-budget-income-policy",
+      targetId: "budget-income-self",
+      mode: "legacy",
+    });
+    expect(writable.getState().incomeTargets).toEqual(beforeTargets);
+    expect(writable.getState().links).toEqual(beforeLinks);
+    writable.dispatch(action);
+    expect(writable.getState().incomeTargets).toEqual(beforeTargets);
+    expect(writable.getState().links).toEqual(beforeLinks);
+    expect(repository.load()).toEqual(writable.getState());
+  });
+
+  it("keeps the current funding selector isolated from future projection evaluators", () => {
+    expect(investmentFundingSource).not.toMatch(
+      /calculateNisaPlan|calculateIdecoPlan/u,
+    );
+    expect(investmentFundingSource).toContain("nisaContributionForMonth");
+    expect(investmentFundingSource).toContain("idecoContributionForMonth");
   });
 
   it("reports oversubscription and propagates unavailable contributions without mutation", () => {

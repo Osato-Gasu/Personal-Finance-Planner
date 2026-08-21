@@ -61,7 +61,9 @@ function assertStandaloneMarkup(html) {
 
 async function expectRoute(page, standaloneUrl, route, label) {
   await page.goto(`${standaloneUrl}#/${route}`, { waitUntil: "load" });
-  await page.getByRole("heading", { level: 2, name: label }).waitFor();
+  await page
+    .getByRole("heading", { level: 2, name: label, exact: true })
+    .waitFor();
   assert.equal(new globalThis.URL(page.url()).hash, `#/${route}`);
 }
 
@@ -179,6 +181,59 @@ try {
       await page.setViewportSize({ width: 1280, height: 900 });
     }
   }
+
+  const portableBonuses = [
+    {
+      id: "portable-bonus-summer",
+      paymentDate: "2026-06-30",
+      grossYen: 400_000,
+      socialInsuranceEligible: true,
+      employmentInsuranceEligible: true,
+    },
+    {
+      id: "portable-bonus-winter",
+      paymentDate: "2026-12-10",
+      grossYen: 500_000,
+      socialInsuranceEligible: true,
+      employmentInsuranceEligible: false,
+    },
+  ];
+  await page.evaluate(
+    ({ key, bonuses }) => {
+      const state = JSON.parse(globalThis.localStorage.getItem(key));
+      state.payrollPlans.push({
+        id: "portable-payroll-self-2026",
+        memberId: "member-self",
+        targetYear: 2026,
+        active: true,
+        baseMonthlyYen: 320_000,
+        taxableAllowanceMonthlyYen: 20_000,
+        averageMonthlyOvertimeMinutes: 600,
+        scheduledMonthlyMinutes: 9_600,
+        overtimeRateBasisPoints: 12_500,
+        monthlyNonTaxableCommutingYen: 10_000,
+        bonuses,
+      });
+      state.activeRoute = "payroll";
+      globalThis.localStorage.setItem(key, JSON.stringify(state));
+    },
+    { key: storageKey, bonuses: portableBonuses },
+  );
+  await page.reload({ waitUntil: "load" });
+  await expectRoute(page, standaloneUrl, "payroll", "給与計算");
+  await page.getByText("賞与（任意）", { exact: true }).click();
+  assert.equal(await page.locator(".payroll-bonus-row").count(), 2);
+  await page.getByLabel("基本給（月額）").fill("321000");
+  await page.getByRole("button", { name: "給与計画を更新" }).click();
+  const savedPayroll = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return state.payrollPlans.find(
+      (plan) => plan.id === "portable-payroll-self-2026",
+    );
+  }, storageKey);
+  assert.equal(savedPayroll.baseMonthlyYen, 321_000);
+  assert.deepEqual(savedPayroll.bonuses, portableBonuses);
+  await expectRoute(page, standaloneUrl, "settings", "設定");
 
   await assertContains(
     page.locator("main"),

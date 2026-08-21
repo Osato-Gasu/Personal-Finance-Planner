@@ -410,6 +410,18 @@ input[readonly] {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
 
+.payroll-bonus-list {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.payroll-bonus-row {
+  border: 1px solid #d0d7de;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
 .form-grid button,
 .inline-form button {
   align-self: end;

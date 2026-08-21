@@ -161,34 +161,92 @@ export function createPayrollRenderer(
     form.append(advanced);
 
     const bonusDetails = node(document, "details");
-    bonusDetails.append(node(document, "summary", "+ 賞与を追加"));
+    bonusDetails.append(node(document, "summary", "賞与（任意）"));
     const bonusGrid = node(document, "div");
-    bonusGrid.className = "form-grid";
-    const bonusDate = input(
-      document,
-      "date",
-      selected?.bonuses[0]?.paymentDate ?? `${year.value}-06-30`,
-    );
-    const bonusGross = input(
-      document,
-      "number",
-      String(selected?.bonuses[0]?.grossYen ?? 0),
-    );
-    bonusGross.min = "0";
-    bonusGross.step = "1";
-    const socialEligible = input(document, "checkbox", "");
-    socialEligible.checked =
-      selected?.bonuses[0]?.socialInsuranceEligible ?? true;
-    const employmentEligible = input(document, "checkbox", "");
-    employmentEligible.checked =
-      selected?.bonuses[0]?.employmentInsuranceEligible ?? true;
-    bonusGrid.append(
-      field(document, "支給日", bonusDate),
-      field(document, "賞与総額", bonusGross),
-      field(document, "社会保険対象", socialEligible),
-      field(document, "雇用保険対象", employmentEligible),
-    );
-    bonusDetails.append(bonusGrid);
+    bonusGrid.className = "payroll-bonus-list";
+    type BonusReader = {
+      id: string;
+      persisted: boolean;
+      row: HTMLDivElement;
+      date: HTMLInputElement;
+      gross: HTMLInputElement;
+      socialEligible: HTMLInputElement;
+      employmentEligible: HTMLInputElement;
+    };
+    const bonusReaders: BonusReader[] = [];
+    const appendBonusRow = (
+      bonus: PayrollPlan["bonuses"][number],
+      persisted: boolean,
+    ) => {
+      const row = node(document, "div");
+      row.className = "form-grid payroll-bonus-row";
+      const bonusDate = input(document, "date", bonus.paymentDate);
+      const bonusGross = input(document, "number", String(bonus.grossYen));
+      bonusGross.min = "0";
+      bonusGross.step = "1";
+      const socialEligible = input(document, "checkbox", "");
+      socialEligible.checked = bonus.socialInsuranceEligible;
+      const employmentEligible = input(document, "checkbox", "");
+      employmentEligible.checked = bonus.employmentInsuranceEligible;
+      row.append(
+        field(document, "支給日", bonusDate),
+        field(document, "賞与総額", bonusGross),
+        field(document, "社会保険対象", socialEligible),
+        field(document, "雇用保険対象", employmentEligible),
+      );
+      const reader: BonusReader = {
+        id: bonus.id,
+        persisted,
+        row,
+        date: bonusDate,
+        gross: bonusGross,
+        socialEligible,
+        employmentEligible,
+      };
+      const remove = node(document, "button", "この賞与を削除");
+      remove.type = "button";
+      remove.addEventListener("click", () => {
+        const index = bonusReaders.indexOf(reader);
+        if (index >= 0) bonusReaders.splice(index, 1);
+        row.remove();
+      });
+      row.append(remove);
+      bonusReaders.push(reader);
+      bonusGrid.append(row);
+    };
+    const displayedBonuses =
+      selected && selected.bonuses.length > 0
+        ? selected.bonuses
+        : [
+            {
+              id: "",
+              paymentDate: `${year.value}-06-30`,
+              grossYen: 0,
+              socialInsuranceEligible: true,
+              employmentInsuranceEligible: true,
+            },
+          ];
+    for (const bonus of displayedBonuses) {
+      appendBonusRow(
+        bonus,
+        selected?.bonuses.some((item) => item.id === bonus.id) ?? false,
+      );
+    }
+    const addBonus = node(document, "button", "+ 賞与を追加");
+    addBonus.type = "button";
+    addBonus.addEventListener("click", () => {
+      appendBonusRow(
+        {
+          id: options.createId(),
+          paymentDate: `${year.value.padStart(4, "0")}-06-30`,
+          grossYen: 0,
+          socialInsuranceEligible: true,
+          employmentInsuranceEligible: true,
+        },
+        false,
+      );
+    });
+    bonusDetails.append(bonusGrid, addBonus);
     form.append(bonusDetails);
     const active = input(document, "checkbox", "");
     active.checked = selected?.active ?? true;
@@ -206,7 +264,19 @@ export function createPayrollRenderer(
       event.preventDefault();
       try {
         const targetYear = nonNegativeInteger(year.value, "対象年");
-        const bonusAmount = nonNegativeInteger(bonusGross.value, "賞与総額");
+        const bonuses = bonusReaders.flatMap((reader) => {
+          const grossYen = nonNegativeInteger(reader.gross.value, "賞与総額");
+          if (!reader.persisted && grossYen === 0) return [];
+          return [
+            {
+              id: reader.id || options.createId(),
+              paymentDate: reader.date.value,
+              grossYen,
+              socialInsuranceEligible: reader.socialEligible.checked,
+              employmentInsuranceEligible: reader.employmentEligible.checked,
+            },
+          ];
+        });
         const plan: PayrollPlan = {
           id: selected?.id ?? options.createId(),
           memberId: member.value,
@@ -230,18 +300,7 @@ export function createPayrollRenderer(
             commuting.value,
             "非課税通勤手当",
           ),
-          bonuses:
-            bonusAmount === 0
-              ? []
-              : [
-                  {
-                    id: selected?.bonuses[0]?.id ?? options.createId(),
-                    paymentDate: bonusDate.value,
-                    grossYen: bonusAmount,
-                    socialInsuranceEligible: socialEligible.checked,
-                    employmentInsuranceEligible: employmentEligible.checked,
-                  },
-                ],
+          bonuses,
         };
         store.dispatch(
           selected
