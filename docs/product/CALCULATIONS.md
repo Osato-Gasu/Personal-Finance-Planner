@@ -160,6 +160,19 @@ realValue
 
 利回り、費用率、インフレ率は仮定として結果に併記する。負の利回りを許容し、残高が0円を下回らないようにする。
 
+NISA・iDeCoの暦年末観測値は、既存public結果と同一の月次評価経路から取得する。各月の未丸め残高を次月へ渡し、表示用の丸めsnapshotをaccumulatorへ戻さない。iDeCoのTASK-015評価基準は保存済みライフプラン`baseReferenceDate`とその税年に固定し、`YYYY-12`は残高観測点だけを選ぶ。
+
+投影年`Y`のauthoritativeな金融資産合計は次とする。
+
+```text
+totalFinancialAssetsYen
+= closingLiquidAssetsYen
++ nisaBalanceAtY12Yen
++ idecoBalanceAtY12Yen
+```
+
+現預金はTASK-014結果をそのまま使い、投資拠出を再度減算せず、残高へ元本を追加しない。保存基準日の人物別・domain別月額拠出と、投影開始年1月から`Y-12`までの実計画拠出を毎月比較する。NISAは定期拠出と当月追加購入、iDeCoは対応済み固定月額期間を使い、iDeCo固定月額費用を外部拠出比較へ含めない。最初の不一致を含む行以降、active投資の非complete、負の現預金または安全整数加算失敗では合計をnullとする。
+
 ## 10. 課税口座比較
 
 実装する場合はruleで税率と対象年月を管理し、「最終時点に一括売却」等の比較前提を明示する。損益通算、配当、売却順序を扱わない簡易比較であることを表示する。
@@ -176,4 +189,8 @@ realValue
 - rule欠落・重複
 - NISA/iDeCo上限直前・一致・1円超過
 - 0%、負利回り、長期積立
+- NISA・iDeCoの月次観測点と既存public終点・診断の一致
+- 年末12月の厳密sampling、開始後・目標前の非数値状態、追加購入月の拠出整合性
+- 固定ライフプラン基準日と行末日でiDeCo税診断が変わる回帰case
+- 拠出不一致の後続年伝播、iDeCo口座内費用の比較除外、負の現預金、安全整数overflow
 - import失敗時のState不変

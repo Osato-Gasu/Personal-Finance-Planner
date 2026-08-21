@@ -8,6 +8,10 @@ import {
 import type { AppState, HouseholdMember } from "./state";
 import { SCHEMA_VERSION } from "./state";
 import { selectBackupReminder } from "./backup";
+import {
+  idecoContributionForMonth,
+  nisaContributionForMonth,
+} from "./investment-contributions";
 import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
 import type { AppliedRule, CalculatedTakeHomePlan } from "./take-home-plan";
 
@@ -234,53 +238,6 @@ function scenarioFor(
   );
 }
 
-function currentNisaContribution(
-  plan: Readonly<AppState["nisaPlans"][number]>,
-  referenceMonth: string,
-): number | null {
-  if (referenceMonth < plan.startMonth || referenceMonth > plan.targetMonth)
-    return 0;
-  const values = [
-    plan.monthlyTsumitateYen,
-    plan.monthlyGrowthYen,
-    ...plan.additionalPurchases
-      .filter((purchase) => purchase.month === referenceMonth)
-      .map((purchase) => purchase.amountYen),
-  ];
-  return nullableSum(values);
-}
-
-function idecoTargetMonth(
-  plan: Readonly<AppState["idecoPlans"][number]>,
-  member: Readonly<HouseholdMember>,
-): string | null {
-  if (plan.projectionTarget.type === "month")
-    return plan.projectionTarget.month;
-  const birth = /^(\d{4})-(\d{2})-(\d{2})$/.exec(member.birthDate ?? "");
-  if (!birth) return null;
-  const year = Number(birth[1]) + plan.projectionTarget.age;
-  if (!Number.isSafeInteger(year) || year < 1 || year > 9999) return null;
-  return `${String(year).padStart(4, "0")}-${birth[2] ?? ""}`;
-}
-
-function currentIdecoContribution(
-  plan: Readonly<AppState["idecoPlans"][number]>,
-  member: Readonly<HouseholdMember>,
-  referenceMonth: string,
-): {
-  amountYen: number | null;
-  period: "in-period" | "before-start" | "after-end" | "unresolved";
-} {
-  if (plan.annualUnitContributionActive !== false)
-    return { amountYen: null, period: "unresolved" };
-  const target = idecoTargetMonth(plan, member);
-  if (target === null) return { amountYen: null, period: "unresolved" };
-  if (referenceMonth < plan.startMonth)
-    return { amountYen: 0, period: "before-start" };
-  if (referenceMonth > target) return { amountYen: 0, period: "after-end" };
-  return { amountYen: plan.monthlyContributionYen, period: "in-period" };
-}
-
 function statusWarningText(
   domain: "take-home" | "nisa" | "ideco",
   status: OverviewStatus,
@@ -424,7 +381,7 @@ function overviewForMember(
       scenarioFor(state.investmentScenarios, member.id, plan.activeScenarioId),
       member,
     );
-    const amount = currentNisaContribution(plan, referenceMonth);
+    const amount = nisaContributionForMonth(plan, referenceMonth).amountYen;
     const status: NisaResultStatus =
       amount === null && result.status === "complete"
         ? "out-of-range"
@@ -523,7 +480,7 @@ function overviewForMember(
       member,
       { referenceDate, taxYear: referenceYear },
     );
-    const currentContribution = currentIdecoContribution(
+    const currentContribution = idecoContributionForMonth(
       plan,
       member,
       referenceMonth,

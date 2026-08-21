@@ -10,6 +10,7 @@ import {
   type IdecoRule,
   type IdecoRuleContext,
 } from "../rules/jp/ideco/rules";
+import type { InvestmentProjectionPoint } from "./investment-projection";
 
 export type IdecoResultStatus =
   | "complete"
@@ -68,6 +69,11 @@ export interface IdecoProjectionResult {
   effectiveAnnualIdecoCostYen: null;
   messages: string[];
   assumptions: string[];
+}
+
+export interface IdecoEvaluation {
+  result: IdecoProjectionResult;
+  points: readonly InvestmentProjectionPoint[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -519,42 +525,57 @@ export function calculateIdecoAnnualPaidContribution(
   }
 }
 
-export function calculateIdecoPlan(
+export function evaluateIdecoPlan(
   plan: IdecoPlan,
   scenario: InvestmentScenario | undefined,
   member: { active: boolean; birthDate?: string | undefined },
   reference: IdecoCalculationReference,
-): IdecoProjectionResult {
+): IdecoEvaluation {
+  const points: InvestmentProjectionPoint[] = [];
+  const finish = (result: IdecoProjectionResult): IdecoEvaluation => ({
+    result,
+    points,
+  });
   try {
     validateIdecoPlan(plan);
     if (!member.active)
-      return empty(plan, "unsupported", ["無効な人物のiDeCo計画です。"]);
+      return finish(
+        empty(plan, "unsupported", ["無効な人物のiDeCo計画です。"]),
+      );
     if (plan.annualUnitContributionActive === null)
-      return empty(plan, "incomplete", [
-        "月別指定（年単位）拠出の利用有無を入力してください。",
-      ]);
+      return finish(
+        empty(plan, "incomplete", [
+          "月別指定（年単位）拠出の利用有無を入力してください。",
+        ]),
+      );
     if (plan.annualUnitContributionActive)
-      return empty(plan, "unsupported", [
-        "月別指定（年単位）拠出は今回のベータでは未対応です。",
-      ]);
+      return finish(
+        empty(plan, "unsupported", [
+          "月別指定（年単位）拠出は今回のベータでは未対応です。",
+        ]),
+      );
     const target = targetMonth(plan, member);
     if (!target)
-      return empty(plan, "incomplete", [
-        "受取年齢目標には生年月日が必要です。",
-      ]);
+      return finish(
+        empty(plan, "incomplete", ["受取年齢目標には生年月日が必要です。"]),
+      );
     assertYearMonth(target, "targetMonth");
     if (monthNumber(target) < monthNumber(plan.startMonth))
-      return empty(plan, "invalid", ["目標年月が開始年月より前です。"]);
+      return finish(empty(plan, "invalid", ["目標年月が開始年月より前です。"]));
     const allowance = calculateIdecoAllowance(plan.startMonth, plan);
     if (allowance.status !== "complete")
-      return empty(plan, allowance.status, allowance.messages, allowance.rule);
+      return finish(
+        empty(plan, allowance.status, allowance.messages, allowance.rule),
+      );
     const rule = allowance.rule as IdecoRule;
     if (plan.monthlyContributionYen === null)
-      return empty(
-        plan,
-        "incomplete",
-        ["月額掛金を入力してください。0円も明示入力が必要です。"],
-        rule,
+      return finish(
+        empty(
+          plan,
+          "incomplete",
+          ["月額掛金を入力してください。0円も明示入力が必要です。"],
+          rule,
+        ),
       );
     const amount = plan.monthlyContributionYen;
     let affectedMonth: string | null = null;
@@ -567,11 +588,11 @@ export function calculateIdecoPlan(
       const month = monthText(cursor);
       const monthly = calculateIdecoAllowance(month, plan);
       if (monthly.status !== "complete")
-        return {
+        return finish({
           ...empty(plan, monthly.status, monthly.messages, monthly.rule),
           targetMonth: target,
           affectedMonth: month,
-        };
+        });
       if (monthly.allowedContributionYen === null || monthly.rule === null)
         throw new Error(
           "complete iDeCo allowance is missing its rule or limit",
@@ -589,7 +610,7 @@ export function calculateIdecoPlan(
       }
     }
     if (affectedMonth !== null)
-      return {
+      return finish({
         ...empty(
           plan,
           "invalid",
@@ -603,24 +624,23 @@ export function calculateIdecoPlan(
             ? amount - affectedAllowed
             : 0,
         affectedMonth,
-      };
+      });
     if (
       plan.currentBalanceYen === null ||
       plan.currentContributionTotalYen === null ||
       plan.monthlyFeeYen === null
     )
-      return empty(
-        plan,
-        "incomplete",
-        ["現在残高・拠出元本累計・固定月額費用を明示入力してください。"],
-        rule,
+      return finish(
+        empty(
+          plan,
+          "incomplete",
+          ["現在残高・拠出元本累計・固定月額費用を明示入力してください。"],
+          rule,
+        ),
       );
     if (!scenario)
-      return empty(
-        plan,
-        "incomplete",
-        ["運用シナリオを選択してください。"],
-        rule,
+      return finish(
+        empty(plan, "incomplete", ["運用シナリオを選択してください。"], rule),
       );
     validateInvestmentScenario(scenario);
     if (
@@ -628,11 +648,13 @@ export function calculateIdecoPlan(
       scenario.annualFeeBasisPoints === null ||
       scenario.annualInflationBasisPoints === null
     )
-      return empty(
-        plan,
-        "incomplete",
-        ["利回り・比率費用・インフレ率を明示入力してください。"],
-        rule,
+      return finish(
+        empty(
+          plan,
+          "incomplete",
+          ["利回り・比率費用・インフレ率を明示入力してください。"],
+          rule,
+        ),
       );
     const annualPaid = calculateIdecoAnnualPaidContribution(
       plan,
@@ -641,7 +663,7 @@ export function calculateIdecoPlan(
       target,
     );
     if (annualPaid.status !== "complete")
-      return empty(plan, annualPaid.status, annualPaid.messages, rule);
+      return finish(empty(plan, annualPaid.status, annualPaid.messages, rule));
     const annualReturn = scenario.annualReturnBasisPoints / 10_000;
     const annualFee = scenario.annualFeeBasisPoints / 10_000;
     const annualInflation = scenario.annualInflationBasisPoints / 10_000;
@@ -662,7 +684,9 @@ export function calculateIdecoPlan(
       throw new Error("iDeCo projection factor is out of range");
     let balance = plan.currentBalanceYen;
     let futureContributions = 0;
-    for (let cursor = 0; cursor < months; cursor += 1) {
+    const start = monthNumber(plan.startMonth);
+    const targetNumber = monthNumber(target);
+    for (let cursor = start; cursor <= targetNumber; cursor += 1) {
       balance =
         plan.contributionTiming === "beginning"
           ? (balance + amount) * netMonthlyFactor
@@ -675,6 +699,20 @@ export function calculateIdecoPlan(
         !Number.isSafeInteger(futureContributions)
       )
         throw new Error("iDeCo projection is out of range");
+      const pointPrincipal =
+        plan.currentContributionTotalYen + futureContributions;
+      if (!Number.isSafeInteger(pointPrincipal))
+        throw new Error("iDeCo principal is out of range");
+      const pointBalance = safeRound(balance, "projected balance");
+      const pointGain = pointBalance - pointPrincipal;
+      if (!Number.isSafeInteger(pointGain))
+        throw new Error("iDeCo gain is out of range");
+      points.push({
+        month: monthText(cursor),
+        principalYen: pointPrincipal,
+        balanceYen: pointBalance,
+        gainYen: pointGain,
+      });
     }
     const projectedBalance = safeRound(balance, "projected balance");
     const principal = plan.currentContributionTotalYen + futureContributions;
@@ -684,7 +722,7 @@ export function calculateIdecoPlan(
       projectedBalance / inflationFactor,
       "real value",
     );
-    return {
+    return finish({
       status: "complete",
       rule,
       targetMonth: target,
@@ -707,12 +745,24 @@ export function calculateIdecoPlan(
       assumptions: [
         "固定月額費用は各月の掛金・運用処理後、月末に1回控除します。実際の徴収時期を保証しません。",
       ],
-    };
+    });
   } catch (error) {
-    return empty(plan, "out-of-range", [
-      error instanceof Error
-        ? error.message
-        : "iDeCo calculation is out of range",
-    ]);
+    return {
+      result: empty(plan, "out-of-range", [
+        error instanceof Error
+          ? error.message
+          : "iDeCo calculation is out of range",
+      ]),
+      points: [],
+    };
   }
+}
+
+export function calculateIdecoPlan(
+  plan: IdecoPlan,
+  scenario: InvestmentScenario | undefined,
+  member: { active: boolean; birthDate?: string | undefined },
+  reference: IdecoCalculationReference,
+): IdecoProjectionResult {
+  return evaluateIdecoPlan(plan, scenario, member, reference).result;
 }

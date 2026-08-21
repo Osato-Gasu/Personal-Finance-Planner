@@ -155,6 +155,14 @@ NISA・iDeCoから生成する拠出は`asset-contribution`であり、生活費
 
 月額×12、イベント収支合計、期首から期末への各演算はsigned safe integerを検証する。null前提を0へ変換せず、範囲外では誤解を招く後続行を生成しない。`src/modules/life-plan/life-plan-view.ts`はフォーム、local編集buffer、DOM描画とStore dispatchだけを担当する。
 
+`src/domain/life-plan-assets.ts`はTASK-014の`selectLifePlan()`を変更せずに合成する。activeな`state.members`を正本として人物ごとに最大1件のactive NISA・iDeCoを解決し、既存public calculatorと同じ内部評価経路が返す未丸め月次accumulatorの観測点から正確な`YYYY-12`だけを採用する。観測用の丸め値を翌月残高へ戻さない。
+
+iDeCoの評価contextはselector呼出しごとに保存済み`baseReferenceDate`とその年から1回だけ作り、全人物・全投影行で固定する。年末月は投影点の選択だけに使い、税年・基準日を変更しない。
+
+同selectorは同じ基準日の`selectOverview()`人物別NISA・iDeCo拠出を固定月額baselineとし、投影開始年1月から各行末までの実計画拠出を人物・domain別に比較する。実計画側はNISAの定期拠出と該当月追加購入、iDeCoの対応済み固定月額期間だけを扱い、iDeCo口座内月額費用を外部拠出へ含めない。最初の不一致または判定不能をselector-owned warningとして保持し、その後の合計authorityを回復させない。これはTASK-014を置換するdynamic cashflow engineではない。
+
+年末現預金が非負、両投資小計がauthoritative、拠出整合性が継続し、安全整数加算が成功した場合だけ金融資産合計を返す。負の現預金、投資失敗、範囲外ではcomponentを保持できても合計はnullとする。年次投影、観測点、warningはruntime derivedであり保存しない。
+
 ## 10. 制度ルール解決
 
 `RuleResolver`はdomainと対象日を受け、有効期間が一意に一致するruleを返す。

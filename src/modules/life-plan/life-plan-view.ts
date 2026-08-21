@@ -1,5 +1,9 @@
 import type { Store } from "../../app/store";
-import { selectLifePlan } from "../../domain/life-plan";
+import {
+  selectLifePlanAssets,
+  type InvestmentYearValue,
+  type LifePlanAssetRowReason,
+} from "../../domain/life-plan-assets";
 import type { LifePlanEvent } from "../../domain/state";
 
 interface Options {
@@ -65,6 +69,28 @@ function yen(value: number | null, signed = false): string {
   if (value === null) return "未計算";
   const prefix = signed && value > 0 ? "+" : "";
   return `${prefix}${value.toLocaleString("ja-JP")}円`;
+}
+
+function assetYen(value: number | null): string {
+  return value === null ? "—" : yen(value);
+}
+
+function rowReason(reason: LifePlanAssetRowReason): string {
+  return {
+    "investment-unavailable": "投資残高を確定できません",
+    "cashflow-schedule-mismatch": "固定CFと実際の拠出時期が不一致です",
+    "contribution-consistency-unavailable": "拠出整合性を確認できません",
+    "negative-liquid-shortfall": "現預金が不足しています",
+    "arithmetic-out-of-range": "安全な金額範囲を超えました",
+  }[reason];
+}
+
+function investmentDetail(value: InvestmentYearValue): string {
+  const source =
+    value.sourceId === null ? "source なし" : `source ${value.sourceId}`;
+  if (value.status === "not-configured") return `未設定／${source}／0円`;
+  if (value.status !== "complete") return `${value.status}／${source}／—`;
+  return `complete／${source}／${assetYen(value.balanceYen)}（元本 ${assetYen(value.principalYen)}、運用損益 ${assetYen(value.gainYen)}）`;
 }
 
 function eventFields(
@@ -162,6 +188,7 @@ export function createLifePlanRenderer(
       "ブラウザーの年越しでは、保存済みの基準日と開始年は変わりません。",
       "ライフイベントだけを各暦年に加減算します。",
       "将来の制度や運用成果を予測するものではありません。",
+      "金融資産合計は年末現預金・NISA・iDeCoだけを含み、負債を含む純資産ではありません。",
     ].forEach((text) => disclosureList.append(node(document, "li", text)));
     disclosure.append(disclosureList);
     container.append(disclosure);
@@ -367,9 +394,10 @@ export function createLifePlanRenderer(
 
     const resultSection = node(document, "section");
     resultSection.dataset.testid = "life-plan-result";
-    resultSection.append(node(document, "h3", "年間キャッシュフロー"));
+    resultSection.append(node(document, "h3", "年間金融資産"));
     try {
-      const result = selectLifePlan(state);
+      const assets = selectLifePlanAssets(state);
+      const result = assets.base;
       resultSection.append(
         node(document, "p", `状態: ${result.status}`),
         node(document, "p", `基準日: ${result.baseReferenceDate ?? "未設定"}`),
@@ -383,23 +411,115 @@ export function createLifePlanRenderer(
           "p",
           `年間固定キャッシュフロー: ${yen(result.baseAnnualCashflowYen, true)}`,
         ),
+        node(
+          document,
+          "p",
+          "金融資産合計は表にある現預金・NISA・iDeCoだけを含みます。負債は含まず、純資産ではありません。",
+        ),
       );
-      if (result.warnings.length > 0) {
+      if (result.warnings.length > 0 || assets.warnings.length > 0) {
         const warnings = node(document, "ul");
         warnings.className = "life-plan-warnings";
         result.warnings.forEach((warning) =>
           warnings.append(node(document, "li", warning.message)),
         );
+        assets.warnings.forEach((warning) => {
+          const item = node(document, "li", warning.message);
+          const link = node(
+            document,
+            "a",
+            warning.route === "investments"
+              ? " 投資設定を確認"
+              : " この設定を確認",
+          );
+          link.href = `#/${warning.route}`;
+          item.append(link);
+          warnings.append(item);
+        });
         resultSection.append(warnings);
       }
-      if (result.years.length > 0) {
+      if (assets.years.length > 0) {
         const wrapper = node(document, "div");
         wrapper.className = "overview-table-wrapper";
         const table = node(document, "table");
         table.className = "summary-table life-plan-table";
-        table.append(node(document, "caption", "暦年ごとの現預金残高投影"));
+        table.dataset.testid = "life-plan-assets-table";
+        table.append(node(document, "caption", "暦年末の金融資産時系列"));
         const head = node(document, "thead");
         const headRow = node(document, "tr");
+        ["年", "年末現預金", "NISA", "iDeCo", "金融資産合計"].forEach(
+          (label) => {
+            const cell = node(document, "th", label);
+            cell.setAttribute("scope", "col");
+            headRow.append(cell);
+          },
+        );
+        head.append(headRow);
+        const body = node(document, "tbody");
+        assets.years.forEach((row) => {
+          const tableRow = node(document, "tr");
+          if (row.closingLiquidAssetsYen < 0)
+            tableRow.className = "negative-balance";
+          const unavailableReason = row.totalReasons.map(rowReason).join("、");
+          const values = [
+            String(row.year),
+            `${row.closingLiquidAssetsYen < 0 ? "残高不足: " : ""}${yen(row.closingLiquidAssetsYen)}`,
+            assetYen(row.nisaBalanceYen),
+            assetYen(row.idecoBalanceYen),
+            row.totalFinancialAssetsYen === null
+              ? `—${unavailableReason === "" ? "" : `（${unavailableReason}）`}`
+              : yen(row.totalFinancialAssetsYen),
+          ];
+          values.forEach((value, index) => {
+            const cell = node(document, index === 0 ? "th" : "td", value);
+            if (index === 0) cell.setAttribute("scope", "row");
+            cell.setAttribute(
+              "data-label",
+              ["年", "年末現預金", "NISA", "iDeCo", "金融資産合計"][index] ??
+                "",
+            );
+            tableRow.append(cell);
+          });
+          body.append(tableRow);
+        });
+        table.append(head, body);
+        wrapper.append(table);
+        resultSection.append(wrapper);
+
+        const memberDetails = node(document, "details");
+        memberDetails.className = "life-plan-asset-details";
+        memberDetails.append(
+          node(document, "summary", "人物別の投資残高・状態"),
+        );
+        const memberList = node(document, "ul");
+        assets.years.forEach((row) =>
+          row.memberInvestments.forEach((member) =>
+            memberList.append(
+              node(
+                document,
+                "li",
+                `${String(row.year)}年 ${member.memberId}: NISA ${investmentDetail(member.nisa)}／iDeCo ${investmentDetail(member.ideco)}`,
+              ),
+            ),
+          ),
+        );
+        memberDetails.append(memberList);
+        resultSection.append(memberDetails);
+
+        const cashflowDetails = node(document, "details");
+        cashflowDetails.className = "life-plan-cashflow-details";
+        cashflowDetails.append(
+          node(document, "summary", "年間固定キャッシュフローの内訳"),
+        );
+        const cashflowWrapper = node(document, "div");
+        cashflowWrapper.className = "overview-table-wrapper";
+        const cashflowTable = node(document, "table");
+        cashflowTable.className = "summary-table life-plan-cashflow-table";
+        cashflowTable.append(
+          node(document, "caption", "TASK-014 現預金残高投影"),
+        );
+        const cashflowHead = node(document, "thead");
+        const cashflowHeadRow = node(document, "tr");
         [
           "年",
           "期首残高",
@@ -410,43 +530,32 @@ export function createLifePlanRenderer(
         ].forEach((label) => {
           const cell = node(document, "th", label);
           cell.setAttribute("scope", "col");
-          headRow.append(cell);
+          cashflowHeadRow.append(cell);
         });
-        head.append(headRow);
-        const body = node(document, "tbody");
+        cashflowHead.append(cashflowHeadRow);
+        const cashflowBody = node(document, "tbody");
         result.years.forEach((row) => {
           const tableRow = node(document, "tr");
           if (row.closingLiquidAssetsYen < 0)
             tableRow.className = "negative-balance";
-          const values = [
+          [
             String(row.year),
             yen(row.openingLiquidAssetsYen),
             yen(row.baseAnnualCashflowYen, true),
             yen(row.eventIncomeYen, true),
             yen(-row.eventExpenseYen, true),
             `${row.closingLiquidAssetsYen < 0 ? "残高不足: " : ""}${yen(row.closingLiquidAssetsYen)}`,
-          ];
-          values.forEach((value, index) => {
+          ].forEach((value, index) => {
             const cell = node(document, index === 0 ? "th" : "td", value);
             if (index === 0) cell.setAttribute("scope", "row");
-            cell.setAttribute(
-              "data-label",
-              [
-                "年",
-                "期首残高",
-                "固定CF",
-                "イベント収入",
-                "イベント支出",
-                "期末残高",
-              ][index] ?? "",
-            );
             tableRow.append(cell);
           });
-          body.append(tableRow);
+          cashflowBody.append(tableRow);
         });
-        table.append(head, body);
-        wrapper.append(table);
-        resultSection.append(wrapper);
+        cashflowTable.append(cashflowHead, cashflowBody);
+        cashflowWrapper.append(cashflowTable);
+        cashflowDetails.append(cashflowWrapper);
+        resultSection.append(cashflowDetails);
       }
     } catch (error) {
       setStatus(

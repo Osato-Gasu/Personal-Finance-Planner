@@ -2,6 +2,7 @@ import {
   resolveAdultNisaRule,
   type AdultNisaRule,
 } from "../rules/jp/nisa/rules-2024";
+import type { InvestmentProjectionPoint } from "./investment-projection";
 
 export type NisaBucket = "tsumitate" | "growth";
 export type ContributionTiming = "beginning" | "end";
@@ -81,6 +82,11 @@ export interface NisaProjectionResult {
   lifetimeGrowthLimitReach: NisaLimitReach;
   issues: NisaLimitIssue[];
   messages: string[];
+}
+
+export interface NisaEvaluation {
+  result: NisaProjectionResult;
+  points: readonly InvestmentProjectionPoint[];
 }
 
 export interface NisaAnnualLimitSummary {
@@ -307,11 +313,16 @@ function safeRound(value: number): number {
   return Math.max(0, rounded);
 }
 
-export function calculateNisaPlan(
+export function evaluateNisaPlan(
   plan: NisaPlan,
   scenario: InvestmentScenario | undefined,
   member: { birthDate?: string | undefined; active: boolean },
-): NisaProjectionResult {
+): NisaEvaluation {
+  const points: InvestmentProjectionPoint[] = [];
+  const finish = (result: NisaProjectionResult): NisaEvaluation => ({
+    result,
+    points,
+  });
   const empty = (
     status: NisaResultStatus,
     messages: string[],
@@ -337,35 +348,39 @@ export function calculateNisaPlan(
   try {
     validateNisaPlan(plan);
     if (!member.active)
-      return empty("unsupported", ["無効な人物のNISA計画です。"]);
+      return finish(empty("unsupported", ["無効な人物のNISA計画です。"]));
     const startYear = Number(plan.startMonth.slice(0, 4));
     const rule = resolveAdultNisaRule(`${String(startYear)}-01-01`);
     if (!rule)
-      return empty("missing-rule", ["対象年のNISA ruleがありません。"]);
+      return finish(empty("missing-rule", ["対象年のNISA ruleがありません。"]));
     if (!member.birthDate)
-      return empty("incomplete", ["生年月日を入力してください。"], rule);
+      return finish(
+        empty("incomplete", ["生年月日を入力してください。"], rule),
+      );
     if (!plan.japanResidentConfirmed)
-      return empty(
-        "incomplete",
-        ["日本国内の居住者であることを確認してください。"],
-        rule,
+      return finish(
+        empty(
+          "incomplete",
+          ["日本国内の居住者であることを確認してください。"],
+          rule,
+        ),
       );
     const age = legalAgeOnJanuaryFirst(member.birthDate, startYear);
     if (age === null)
-      return empty("incomplete", ["生年月日が不正です。"], rule);
+      return finish(empty("incomplete", ["生年月日が不正です。"], rule));
     if (age < rule.minimumAgeOnJanuaryFirst)
-      return empty(
-        "unsupported",
-        [
-          `対象年1月1日時点${String(rule.minimumAgeOnJanuaryFirst)}歳未満には成人NISA ruleを適用しません。`,
-        ],
-        rule,
+      return finish(
+        empty(
+          "unsupported",
+          [
+            `対象年1月1日時点${String(rule.minimumAgeOnJanuaryFirst)}歳未満には成人NISA ruleを適用しません。`,
+          ],
+          rule,
+        ),
       );
     if (!scenario)
-      return empty(
-        "incomplete",
-        ["利用するシナリオを選択してください。"],
-        rule,
+      return finish(
+        empty("incomplete", ["利用するシナリオを選択してください。"], rule),
       );
     const requiredMoney = [
       plan.currentBalanceYen,
@@ -377,10 +392,12 @@ export function calculateNisaPlan(
       ...plan.additionalPurchases.map((purchase) => purchase.amountYen),
     ];
     if (requiredMoney.some((value) => value === null))
-      return empty(
-        "incomplete",
-        ["金額の空欄を入力してください。空欄は0円として扱いません。"],
-        rule,
+      return finish(
+        empty(
+          "incomplete",
+          ["金額の空欄を入力してください。空欄は0円として扱いません。"],
+          rule,
+        ),
       );
     validateInvestmentScenario(scenario);
     if (
@@ -388,10 +405,12 @@ export function calculateNisaPlan(
       scenario.annualFeeBasisPoints === null ||
       scenario.annualInflationBasisPoints === null
     )
-      return empty(
-        "incomplete",
-        ["利回り・費用率・インフレ率を明示入力してください。"],
-        rule,
+      return finish(
+        empty(
+          "incomplete",
+          ["利回り・費用率・インフレ率を明示入力してください。"],
+          rule,
+        ),
       );
 
     const start = monthNumber(plan.startMonth);
@@ -528,6 +547,7 @@ export function calculateNisaPlan(
     )
       throw new Error("NISA monthly factor exceeds the supported range");
     let balance = plan.currentBalanceYen as number;
+    let pointFutureContributions = 0;
     for (let cursor = start; cursor <= target; cursor += 1) {
       const month = monthText(cursor);
       const extra = purchases.get(month) ?? { tsumitate: 0, growth: 0 };
@@ -543,6 +563,21 @@ export function calculateNisaPlan(
       if (!Number.isFinite(balance) || balance > Number.MAX_SAFE_INTEGER)
         throw new Error("NISA projection exceeds the supported range");
       balance = Math.max(0, balance);
+      pointFutureContributions += contribution;
+      const pointPrincipal =
+        (plan.currentBookValueYen as number) + pointFutureContributions;
+      if (!Number.isSafeInteger(pointPrincipal))
+        throw new Error("NISA principal exceeds the supported range");
+      const pointBalance = safeRound(balance);
+      const pointGain = pointBalance - pointPrincipal;
+      if (!Number.isSafeInteger(pointGain))
+        throw new Error("NISA gain exceeds the supported range");
+      points.push({
+        month,
+        principalYen: pointPrincipal,
+        balanceYen: pointBalance,
+        gainYen: pointGain,
+      });
     }
     const projectedBalanceYen = safeRound(balance);
     const principal = (plan.currentBookValueYen as number) + futureTotal;
@@ -559,7 +594,7 @@ export function calculateNisaPlan(
     )
       throw new Error("NISA real value exceeds the supported range");
     const realValue = safeRound(unroundedRealValue);
-    return {
+    return finish({
       status: issues.length > 0 ? "invalid" : "complete",
       rule,
       assumptions: {
@@ -583,10 +618,21 @@ export function calculateNisaPlan(
         issues.length > 0
           ? ["制度枠を超過しています。入力値は変更していません。"]
           : [],
-    };
+    });
   } catch (error) {
-    return empty("out-of-range", [
-      error instanceof Error ? error.message : "NISA計算に失敗しました。",
-    ]);
+    return {
+      result: empty("out-of-range", [
+        error instanceof Error ? error.message : "NISA計算に失敗しました。",
+      ]),
+      points: [],
+    };
   }
+}
+
+export function calculateNisaPlan(
+  plan: NisaPlan,
+  scenario: InvestmentScenario | undefined,
+  member: { birthDate?: string | undefined; active: boolean },
+): NisaProjectionResult {
+  return evaluateNisaPlan(plan, scenario, member).result;
 }

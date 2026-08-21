@@ -99,6 +99,16 @@
 - 6 routeのstandalone `file://`、v6 byte preservation、再読み込み、runtime network 0
 - TASK-013/shared recovery、制度rule変更、将来制度予測、main統合、releaseは対象外
 
+## TASK-015 ライフプラン総資産時系列
+
+- TASK-014年末現預金を変更せず、同じ暦年12月末のNISA・iDeCo名目残高を表示
+- active人物・domain・source・endpoint・statusを持つruntime-only年次投資結果
+- 保存済みライフプラン基準日に固定したiDeCo税診断context
+- 固定キャッシュフローと実投資拠出の月次整合性検出、最初の不一致以降の合計非表示
+- 失敗したactive投資、負の現預金、安全整数範囲外を0円または通常合計にしない
+- schema v7、既存migration・calculator public結果、6 route、standalone `file://`を維持
+- 負債・純資産、dynamic cashflow再計算、chart、TASK-013/shared、Release、Distribution、Pagesは対象外
+
 ## 実装順序の制約
 
 - TASK-002のspikeを通過するまで本格的な制度計算を実装しない。

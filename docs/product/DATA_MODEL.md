@@ -60,6 +60,8 @@ interface LifePlanEvent {
 
 `baseReferenceDate`は上流の投資後手残りを計算する固定日、`projectionStartYear`は`startingLiquidAssetsYen`が1月1日に属する暦年であり、別の時間anchorとして保存する。derivedな月額・年額・年次行は永続化しない。
 
+TASK-015の投資年次値、人物別小計、拠出整合性finding、warning、金融資産合計もruntime derivedであり、`LifePlanState`またはbackupへ保存しない。投資年次値は`domain`、`memberId`、`sourceId`、正確な`endpointMonth`、authority status、残高・元本・運用損益を持つ。未設定だけが残高0円を持ち、active計画の`complete`以外はnullとする。年末現預金が負、拠出不一致・判定不能、投資残高非authoritativeまたは安全整数加算失敗の場合、金融資産合計はnullとする。
+
 ## 4. 人物
 
 ```ts
@@ -286,3 +288,4 @@ interface BackupMetadata {
 - ライフプランの基準日はnullまたは実在するISO日付、開始年はnullまたは1..9999、投影終了年は9999以下とする。
 - ライフイベントIDは一意かつ更新で不変とし、存在しない更新・有効切替・削除を拒否する。
 - ライフプラン設定の4項目は一括検証し、不正時にState publishまたはstorage writeを行わない。
+- 年次投資観測点、拠出整合性、金融資産合計をAppStateへ追加せず、schemaVersion 7を維持する。
