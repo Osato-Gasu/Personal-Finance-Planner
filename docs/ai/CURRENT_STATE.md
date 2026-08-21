@@ -1,9 +1,14 @@
 ---
-updated_at: 2026-08-14
-active_tasks: []
-next_action: ChatGPT defines TASK-009 requirements from the permanent handoff and BACKLOG
+updated_at: 2026-08-21
+active_tasks:
+  - TASK-016
+next_action: Codex implements TASK-016 from the canonical activation branch
 ---
 
 # Current state
 
-TASK-012 spec revision 1 is completed. Approved implementation candidate `c70cfabee1c1909660e9ed242d93ecd953f4f709` (tree `251ed1c33de68e64116059d1b07025ea08452e7f`), review handoff `ddae5547f211a9f16b0b81c43fe01a68dbc4a12b` (tree `6b229db226011d58ba147559eb439891b38a3ba1`), and APPROVED release head `4e217b8d47cc955f3b3e3da54d97ead811346381` (tree `d10df82e04b3c634849e19c70ce471af2be75eb8`) remain the audit identities. Candidate workflow `31751171064`, handoff workflow `31752066301` attempt 2, release workflow `31755772429`, and exact main integration workflow `31756479657` attempt 2 all succeeded. FINDING-012-R1-01 and FINDING-012-R1-02 are resolved under implementation review attempt 2／standard; attempts 3 and 4 were not created. Main was fast-forwarded from `74b6f47b2e11dfe622f956de2fb3ba2640413552` to the release head. TASK-008 local completion used completion commit `74b6f47b2e11dfe622f956de2fb3ba2640413552`; TASK-012 local completion used release head `4e217b8d47cc955f3b3e3da54d97ead811346381`; the registered TASK worktrees were removed/pruned after exact clean, reachability, CI, launcher, and portable gates. The active TASK-012 packet is removed from the current tree under `git_only` and remains fully traceable in Git history. No tag, GitHub Release, static deployment, distribution, or user-owned worktree change was made. The next requirements candidate is TASK-009.
+TASK-016 spec revision 4「給与→手取り→家計→NISA+iDeCo自動連携・6タブUI再設計」をexact parent baseline `2c99809634e613963574fea63383889da8ece025`（tree `cf199677778a9bc612c26d6a6b866a9685f04f54`）からcanonical implementation routeとしてactive化する。専用branchは `codex/task-016-linked-finance-workflow`、actor/roleは `Codex | IMPLEMENTER`。shared governanceはmain baseline lockのversion `0.12.20` / commit `10cd1466b10f814f1bd2aab2c5f6ba6465c5899e`を維持する。
+
+TASK-013は `codex/task-013-public-audit-stable-id` の別branch/worktreeに残る独立recovery lineageであり、TASK-016はそのworktree、lock v1.0.1、shared checkout、state、handoff、branchを再利用・変更・完了しない。TASK-016のsource-present shared checkはambient shared rootではなく、0.12.20 lock commitのclean disposable source rootを明示指定する。
+
+Main integration、tag、Release、Distribution、Pages、deployment、TASK-009開始は未承認。TASK-016はcandidate + separate high-risk VERIFY + candidate CI evidenceをChatGPTへ返してimplementation reviewを受ける。

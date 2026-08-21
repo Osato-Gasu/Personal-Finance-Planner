@@ -1,0 +1,64 @@
+# REPORT — TASK-016 implementation activation
+
+- task_id: TASK-016
+- phase: implementation
+- status: ready_not_started
+- baseline_commit: 2c99809634e613963574fea63383889da8ece025
+- candidate_commit: none
+- product_sha256: not_applicable
+- product_bytes: not_applicable
+- product_blob: not_applicable
+- changed_files: governance_activation_only
+- tests_passed: pre-implementation validators must be rerun by Codex on exact activation head
+- tests_failed: none_recorded
+- build_result: not_started
+- source_match: shared 0.12.20 / 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e required
+- browser_evidence: required_after_implementation
+- network: not_started
+- unresolved: implementation_not_started
+- risks: financial calculation, double counting, schema migration and data preservation are non-relaxable
+- worktree: dedicated TASK-016 worktree required; TASK-013 worktree forbidden
+- actual_executor: Codex
+- provider_substitution: none
+- independent_review_kind: none
+- review_role: none
+- execution_mode: existing_session
+- repository_access: dedicated_task_worktree
+- review_status: not_requested
+- request_review_status: none
+- review_model: none
+- review_effort: none
+- reviewed_candidate: none
+- reviewed_spec_revision: 4
+- review_request_id: none
+- review_started_at: none
+- review_completed_at: none
+- review_result: none
+- review_findings_count: 0
+- review_finding_ids: none
+- repository_write_access: available_after_canonical_route_preflight
+- write_probe_method: ChatGPT GitHub connector governance-only activation; Codex local preflight required
+- user_relay_required: false
+- relay_bundle_name: not_applicable
+- relay_bundle_sha256: not_applicable
+- relay_bundle_bytes: not_applicable
+- relay_bundle_format: not_applicable
+- relay_identity_verified: not_applicable
+- relay_import_result: not_applicable
+- relay_recipient: Codex
+- relay_recipient_role: IMPLEMENTER
+- result_return_to: ChatGPT
+- canonical_relay_bundle: not_applicable
+- routing_mode: local_script
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-016-linked-finance-workflow
+- resolved_commit: activation_commit_supplied_externally_after_materialization
+- next_action_blob: current_branch_blob
+- handoff_blob: current_branch_blob
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
+- accepted_findings: DR2-MAJ-01,DR2-MAJ-02,DR2-MAJ-03,DR2-MAJ-04,DR2-MAJ-05,DR3-MAJ-01 all closed in final revision 4
+- finding_dispositions: accepted_and_closed
+- relay_semantic_round_trip: not_applicable
+- relay_transaction_rollback: not_applicable
+- execution_started_at: not_started
+- execution_finished_at: not_started
