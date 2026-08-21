@@ -110,6 +110,9 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
+  // Hosted Windows runners can spend more than Playwright's 30-second default
+  // warming the system browser before the first file:// navigation completes.
+  page.setDefaultNavigationTimeout(90_000);
   const consoleErrors = [];
   const pageErrors = [];
   const unexpectedRequests = [];
