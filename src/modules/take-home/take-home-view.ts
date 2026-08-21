@@ -88,6 +88,7 @@ function checkInput(
 function resultTable(document: Document, result: TakeHomeResult): HTMLElement {
   const section = node(document, "section");
   section.className = `take-home-result status-${result.status}`;
+  section.dataset.area = "result";
   section.append(node(document, "h4", `概算結果: ${result.status}`));
   const dl = node(document, "dl");
   const rows: [string, number | null, "yen" | "percent"][] = [
@@ -264,6 +265,7 @@ export function createTakeHomeRenderer(
       card.append(node(document, "h3", member.displayName));
       const profile = node(document, "div");
       profile.className = "form-grid";
+      profile.dataset.area = "input";
       const birth = node(document, "label", "生年月日");
       const birthInput = node(document, "input");
       birthInput.type = "date";
@@ -313,7 +315,13 @@ export function createTakeHomeRenderer(
             }),
           }),
         );
-        card.append(create);
+        const placeholder = node(
+          document,
+          "section",
+          "計算プランを作成すると手取り結果を表示します。",
+        );
+        placeholder.dataset.area = "result";
+        card.append(create, placeholder);
       }
       for (const plan of plans) {
         if (plan.mode === "legacy-manual") {
@@ -358,8 +366,34 @@ export function createTakeHomeRenderer(
         );
         planActions.append(togglePlan, deletePlan);
         card.append(planActions);
+        const payrollBinding = node(document, "label", "給与情報の入力元");
+        const payrollBindingSelect = node(document, "select");
+        payrollBindingSelect.append(new Option("手取り画面で直接入力", ""));
+        for (const payroll of state.payrollPlans.filter(
+          (candidate) =>
+            candidate.active &&
+            candidate.memberId === plan.memberId &&
+            candidate.targetYear === plan.targetYear,
+        ))
+          payrollBindingSelect.append(
+            new Option(`給与計算 ${String(payroll.targetYear)}年`, payroll.id),
+          );
+        const activePayrollBinding = state.takeHomeCompensationBindings.find(
+          (binding) => binding.active && binding.takeHomePlanId === plan.id,
+        );
+        payrollBindingSelect.value = activePayrollBinding?.payrollPlanId ?? "";
+        payrollBindingSelect.addEventListener("change", () =>
+          dispatch({
+            type: "set-take-home-compensation-binding",
+            takeHomePlanId: plan.id,
+            payrollPlanId: payrollBindingSelect.value || null,
+          }),
+        );
+        payrollBinding.append(payrollBindingSelect);
+        card.append(payrollBinding);
         const form = node(document, "div");
         form.className = "form-grid take-home-form";
+        form.dataset.area = "input";
         const planBirth = node(document, "label", "計算プランの生年月日");
         const planBirthInput = node(document, "input");
         planBirthInput.type = "date";

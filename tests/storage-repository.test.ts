@@ -32,7 +32,7 @@ describe("StorageRepository export/import transaction", () => {
     const repository = new StorageRepository(storage);
     const state = createFixtureState();
     repository.save(state);
-    expect(STORAGE_KEY).toContain(":v7");
+    expect(STORAGE_KEY).toContain(":v8");
     expect(repository.load()).toEqual(state);
     expect(JSON.parse(repository.export(state))).toEqual(state);
   });
@@ -85,7 +85,7 @@ describe("StorageRepository export/import transaction", () => {
     const state = { ...createLegacyFixtureState(), schemaVersion: 0 };
     expect(
       repository.prepareImport(JSON.stringify(state)).preview.schemaVersion,
-    ).toBe(7);
+    ).toBe(8);
   });
 
   it("rejects invariant violations", () => {

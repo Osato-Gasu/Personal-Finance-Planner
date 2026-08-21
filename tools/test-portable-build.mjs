@@ -9,15 +9,15 @@ import { chromium } from "playwright-core";
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "Personal-Finance-Planner.html");
 const distHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v7";
+const storageKey = "personal-finance-planner:state:v8";
 const schemaVersion6StorageKey = "personal-finance-planner:state:v6";
 const legacyStorageKey = "personal-finance-planner:state:v1";
 const routes = [
-  ["overview", "総合サマリー"],
-  ["budget", "家計・生活費"],
+  ["overview", "総合サマリ"],
+  ["payroll", "給与計算"],
   ["take-home", "手取り計算"],
-  ["investments", "NISA・iDeCo"],
-  ["life-plan", "ライフプラン"],
+  ["budget", "家計簿"],
+  ["investments", "NISA + iDeCo"],
   ["settings", "設定"],
 ];
 
@@ -157,6 +157,27 @@ try {
 
   for (const [route, label] of routes) {
     await expectRoute(page, standaloneUrl, route, label);
+    if (["payroll", "take-home", "budget", "investments"].includes(route)) {
+      assert.ok(
+        (await page.locator("main [data-area='input']").count()) > 0,
+        `${route} must expose an input area`,
+      );
+      assert.ok(
+        (await page.locator("main [data-area='result']").count()) > 0,
+        `${route} must expose a result area`,
+      );
+      await page.setViewportSize({ width: 360, height: 800 });
+      assert.equal(
+        await page.evaluate(
+          () =>
+            globalThis.document.documentElement.scrollWidth <=
+            globalThis.document.documentElement.clientWidth,
+        ),
+        true,
+        `${route} must not overflow at 360px`,
+      );
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
   }
 
   await assertContains(
@@ -240,7 +261,7 @@ try {
 
   await page.goto(`${standaloneUrl}#/unknown`, { waitUntil: "load" });
   await page.waitForURL(`${standaloneUrl}#/overview`);
-  await page.getByRole("heading", { level: 2, name: "総合サマリー" }).waitFor();
+  await page.getByRole("heading", { level: 2, name: "総合サマリ" }).waitFor();
   await assertContains(page.getByTestId("overview-reference-month"), "2026-08");
   await assertContains(
     page.getByRole("heading", { name: "人物別の計算状態" }).locator(".."),
@@ -248,17 +269,17 @@ try {
   );
   assert.equal(await page.locator("main [role='alert']").count(), 0);
 
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
-  await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
+  await page.getByRole("heading", { level: 2, name: "家計簿" }).waitFor();
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.waitForURL(`${standaloneUrl}#/take-home`);
   await page.goBack();
   await page.waitForURL(`${standaloneUrl}#/budget`);
 
-  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
   await page.waitForURL(`${standaloneUrl}#/investments`);
-  await page.getByRole("heading", { level: 2, name: "NISA・iDeCo" }).waitFor();
+  await page.getByRole("heading", { level: 2, name: "NISA + iDeCo" }).waitFor();
   if ((await page.getByTestId("nisa-birth-member-self").count()) !== 1) {
     throw new Error(
       `NISA UI did not render: body=${JSON.stringify(await page.locator("body").innerText())}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`,
@@ -669,7 +690,7 @@ try {
     page.locator(".take-home-result"),
     "iDeCoによる所得税等差額",
   );
-  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
   await page.getByRole("button", { name: "iDeCo計画を無効化" }).click();
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
@@ -690,7 +711,7 @@ try {
     inactiveLinkedState.takeHomePlans[0].deductions.annualIdecoContributionYen,
     0,
   );
-  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
   await page.getByRole("button", { name: "iDeCo計画を有効化" }).click();
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
@@ -701,14 +722,14 @@ try {
       .count(),
     2,
   );
-  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
   await page
     .locator(".ideco-card")
     .getByTestId("ideco-plus")
     .selectOption("true");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await page.getByRole("link", { name: "NISA・iDeCo" }).click();
+  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
   await page
     .locator(".ideco-card")
     .getByTestId("ideco-plus")
@@ -749,7 +770,7 @@ try {
   await page.getByLabel("その他法定控除年額").press("Tab");
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await assertContains(page.getByTestId("household-income"), "439,597円");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page
@@ -757,7 +778,7 @@ try {
     .selectOption("unsupported-uncomputed");
   await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
   await assertContains(page.locator(".take-home-result"), "未対応条件");
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await assertContains(page.getByTestId("household-income"), "未計算");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
@@ -796,7 +817,7 @@ try {
   await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
   await assertContains(page.locator(".take-home-result"), "120,000円");
   await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   assert.ok(
     !(await page.getByTestId("household-income").textContent())?.includes(
       "未計算",
@@ -805,7 +826,7 @@ try {
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
   await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await assertContains(page.getByTestId("household-income"), "未計算");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.reload({ waitUntil: "load" });
@@ -818,7 +839,7 @@ try {
   await page.getByLabel("計算プランの生年月日").press("Tab");
   await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
   await assertContains(page.locator(".take-home-result"), "第1号介護保険料");
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await assertContains(page.getByTestId("household-income"), "未計算");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.reload({ waitUntil: "load" });
@@ -830,7 +851,7 @@ try {
     page.locator(".take-home-result"),
     "後期高齢者医療保険料",
   );
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await assertContains(page.getByTestId("household-income"), "未計算");
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByLabel("計算プランの生年月日").fill("1990-01-01");
@@ -840,7 +861,7 @@ try {
   await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
   await page.getByRole("button", { name: "賞与を追加" }).click();
   assert.equal(await page.getByLabel("賞与支給日").inputValue(), "2026-06-30");
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
   const linkedIncomeAfterEdit = await page
     .getByTestId("household-income")
@@ -848,7 +869,7 @@ try {
   assert.ok(!linkedIncomeAfterEdit?.includes("439,597円"));
   await page.getByRole("link", { name: "手取り計算" }).click();
   await page.getByRole("button", { name: "家計連携を解除" }).click();
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
 
   await page.getByLabel("本人の月間手取り").fill("300000");
   await page.getByLabel("同棲モード").check();
@@ -967,9 +988,9 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 7);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 8);
   await page.reload({ waitUntil: "load" });
-  await page.getByRole("heading", { level: 2, name: "家計・生活費" }).waitFor();
+  await page.getByRole("heading", { level: 2, name: "家計簿" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
   const savedAfterReload = await page.evaluate(
     (key) => globalThis.localStorage.getItem(key),
@@ -977,7 +998,7 @@ try {
   );
   assert.equal(savedAfterReload, savedBeforeReload);
 
-  await page.getByRole("link", { name: "総合サマリー" }).click();
+  await page.getByRole("link", { name: "総合サマリ" }).click();
   await page.waitForURL(`${standaloneUrl}#/overview`);
   await page.getByRole("heading", { name: "世帯サマリー" }).waitFor();
   await page.getByRole("heading", { name: "人物別サマリー" }).waitFor();
@@ -996,7 +1017,11 @@ try {
     "想定残高合計",
   );
   assert.equal(
-    await page.locator("main input, main button, main select").count(),
+    await page
+      .locator(
+        ".pipeline-overview input, .pipeline-overview button, .pipeline-overview select, [data-testid='overview-household'] input, [data-testid='overview-household'] button, [data-testid='overview-household'] select",
+      )
+      .count(),
     0,
   );
   const evidenceLinks = page.getByTestId("overview-rules").locator("a");
@@ -1165,15 +1190,15 @@ try {
     ),
     true,
   );
-  await page.getByRole("link", { name: "家計・生活費" }).focus();
+  await page.getByRole("link", { name: "家計簿", exact: true }).focus();
   assert.equal(
     await page
-      .getByRole("link", { name: "家計・生活費" })
+      .getByRole("link", { name: "家計簿", exact: true })
       .evaluate((element) => element === element.ownerDocument.activeElement),
     true,
   );
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
 
   const legacyLongName = "長".repeat(51);
@@ -1355,6 +1380,9 @@ try {
         if (member.role === "partner") member.active = false;
       previous.schemaVersion = 6;
       delete previous.lifePlan;
+      delete previous.payrollPlans;
+      delete previous.takeHomeCompensationBindings;
+      delete previous.budgetIncomePolicies;
       const bytes = JSON.stringify(previous);
       globalThis.localStorage.setItem(previousKey, bytes);
       globalThis.localStorage.removeItem(currentKey);
@@ -1381,11 +1409,14 @@ try {
         storageKey,
       ),
     ).schemaVersion,
-    7,
+    8,
   );
 
-  await page.getByRole("link", { name: "ライフプラン" }).click();
-  await page.waitForURL(`${standaloneUrl}#/life-plan`);
+  await page.goto(`${standaloneUrl}#/life-plan`, { waitUntil: "load" });
+  await page.waitForURL(`${standaloneUrl}#/overview`);
+  await page
+    .getByRole("heading", { level: 3, name: "将来資産シミュレーション" })
+    .waitFor();
   await assertContains(
     page.getByTestId("life-plan-disclosure"),
     "将来の制度や運用成果を予測するものではありません",
@@ -1533,9 +1564,8 @@ try {
     true,
   );
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.getByRole("link", { name: "総合サマリー" }).click();
-  await page.getByRole("link", { name: "ライフプラン" }).click();
-  await page.waitForURL(`${standaloneUrl}#/life-plan`);
+  await page.getByRole("link", { name: "総合サマリ" }).click();
+  await page.waitForURL(`${standaloneUrl}#/overview`);
   await page
     .locator(".life-plan-event")
     .filter({ hasText: "住宅購入（更新）" })
@@ -1548,7 +1578,7 @@ try {
       .count(),
     0,
   );
-  await page.getByRole("link", { name: "家計・生活費" }).click();
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
   await page.waitForURL(`${standaloneUrl}#/budget`);
   await page.waitForFunction((key) => {
     const bytes = globalThis.localStorage.getItem(key);
@@ -1639,7 +1669,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK015-extended, routes=${routes.length}, lifePlan=crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK016-extended, routes=${routes.length}, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v8, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

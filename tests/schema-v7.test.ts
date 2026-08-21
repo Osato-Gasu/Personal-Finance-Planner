@@ -7,7 +7,6 @@ import {
 } from "../src/data/storage-repository";
 import { migrateToCurrentState } from "../src/domain/migration";
 import {
-  parseAppState,
   type SchemaVersion2AppState,
   type SchemaVersion3AppState,
   type SchemaVersion4AppState,
@@ -36,6 +35,9 @@ function v6Fixture(): SchemaVersion6AppState {
     ReturnType<typeof createFixtureState>
   >;
   Reflect.deleteProperty(previous, "lifePlan");
+  Reflect.deleteProperty(previous, "payrollPlans");
+  Reflect.deleteProperty(previous, "takeHomeCompensationBindings");
+  Reflect.deleteProperty(previous, "budgetIncomePolicies");
   return {
     ...previous,
     schemaVersion: 6,
@@ -92,7 +94,7 @@ describe("schema v7 life plan migration", () => {
     const before = JSON.stringify(previous);
     const migrated = migrateToCurrentState(previous);
     expect(JSON.stringify(previous)).toBe(before);
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.lifePlan).toEqual({
       baseReferenceDate: null,
       projectionStartYear: null,
@@ -102,7 +104,13 @@ describe("schema v7 life plan migration", () => {
     });
     const domain = structuredClone(migrated) as Partial<typeof migrated>;
     Reflect.deleteProperty(domain, "lifePlan");
-    expect(domain).toEqual({ ...previous, schemaVersion: 7 });
+    Reflect.deleteProperty(domain, "payrollPlans");
+    Reflect.deleteProperty(domain, "takeHomeCompensationBindings");
+    Reflect.deleteProperty(domain, "budgetIncomePolicies");
+    expect(domain).toEqual({ ...previous, schemaVersion: 8 });
+    expect(migrated.payrollPlans).toEqual([]);
+    expect(migrated.takeHomeCompensationBindings).toEqual([]);
+    expect(migrated.budgetIncomePolicies).toEqual([]);
     expect(migrateToCurrentState(migrated)).toEqual(migrated);
   });
 
@@ -130,9 +138,16 @@ describe("schema v7 life plan migration", () => {
   );
 
   it("accepts life-plan only in a valid schema v7 state", () => {
-    const state = createFixtureState();
-    state.activeRoute = "life-plan";
-    expect(parseAppState(state).activeRoute).toBe("life-plan");
+    const current = structuredClone(createFixtureState()) as unknown as Record<
+      string,
+      unknown
+    >;
+    current.schemaVersion = 7;
+    current.activeRoute = "life-plan";
+    Reflect.deleteProperty(current, "payrollPlans");
+    Reflect.deleteProperty(current, "takeHomeCompensationBindings");
+    Reflect.deleteProperty(current, "budgetIncomePolicies");
+    expect(migrateToCurrentState(current).activeRoute).toBe("overview");
   });
 
   it("loads v6 only when v7 is absent, writes v7, and preserves exact v6 bytes", () => {
@@ -140,7 +155,7 @@ describe("schema v7 life plan migration", () => {
     const bytes = JSON.stringify(v6Fixture());
     storage.values.set(SCHEMA_VERSION_6_STORAGE_KEY, bytes);
     const loaded = new StorageRepository(storage).load();
-    expect(loaded?.schemaVersion).toBe(7);
+    expect(loaded?.schemaVersion).toBe(8);
     expect(storage.getItem(SCHEMA_VERSION_6_STORAGE_KEY)).toBe(bytes);
     expect(storage.getItem(STORAGE_KEY)).toBe(JSON.stringify(loaded));
     expect(storage.writes).toBe(1);
@@ -166,7 +181,7 @@ describe("schema v7 life plan migration", () => {
       expect(
         repository.prepareImport(JSON.stringify(candidate)).preview
           .schemaVersion,
-      ).toBe(7);
+      ).toBe(8);
       expect(storage.getItem(STORAGE_KEY)).toBe(before);
     }
     expect(storage.writes).toBe(0);

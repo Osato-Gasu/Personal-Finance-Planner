@@ -29,12 +29,25 @@ describe("schema v6 backup metadata", () => {
     const oldState = structuredClone(current) as Partial<typeof current>;
     Reflect.deleteProperty(oldState, "backup");
     Reflect.deleteProperty(oldState, "lifePlan");
+    Reflect.deleteProperty(oldState, "payrollPlans");
+    Reflect.deleteProperty(oldState, "takeHomeCompensationBindings");
+    Reflect.deleteProperty(oldState, "budgetIncomePolicies");
     const v5 = { ...oldState, schemaVersion: 5 };
     const before = JSON.stringify(v5);
     const migrated = migrateToCurrentState(v5);
     expect(JSON.stringify(v5)).toBe(before);
-    const { backup, lifePlan, ...domain } = migrated;
-    expect(domain).toEqual({ ...v5, schemaVersion: 7 });
+    const {
+      backup,
+      lifePlan,
+      payrollPlans,
+      takeHomeCompensationBindings,
+      budgetIncomePolicies,
+      ...domain
+    } = migrated;
+    expect(domain).toEqual({ ...v5, schemaVersion: 8 });
+    expect(payrollPlans).toEqual([]);
+    expect(takeHomeCompensationBindings).toEqual([]);
+    expect(budgetIncomePolicies).toEqual([]);
     expect(lifePlan).toEqual({
       baseReferenceDate: null,
       projectionStartYear: null,

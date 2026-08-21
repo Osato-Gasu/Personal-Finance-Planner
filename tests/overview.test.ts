@@ -123,7 +123,7 @@ describe("integrated overview selector", () => {
         { ...state, schemaVersion: 4 } as unknown as AppState,
         referenceDate,
       ),
-    ).toThrow("schemaVersion 7");
+    ).toThrow("schemaVersion 8");
   });
 
   it("reports empty sources as not-configured without converting them to zero", () => {

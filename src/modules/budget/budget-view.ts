@@ -227,13 +227,18 @@ export function createBudgetRenderer(options: {
     >["summary"],
   ): void {
     const section = node(options.document, "section");
+    section.dataset.area = "result";
     section.append(node(options.document, "h3", "家計サマリー"));
     const grid = node(options.document, "div");
     grid.className = "summary-grid";
     const cards: [string, string, string][] = [
       ["世帯手取り", yen(summary.householdIncomeYen), "household-income"],
       ["生活費合計", yen(summary.householdExpenseYen), "household-expense"],
-      ["世帯手残り", yen(summary.householdRemainingYen), "household-remaining"],
+      [
+        "家計簿後の残額（投資可能額）",
+        yen(summary.householdRemainingYen),
+        "household-remaining",
+      ],
       [
         "集計モード",
         summary.mode === "detailed" ? "詳細集計" : "簡易集計",
@@ -328,6 +333,7 @@ export function createBudgetRenderer(options: {
 
   function renderOutOfRangeSummary(main: HTMLElement, detail: string): void {
     const section = node(options.document, "section");
+    section.dataset.area = "result";
     section.append(node(options.document, "h3", "家計サマリー"));
     const status = node(
       options.document,
@@ -372,6 +378,14 @@ export function createBudgetRenderer(options: {
       partnerTarget.id,
       options.getReferenceDate(),
     );
+    const selfPolicy =
+      state.budgetIncomePolicies.find(
+        (policy) => policy.targetId === selfTarget.id,
+      )?.mode ?? "legacy";
+    const partnerPolicy =
+      state.budgetIncomePolicies.find(
+        (policy) => policy.targetId === partnerTarget.id,
+      )?.mode ?? "legacy";
     const selfLinked =
       selfResolved.status === "selected" ||
       selfResolved.status === "broken-link";
@@ -379,6 +393,7 @@ export function createBudgetRenderer(options: {
       partnerResolved.status === "selected" ||
       partnerResolved.status === "broken-link";
     const section = node(options.document, "section");
+    section.dataset.area = "input";
     section.append(node(options.document, "h3", "世帯・手取り設定"));
     const form = node(options.document, "form");
     form.className = "form-grid";
@@ -386,6 +401,23 @@ export function createBudgetRenderer(options: {
       name: "self-name",
       value: displayNameToEditor(self.displayName),
     });
+    const selfPolicySelect = labeledSelect(
+      options.document,
+      "本人手取りの連携方法",
+      "self-income-policy",
+      selfPolicy,
+      [
+        ["auto-take-home", "対象年の手取り計算から自動連携"],
+        ["legacy", "従来の手動／個別連携"],
+      ],
+    );
+    selfPolicySelect.select.addEventListener("change", () =>
+      performAction({
+        type: "set-budget-income-policy",
+        targetId: selfTarget.id,
+        mode: selfPolicySelect.select.value as "auto-take-home" | "legacy",
+      }),
+    );
     const selfIncome = labeledInput(options.document, "本人の月間手取り", {
       name: "self-income",
       type: "number",
@@ -412,6 +444,23 @@ export function createBudgetRenderer(options: {
       name: "partner-name",
       value: displayNameToEditor(partner.displayName),
     });
+    const partnerPolicySelect = labeledSelect(
+      options.document,
+      "相手手取りの連携方法",
+      "partner-income-policy",
+      partnerPolicy,
+      [
+        ["auto-take-home", "対象年の手取り計算から自動連携"],
+        ["legacy", "従来の手動／個別連携"],
+      ],
+    );
+    partnerPolicySelect.select.addEventListener("change", () =>
+      performAction({
+        type: "set-budget-income-policy",
+        targetId: partnerTarget.id,
+        mode: partnerPolicySelect.select.value as "auto-take-home" | "legacy",
+      }),
+    );
     const partnerIncome = labeledInput(options.document, "相手の月間手取り", {
       name: "partner-income",
       type: "number",
@@ -440,9 +489,11 @@ export function createBudgetRenderer(options: {
     );
     form.append(
       selfName.wrapper,
+      selfPolicySelect.wrapper,
       selfIncome.wrapper,
       partnerMode,
       partnerName.wrapper,
+      partnerPolicySelect.wrapper,
       partnerIncome.wrapper,
       globalShare.wrapper,
     );
@@ -456,7 +507,7 @@ export function createBudgetRenderer(options: {
             : "本人手取りの連携を解決できません。",
         ),
       );
-    if (selfResolved.status === "selected") {
+    if (selfResolved.status === "selected" && selfPolicy === "legacy") {
       const unlinkSelf = node(
         options.document,
         "button",
@@ -483,7 +534,7 @@ export function createBudgetRenderer(options: {
             : "相手手取りの連携を解決できません。",
         ),
       );
-    if (partnerResolved.status === "selected") {
+    if (partnerResolved.status === "selected" && partnerPolicy === "legacy") {
       const unlinkPartner = node(
         options.document,
         "button",
@@ -544,6 +595,7 @@ export function createBudgetRenderer(options: {
   ): void {
     const state = options.store.getState();
     const section = node(options.document, "section");
+    section.dataset.area = "input";
     section.append(node(options.document, "h3", "集計モード"));
     const fieldset = node(options.document, "fieldset");
     fieldset.append(node(options.document, "legend", "詳細／簡易モード"));

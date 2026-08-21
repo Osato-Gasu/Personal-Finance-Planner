@@ -58,6 +58,7 @@ export function createFixtureState(): AppState {
       { id: "self", role: "self", displayName: "本人", active: true },
       { id: "partner", role: "partner", displayName: "相手", active: true },
     ],
+    payrollPlans: [],
     takeHomePlans: [
       {
         id: "take-home-self",
@@ -76,10 +77,12 @@ export function createFixtureState(): AppState {
         active: true,
       },
     ],
+    takeHomeCompensationBindings: [],
     incomeTargets: [
       { id: "budget-income-self", memberId: "self", manualYen: 100_000 },
       { id: "budget-income-partner", memberId: "partner", manualYen: 90_000 },
     ],
+    budgetIncomePolicies: [],
     links: [
       {
         id: "link-self",

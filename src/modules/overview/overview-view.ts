@@ -1,4 +1,6 @@
 import type { Store } from "../../app/store";
+import { calculatePayroll } from "../../domain/payroll";
+import { selectInvestmentFundingContext } from "../../domain/investment-funding";
 import {
   selectOverview,
   type OverviewMemberResult,
@@ -292,10 +294,107 @@ export function createOverviewRenderer(
 ): (container: HTMLElement) => void {
   return (container) => {
     try {
-      const result = options.store.select((state) =>
-        selectOverview(state, options.getReferenceDate()),
+      const state = options.store.getState();
+      const referenceDate = options.getReferenceDate();
+      const result = selectOverview(state, referenceDate);
+      const pipeline = node(options.document, "section");
+      pipeline.className = "pipeline-overview";
+      pipeline.append(node(options.document, "h3", "お金の流れ"));
+      const steps = node(options.document, "ol");
+      steps.className = "pipeline-steps";
+      const currentYear = Number(referenceDate.slice(0, 4));
+      const activePayroll = state.payrollPlans.filter(
+        (plan) => plan.active && plan.targetYear === currentYear,
       );
-      container.append(renderOverview(options.document, result));
+      const funding = selectInvestmentFundingContext(state, referenceDate);
+      const statuses = [
+        [
+          "給与計算",
+          "#/payroll",
+          activePayroll.length > 0 ? "設定済み" : "未設定",
+        ],
+        [
+          "手取り計算",
+          "#/take-home",
+          result.members.some((member) => member.takeHomeStatus === "complete")
+            ? "計算済み"
+            : "未計算",
+        ],
+        [
+          "家計簿",
+          "#/budget",
+          funding.household.availableYen === null ? "未計算" : "計算済み",
+        ],
+        [
+          "NISA+iDeCo",
+          "#/investments",
+          funding.status === "available" ? "確認済み" : "未計算",
+        ],
+      ] as const;
+      statuses.forEach(([label, href, status]) => {
+        const item = node(options.document, "li");
+        const link = node(options.document, "a", label);
+        link.href = href;
+        link.setAttribute("aria-label", `${label}へ移動`);
+        item.append(link, node(options.document, "span", status));
+        steps.append(item);
+      });
+      pipeline.append(steps);
+      if (activePayroll.length > 0) {
+        try {
+          const payrollResults = activePayroll.map(calculatePayroll);
+          const sum = (
+            key: "monthlyGrossYen" | "annualGrossYen",
+          ): number | null => {
+            const value = payrollResults.reduce(
+              (total, item) => total + BigInt(item[key]),
+              0n,
+            );
+            return value <= BigInt(Number.MAX_SAFE_INTEGER)
+              ? Number(value)
+              : null;
+          };
+          const grid = node(options.document, "div");
+          grid.className = "summary-grid";
+          grid.append(
+            card(
+              options.document,
+              "月間総支給（給与計算）",
+              sum("monthlyGrossYen"),
+            ),
+            card(
+              options.document,
+              "年間総支給（給与計算）",
+              sum("annualGrossYen"),
+            ),
+            card(
+              options.document,
+              "家計簿後の残額（投資可能額）",
+              funding.household.availableYen,
+            ),
+            card(
+              options.document,
+              "現在のNISA+iDeCo",
+              funding.household.totalContributionYen,
+            ),
+            card(
+              options.document,
+              "投資後残額",
+              funding.household.remainingAfterInvestmentYen,
+            ),
+          );
+          pipeline.append(grid);
+        } catch {
+          pipeline.append(
+            node(
+              options.document,
+              "p",
+              "給与計算KPIは入力を確認してください。",
+            ),
+          );
+        }
+      }
+      container.append(pipeline, renderOverview(options.document, result));
     } catch (error) {
       const alert = node(
         options.document,

@@ -22,9 +22,15 @@ import {
   validateIdecoPlan,
   type IdecoPlan,
 } from "./ideco";
+import {
+  parsePayrollPlan,
+  validatePayrollPlan,
+  type PayrollPlan,
+} from "./payroll";
 
-export const SCHEMA_VERSION = 7 as const;
-export const PREVIOUS_SCHEMA_VERSION = 6 as const;
+export const SCHEMA_VERSION = 8 as const;
+export const PREVIOUS_SCHEMA_VERSION = 7 as const;
+export const SCHEMA_VERSION_6 = 6 as const;
 export const SCHEMA_VERSION_5 = 5 as const;
 export const SCHEMA_VERSION_4 = 4 as const;
 export const SCHEMA_VERSION_3 = 3 as const;
@@ -35,7 +41,8 @@ export type MemberRole = "self" | "partner";
 export type MemberId = string;
 export type LegacyRouteIdV1ToV6 =
   "overview" | "budget" | "take-home" | "investments" | "settings";
-export type RouteId = LegacyRouteIdV1ToV6 | "life-plan";
+export type SchemaVersion7RouteId = LegacyRouteIdV1ToV6 | "life-plan";
+export type RouteId = LegacyRouteIdV1ToV6 | "payroll";
 export type ShareMode = "inherit" | "custom";
 export type ExpenseScope = "shared" | "self" | "partner";
 export type CycleUnit = "day" | "week" | "month" | "year";
@@ -141,9 +148,39 @@ export interface LifePlanState {
   events: LifePlanEvent[];
 }
 
+export interface TakeHomeCompensationBinding {
+  takeHomePlanId: string;
+  payrollPlanId: string;
+  active: boolean;
+}
+
+export interface BudgetIncomePolicy {
+  targetId: string;
+  mode: "auto-take-home" | "legacy";
+}
+
 export interface AppState {
-  schemaVersion: 7;
+  schemaVersion: 8;
   activeRoute: RouteId;
+  members: HouseholdMember[];
+  payrollPlans: PayrollPlan[];
+  takeHomePlans: TakeHomePlan[];
+  takeHomeCompensationBindings: TakeHomeCompensationBinding[];
+  incomeTargets: IncomeTarget[];
+  budgetIncomePolicies: BudgetIncomePolicy[];
+  links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+  nisaPlans: NisaPlan[];
+  investmentScenarios: InvestmentScenario[];
+  idecoPlans: IdecoPlan[];
+  backup: BackupMetadata;
+  lifePlan: LifePlanState;
+}
+
+export interface SchemaVersion7AppState {
+  schemaVersion: 7;
+  activeRoute: SchemaVersion7RouteId;
   members: HouseholdMember[];
   takeHomePlans: TakeHomePlan[];
   incomeTargets: IncomeTarget[];
@@ -252,6 +289,15 @@ export type AppAction =
       residencePrefecture?: string | undefined;
     }
   | { type: "set-partner-active"; memberId: string; active: boolean }
+  | { type: "add-payroll-plan"; plan: PayrollPlan }
+  | { type: "update-payroll-plan"; planId: string; plan: PayrollPlan }
+  | { type: "set-payroll-plan-active"; planId: string; active: boolean }
+  | { type: "delete-payroll-plan"; planId: string }
+  | {
+      type: "set-take-home-compensation-binding";
+      takeHomePlanId: string;
+      payrollPlanId: string | null;
+    }
   | { type: "update-take-home"; sourceId: string; amountYen: number }
   | { type: "add-take-home-plan"; plan: TakeHomePlan }
   | { type: "update-take-home-plan"; planId: string; plan: TakeHomePlan }
@@ -274,6 +320,11 @@ export type AppAction =
   | { type: "delete-take-home-bonus"; planId: string; bonusId: string }
   | { type: "delete-bonus"; planId: string; bonusId: string }
   | { type: "update-manual-income"; targetId: string; amountYen: number }
+  | {
+      type: "set-budget-income-policy";
+      targetId: string;
+      mode: BudgetIncomePolicy["mode"];
+    }
   | { type: "add-link"; link: LinkDefinition; referenceDate?: string }
   | {
       type: "link-budget-income-to-take-home-plan";
@@ -358,6 +409,15 @@ export type AppAction =
   | { type: "delete-life-plan-event"; eventId: string };
 
 export const routeIds: readonly RouteId[] = [
+  "overview",
+  "payroll",
+  "take-home",
+  "budget",
+  "investments",
+  "settings",
+];
+
+export const schemaVersion7RouteIds: readonly SchemaVersion7RouteId[] = [
   "overview",
   "budget",
   "take-home",
@@ -660,7 +720,7 @@ function validateLegacyMembersAndIncome(
 }
 
 function validateCurrentMembersAndIncome(
-  state: AppState | SchemaVersion3AppState,
+  state: AppState | SchemaVersion7AppState | SchemaVersion3AppState,
 ): void {
   uniqueIds(state.members, "member");
   uniqueIds(state.takeHomePlans, "take-home plan");
@@ -758,6 +818,76 @@ function validateCurrentMembersAndIncome(
   }
 }
 
+function validateVersion8Relationships(state: AppState): void {
+  uniqueIds(state.payrollPlans, "payroll plan");
+  const memberIds = new Set(state.members.map((member) => member.id));
+  const activePayrollKeys = new Set<string>();
+  for (const plan of state.payrollPlans) {
+    validatePayrollPlan(plan);
+    if (!memberIds.has(plan.memberId))
+      throw new Error("payroll plan member is missing");
+    if (plan.active) {
+      const key = `${plan.memberId}\u0000${String(plan.targetYear)}`;
+      if (activePayrollKeys.has(key))
+        throw new Error(
+          "only one active payroll plan is allowed per member and year",
+        );
+      activePayrollKeys.add(key);
+    }
+  }
+
+  const takeHomePlans = new Map(
+    state.takeHomePlans.map((plan) => [plan.id, plan]),
+  );
+  const payrollPlans = new Map(
+    state.payrollPlans.map((plan) => [plan.id, plan]),
+  );
+  const activeBindingTargets = new Set<string>();
+  for (const binding of state.takeHomeCompensationBindings) {
+    if (!binding.takeHomePlanId || !binding.payrollPlanId)
+      throw new Error("take-home compensation binding IDs are required");
+    if (typeof opaque(binding.active) !== "boolean")
+      throw new Error("take-home compensation binding active is invalid");
+    const takeHome = takeHomePlans.get(binding.takeHomePlanId);
+    const payroll = payrollPlans.get(binding.payrollPlanId);
+    if (!takeHome || takeHome.mode !== "calculated")
+      throw new Error("take-home compensation binding target is missing");
+    if (!payroll)
+      throw new Error("take-home compensation binding payroll is missing");
+    if (
+      takeHome.memberId !== payroll.memberId ||
+      takeHome.targetYear !== payroll.targetYear
+    )
+      throw new Error(
+        "take-home compensation binding member and year must match",
+      );
+    if (binding.active) {
+      if (activeBindingTargets.has(binding.takeHomePlanId))
+        throw new Error(
+          "only one active compensation binding is allowed per take-home plan",
+        );
+      activeBindingTargets.add(binding.takeHomePlanId);
+    }
+  }
+
+  const targetIds = new Set(state.incomeTargets.map((target) => target.id));
+  const policyTargets = new Set<string>();
+  for (const policy of state.budgetIncomePolicies) {
+    if (typeof policy.targetId !== "string" || policy.targetId.length === 0)
+      throw new Error("budget income policy targetId is required");
+    if (
+      opaque(policy.mode) !== "auto-take-home" &&
+      opaque(policy.mode) !== "legacy"
+    )
+      throw new Error("budget income policy mode is invalid");
+    if (!targetIds.has(policy.targetId))
+      throw new Error("budget income policy target is missing");
+    if (policyTargets.has(policy.targetId))
+      throw new Error("budget income policy targetId must be unique");
+    policyTargets.add(policy.targetId);
+  }
+}
+
 export function validateAppState(state: AppState): void {
   if (opaque(state.schemaVersion) !== SCHEMA_VERSION)
     throw new Error("unsupported schema version");
@@ -766,6 +896,7 @@ export function validateAppState(state: AppState): void {
   validateLifePlanState(state.lifePlan);
   validateBackupMetadata(state.backup);
   validateCurrentMembersAndIncome(state);
+  validateVersion8Relationships(state);
   uniqueIds(state.nisaPlans, "NISA plan");
   uniqueIds(state.investmentScenarios, "investment scenario");
   const memberIds = new Set(state.members.map((member) => member.id));
@@ -1180,7 +1311,7 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
-    schemaVersion: 7,
+    schemaVersion: 8,
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
@@ -1190,6 +1321,7 @@ export function parseAppState(value: unknown): AppState {
       return value.activeRoute as RouteId;
     })(),
     members,
+    payrollPlans: requireArray(value, "payrollPlans").map(parsePayrollPlan),
     takeHomePlans: requireArray(value, "takeHomePlans").map((plan) => {
       if (
         !isRecord(plan) ||
@@ -1205,7 +1337,31 @@ export function parseAppState(value: unknown): AppState {
           : "";
       return parseTakeHomePlan(plan, memberProfiles.get(memberId));
     }),
+    takeHomeCompensationBindings: requireArray(
+      value,
+      "takeHomeCompensationBindings",
+    ).map((item): TakeHomeCompensationBinding => {
+      if (!isRecord(item))
+        throw new Error("take-home compensation binding must be an object");
+      return {
+        takeHomePlanId: requireString(item, "takeHomePlanId"),
+        payrollPlanId: requireString(item, "payrollPlanId"),
+        active: requireBoolean(item, "active"),
+      };
+    }),
     incomeTargets: parseIncomeTargets(value),
+    budgetIncomePolicies: requireArray(value, "budgetIncomePolicies").map(
+      (item): BudgetIncomePolicy => {
+        if (!isRecord(item))
+          throw new Error("budget income policy must be an object");
+        if (item.mode !== "auto-take-home" && item.mode !== "legacy")
+          throw new Error("budget income policy mode is invalid");
+        return {
+          targetId: requireString(item, "targetId"),
+          mode: item.mode,
+        };
+      },
+    ),
     links: parseLinks(value),
     contributionSources: parseContributions(value),
     budget: parseBudget(value.budget),
@@ -1219,6 +1375,37 @@ export function parseAppState(value: unknown): AppState {
   };
   validateAppState(state);
   return state;
+}
+
+export function parseSchemaVersion7AppState(
+  value: unknown,
+): SchemaVersion7AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  if (
+    typeof value.activeRoute !== "string" ||
+    !schemaVersion7RouteIds.includes(value.activeRoute as SchemaVersion7RouteId)
+  )
+    throw new Error("activeRoute is invalid");
+  const currentLike = {
+    ...value,
+    schemaVersion: 8,
+    activeRoute:
+      value.activeRoute === "life-plan" ? "overview" : value.activeRoute,
+    payrollPlans: [],
+    takeHomeCompensationBindings: [],
+    budgetIncomePolicies: [],
+  };
+  const parsed = parseAppState(currentLike);
+  const previous = structuredClone(parsed) as Partial<AppState>;
+  Reflect.deleteProperty(previous, "payrollPlans");
+  Reflect.deleteProperty(previous, "takeHomeCompensationBindings");
+  Reflect.deleteProperty(previous, "budgetIncomePolicies");
+  return {
+    ...previous,
+    schemaVersion: 7,
+    activeRoute: value.activeRoute as SchemaVersion7RouteId,
+  } as SchemaVersion7AppState;
 }
 
 function parseBackupMetadata(value: unknown): BackupMetadata {
@@ -1275,7 +1462,7 @@ function parseLifePlanState(value: unknown): LifePlanState {
 export function parseSchemaVersion6AppState(
   value: unknown,
 ): SchemaVersion6AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_6)
     throw new Error("unsupported schema version");
   if (
     typeof value.activeRoute !== "string" ||
@@ -1287,8 +1474,8 @@ export function parseSchemaVersion6AppState(
     schemaVersion: 7,
     lifePlan: defaultLifePlanState(),
   };
-  const parsed = parseAppState(currentLike);
-  const previous = structuredClone(parsed) as Partial<AppState>;
+  const parsed = parseSchemaVersion7AppState(currentLike);
+  const previous = structuredClone(parsed) as Partial<SchemaVersion7AppState>;
   Reflect.deleteProperty(previous, "lifePlan");
   return { ...previous, schemaVersion: 6 } as SchemaVersion6AppState;
 }
@@ -1350,7 +1537,10 @@ export function parseSchemaVersion4AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 7,
+    schemaVersion: 8,
+    payrollPlans: [],
+    takeHomeCompensationBindings: [],
+    budgetIncomePolicies: [],
     idecoPlans: [],
     backup: defaultBackupMetadata(),
     lifePlan: defaultLifePlanState(),
@@ -1390,7 +1580,10 @@ export function parseSchemaVersion3AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 7,
+    schemaVersion: 8,
+    payrollPlans: [],
+    takeHomeCompensationBindings: [],
+    budgetIncomePolicies: [],
     nisaPlans: [],
     investmentScenarios: [],
     idecoPlans: [],
@@ -1417,6 +1610,7 @@ export function parseSchemaVersion2AppState(
 export function cloneState<
   T extends
     | AppState
+    | SchemaVersion7AppState
     | SchemaVersion6AppState
     | SchemaVersion5AppState
     | SchemaVersion4AppState
@@ -1521,6 +1715,37 @@ export function reduceState(state: AppState, action: AppAction): AppState {
         "partner is missing",
       ).active = action.active;
       break;
+    case "add-payroll-plan":
+      next.payrollPlans.push(structuredClone(action.plan));
+      break;
+    case "update-payroll-plan":
+      next.payrollPlans[
+        next.payrollPlans.findIndex((plan) => plan.id === action.planId)
+      ] = structuredClone(action.plan);
+      break;
+    case "set-payroll-plan-active":
+      requirePresent(
+        next.payrollPlans.find((plan) => plan.id === action.planId),
+        "payroll plan is missing",
+      ).active = action.active;
+      break;
+    case "delete-payroll-plan":
+      next.payrollPlans = next.payrollPlans.filter(
+        (plan) => plan.id !== action.planId,
+      );
+      break;
+    case "set-take-home-compensation-binding":
+      next.takeHomeCompensationBindings =
+        next.takeHomeCompensationBindings.filter(
+          (binding) => binding.takeHomePlanId !== action.takeHomePlanId,
+        );
+      if (action.payrollPlanId !== null)
+        next.takeHomeCompensationBindings.push({
+          takeHomePlanId: action.takeHomePlanId,
+          payrollPlanId: action.payrollPlanId,
+          active: true,
+        });
+      break;
     case "update-take-home":
       {
         const plan = requirePresent(
@@ -1593,6 +1818,18 @@ export function reduceState(state: AppState, action: AppAction): AppState {
         "income target is missing",
       ).manualYen = action.amountYen;
       break;
+    case "set-budget-income-policy": {
+      const existing = next.budgetIncomePolicies.find(
+        (policy) => policy.targetId === action.targetId,
+      );
+      if (existing) existing.mode = action.mode;
+      else
+        next.budgetIncomePolicies.push({
+          targetId: action.targetId,
+          mode: action.mode,
+        });
+      break;
+    }
     case "add-link":
       next.links.push({ ...action.link });
       break;
@@ -1855,6 +2092,62 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       )
         throw new Error("set-partner-active requires an existing partner");
       return;
+    case "add-payroll-plan":
+      if (state.payrollPlans.some((plan) => plan.id === action.plan.id))
+        throw new Error("payroll plan ID is already in use");
+      validateAppState({
+        ...cloneState(state),
+        payrollPlans: [...state.payrollPlans, structuredClone(action.plan)],
+      });
+      return;
+    case "update-payroll-plan":
+      if (!state.payrollPlans.some((plan) => plan.id === action.planId))
+        throw new Error("payroll plan is missing");
+      if (action.plan.id !== action.planId)
+        throw new Error("payroll plan ID cannot change");
+      validateAppState({
+        ...cloneState(state),
+        payrollPlans: state.payrollPlans.map((plan) =>
+          plan.id === action.planId ? structuredClone(action.plan) : plan,
+        ),
+      });
+      return;
+    case "set-payroll-plan-active":
+      if (!state.payrollPlans.some((plan) => plan.id === action.planId))
+        throw new Error("payroll plan is missing");
+      validateAppState({
+        ...cloneState(state),
+        payrollPlans: state.payrollPlans.map((plan) =>
+          plan.id === action.planId ? { ...plan, active: action.active } : plan,
+        ),
+      });
+      return;
+    case "delete-payroll-plan":
+      if (!state.payrollPlans.some((plan) => plan.id === action.planId))
+        throw new Error("payroll plan is missing");
+      if (
+        state.takeHomeCompensationBindings.some(
+          (binding) => binding.payrollPlanId === action.planId,
+        )
+      )
+        throw new Error("bound payroll plan must be unbound before deletion");
+      return;
+    case "set-take-home-compensation-binding": {
+      const bindings = state.takeHomeCompensationBindings.filter(
+        (binding) => binding.takeHomePlanId !== action.takeHomePlanId,
+      );
+      if (action.payrollPlanId !== null)
+        bindings.push({
+          takeHomePlanId: action.takeHomePlanId,
+          payrollPlanId: action.payrollPlanId,
+          active: true,
+        });
+      validateAppState({
+        ...cloneState(state),
+        takeHomeCompensationBindings: bindings,
+      });
+      return;
+    }
     case "update-take-home":
       if (
         !state.takeHomePlans.some(
@@ -1904,6 +2197,12 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
         throw new Error(
           "linked take-home plan must be unlinked before deletion",
         );
+      if (
+        state.takeHomeCompensationBindings.some(
+          (binding) => binding.takeHomePlanId === action.planId,
+        )
+      )
+        throw new Error("payroll binding must be removed before deletion");
       return;
     case "set-take-home-plan-active":
       if (!state.takeHomePlans.some((plan) => plan.id === action.planId))
@@ -1975,6 +2274,15 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       if (hasActiveLink(state, action.targetId))
         throw new Error("linked income is read-only");
       assertSafeYen(action.amountYen, "amountYen");
+      return;
+    case "set-budget-income-policy":
+      if (!state.incomeTargets.some((target) => target.id === action.targetId))
+        throw new Error("budget income policy target is missing");
+      if (
+        opaque(action.mode) !== "auto-take-home" &&
+        opaque(action.mode) !== "legacy"
+      )
+        throw new Error("budget income policy mode is invalid");
       return;
     case "add-link": {
       if (state.links.some((l) => l.id === action.link.id))
@@ -2352,7 +2660,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },
@@ -2363,11 +2671,14 @@ export function createInitialState(): AppState {
         active: false,
       },
     ],
+    payrollPlans: [],
     takeHomePlans: [],
+    takeHomeCompensationBindings: [],
     incomeTargets: [
       { id: "budget-income-self", memberId: "member-self", manualYen: 0 },
       { id: "budget-income-partner", memberId: "member-partner", manualYen: 0 },
     ],
+    budgetIncomePolicies: [],
     links: [],
     budget: {
       mode: "detailed",

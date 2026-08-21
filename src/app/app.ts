@@ -12,6 +12,7 @@ import {
   type EntityIdFactory,
 } from "../modules/budget/budget-view";
 import { createTakeHomeRenderer } from "../modules/take-home/take-home-view";
+import { createPayrollRenderer } from "../modules/payroll/payroll-view";
 import { createInvestmentsRenderer } from "../modules/investments/investments-view";
 import { createOverviewRenderer } from "../modules/overview/overview-view";
 import { createLifePlanRenderer } from "../modules/life-plan/life-plan-view";
@@ -22,10 +23,10 @@ import {
 
 const routeLabels: Record<RouteId, string> = {
   overview: "総合サマリー",
-  budget: "家計・生活費",
+  payroll: "給与計算",
   "take-home": "手取り計算",
-  investments: "NISA・iDeCo",
-  "life-plan": "ライフプラン",
+  budget: "家計簿",
+  investments: "NISA + iDeCo",
   settings: "設定",
 };
 
@@ -120,6 +121,13 @@ export function startApp(
     requestRender: () => render(currentRoute),
     getReferenceDate,
   });
+  const payrollRenderer = createPayrollRenderer({
+    document,
+    store,
+    createId: options.createId ?? defaultIdFactory(browserWindow),
+    requestRender: () => render(currentRoute),
+    getReferenceDate,
+  });
   const investmentsRenderer = createInvestmentsRenderer({
     browserWindow,
     document,
@@ -174,14 +182,19 @@ export function startApp(
     main.append(element(document, "h2", routeLabels[route]));
     if (route === "overview") {
       overviewRenderer(main);
+      const lifePlan = element(document, "section");
+      lifePlan.className = "embedded-life-plan";
+      lifePlan.append(element(document, "h3", "将来資産シミュレーション"));
+      lifePlanRenderer(lifePlan);
+      main.append(lifePlan);
+    } else if (route === "payroll") {
+      payrollRenderer(main);
     } else if (route === "budget") {
       budgetRenderer(main);
     } else if (route === "take-home") {
       takeHomeRenderer(main);
     } else if (route === "investments") {
       investmentsRenderer(main);
-    } else if (route === "life-plan") {
-      lifePlanRenderer(main);
     } else settingsRenderer(main);
     shell.append(main);
     root.append(shell);

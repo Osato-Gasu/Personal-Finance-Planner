@@ -529,7 +529,7 @@ function automaticSocial(plan: CalculatedTakeHomePlan): SocialResult | string {
 }
 
 function emptyResult(
-  plan: TakeHomePlan,
+  plan: Readonly<TakeHomePlan>,
   status: TakeHomeResult["status"],
   message: string,
 ): TakeHomeResult {
@@ -578,6 +578,13 @@ function emptyResult(
     unsupportedConditions: status === "unsupported" ? [message] : [],
     assumptions: [],
   };
+}
+
+export function createUnavailableTakeHomeResult(
+  plan: Readonly<TakeHomePlan>,
+  message: string,
+): TakeHomeResult {
+  return emptyResult(plan, "incomplete", message);
 }
 
 function taxableAndTax(

@@ -48,8 +48,9 @@ app
 
 modules
 ├─ overview
-├─ budget
+├─ payroll
 ├─ take-home
+├─ budget
 ├─ investments
 ├─ life-plan
 └─ settings
@@ -57,6 +58,7 @@ modules
 domain
 ├─ money
 ├─ household
+├─ payroll
 ├─ budget
 ├─ income-tax
 ├─ resident-tax
@@ -77,14 +79,14 @@ ui
 
 ```text
 #/overview
-#/budget
+#/payroll
 #/take-home
+#/budget
 #/investments
-#/life-plan
 #/settings
 ```
 
-未知routeは`#/overview`へ置換する。route変更はブラウザ履歴へ反映し、描画前に必要なState selectorを実行する。
+未知routeと旧`#/life-plan`は`#/overview`へ置換する。ライフプランUIはOverview内へ合成する。route変更はブラウザ履歴へ反映し、描画前に必要なState selectorを実行する。
 
 ## 5. 状態管理
 
@@ -103,15 +105,16 @@ Reducerまたは同等の一方向更新を使う。UIからStateオブジェク
 
 ```text
 1. 対象人物・対象年月を解決
-2. 制度ルールを解決
-3. iDeCo掛金上限を検証
-4. iDeCo控除を含む税・社会保険を計算
-5. 法定控除後手取りを計算
-6. 生活費と個人別負担額を計算
-7. NISA・iDeCo拠出を差し引く
-8. 3段階の手残りを計算
-9. 将来資産を計算
-10. 警告・未対応項目を集約
+2. 給与計画から総支給を導出
+3. 制度ルールを解決
+4. iDeCo掛金上限を検証
+5. iDeCo控除を含む税・社会保険を計算
+6. 法定控除後手取りを計算
+7. 生活費と個人別負担額を計算
+8. NISA・iDeCoの現在拠出を観測
+9. 投資後残額を計算
+10. 将来資産を計算
+11. 警告・未対応項目を集約
 ```
 
 総合サマリーは他画面の表示済み文字列を参照せず、同じDomain selectorから再計算する。
@@ -181,7 +184,13 @@ resolve(domain, targetDate, context)
 
 `StorageRepository`だけがlocalStorageへアクセスする。
 
-current schemaはv7、current storage keyは`personal-finance-planner:state:v7`とする。v7が存在する場合はparse失敗をfail closedとし、旧keyへfallbackしない。v7がなくv6が存在する場合だけ決定的なv6→v7 migrationを実行し、v6 bytesを保持したままv7をatomic saveする。
+current schemaはv8、current storage keyは`personal-finance-planner:state:v8`とする。v8が存在する場合はparse失敗をfail closedとし、旧keyへfallbackしない。v8がなくv7以下が存在する場合だけ決定的なmigrationを実行し、legacy bytesを保持したままv8をatomic saveする。v7 route/state境界は凍結し、v7→v8では3つの空top-level配列と`life-plan`→`overview`写像だけを追加する。
+
+### 11.1 TASK-016 連携DAG
+
+`PayrollPlan`は`calculatePayroll()`でderived resultを作り、activeな`TakeHomeCompensationBinding`が同一人物・同一年を指す場合だけ一時的な月次`TakeHomePlan`へ適用する。persist済み手取り入力は書き換えない。既存iDeCo控除連携はこの一時planへ適用した後も同じcalculator pathを使う。
+
+`BudgetIncomePolicy`のauto modeは基準年の唯一のactive計算手取りを解決し、従来modeは既存`LinkDefinition`／manual authorityを完全に維持する。`selectInvestmentFundingContext()`は`BudgetSummary`とNISA/iDeCoの当月拠出観測だけを読み、将来投影calculatorを呼ばず、planを変更しない。この一方向DAGをOverviewが合成する。
 
 ```text
 load()

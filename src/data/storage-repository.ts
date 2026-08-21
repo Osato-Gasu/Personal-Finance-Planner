@@ -1,7 +1,8 @@
 import { migrateToCurrentState } from "../domain/migration";
 import { cloneState, validateAppState, type AppState } from "../domain/state";
 
-export const STORAGE_KEY = "personal-finance-planner:state:v7";
+export const STORAGE_KEY = "personal-finance-planner:state:v8";
+export const SCHEMA_VERSION_7_STORAGE_KEY = "personal-finance-planner:state:v7";
 export const SCHEMA_VERSION_6_STORAGE_KEY = "personal-finance-planner:state:v6";
 export const SCHEMA_VERSION_5_STORAGE_KEY = "personal-finance-planner:state:v5";
 export const SCHEMA_VERSION_4_STORAGE_KEY = "personal-finance-planner:state:v4";
@@ -65,6 +66,12 @@ export class StorageRepository {
   load(): AppState | null {
     const current = this.#storage.getItem(STORAGE_KEY);
     if (current !== null) return this.#parseAndValidate(current);
+    const version7 = this.#storage.getItem(SCHEMA_VERSION_7_STORAGE_KEY);
+    if (version7 !== null) {
+      const migrated = this.#parseAndValidate(version7);
+      this.save(migrated);
+      return cloneState(migrated);
+    }
     const version6 = this.#storage.getItem(SCHEMA_VERSION_6_STORAGE_KEY);
     if (version6 !== null) {
       const migrated = this.#parseAndValidate(version6);

@@ -92,6 +92,7 @@ function resultView(
 ): HTMLElement {
   const section = node(document, "section");
   section.className = `ideco-result status-${result.status}`;
+  section.dataset.area = "result";
   section.dataset.testid = "ideco-result";
   section.append(node(document, "h4", `iDeCo試算状態: ${result.status}`));
   section.append(node(document, "p", `税計算基準日: ${referenceDate}`));
@@ -298,6 +299,7 @@ export function createIdecoRenderer(
       card.append(node(document, "h4", `${member.displayName}のiDeCo計画`));
       const form = node(document, "div");
       form.className = "form-grid ideco-form";
+      form.dataset.area = "input";
       const category = node(document, "label", "加入区分");
       const categorySelect = node(document, "select");
       categorySelect.dataset.testid = "ideco-participant-category";

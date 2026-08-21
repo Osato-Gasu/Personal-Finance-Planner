@@ -132,7 +132,7 @@ describe("AppState v5 iDeCo migration and validation", () => {
     const before = JSON.stringify(previous);
     const migrated = migrateToCurrentState(previous);
     expect(JSON.stringify(previous)).toBe(before);
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.idecoPlans).toEqual([]);
     const plan = migrated.takeHomePlans.find(
       (item) => item.id === calculated.id,
@@ -155,13 +155,13 @@ describe("AppState v5 iDeCo migration and validation", () => {
     const storage = new MemoryStorage();
     storage.values.set(SCHEMA_VERSION_4_STORAGE_KEY, bytes);
     const loaded = new StorageRepository(storage).load();
-    expect(loaded?.schemaVersion).toBe(7);
+    expect(loaded?.schemaVersion).toBe(8);
     expect(loaded?.idecoPlans).toEqual([]);
     expect(storage.getItem(SCHEMA_VERSION_4_STORAGE_KEY)).toBe(bytes);
     const persisted = JSON.parse(
       storage.getItem(STORAGE_KEY) ?? "{}",
     ) as unknown as { schemaVersion: unknown };
-    expect(persisted.schemaVersion).toBe(7);
+    expect(persisted.schemaVersion).toBe(8);
   });
 
   it("keeps v1, v2, and v3 imports working through v5", () => {
@@ -180,7 +180,7 @@ describe("AppState v5 iDeCo migration and validation", () => {
     ];
     for (const candidate of candidates)
       expect(migrateToCurrentState(candidate)).toMatchObject({
-        schemaVersion: 7,
+        schemaVersion: 8,
         idecoPlans: [],
       });
   });

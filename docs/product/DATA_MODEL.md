@@ -17,23 +17,57 @@ type EntityId = string;
 
 ```ts
 interface AppState {
-  schemaVersion: number;
+  schemaVersion: 8;
   activeRoute: RouteId;
-  settings: AppSettings;
   members: HouseholdMember[];
-  incomePlans: IncomePlan[];
-  budget: BudgetState;
-  investmentPlans: InvestmentPlan[];
-  scenarios: InvestmentScenario[];
+  payrollPlans: PayrollPlan[];
+  takeHomePlans: TakeHomePlan[];
+  takeHomeCompensationBindings: TakeHomeCompensationBinding[];
+  incomeTargets: IncomeTarget[];
+  budgetIncomePolicies: BudgetIncomePolicy[];
   links: LinkDefinition[];
+  budget: BudgetState;
+  contributionSources: ContributionSource[];
+  nisaPlans: NisaPlan[];
+  investmentScenarios: InvestmentScenario[];
+  idecoPlans: IdecoPlan[];
   backup: BackupMetadata;
   lifePlan: LifePlanState;
-  createdAt: string;
-  updatedAt: string;
 }
 ```
 
-current正本はschemaVersion 7とする。schema v6は旧shapeをそのまま保持し、v6→v7では決定的な空ライフプランだけを追加する。既存v1～v6 migrationの意味を変更しない。
+current正本はschemaVersion 8とする。schema v7はrouteを含む旧shapeをそのまま凍結し、v7→v8では3つの空top-level配列と`life-plan`→`overview` route写像だけを追加する。既存v1～v7 migrationの意味を変更しない。
+
+### 2.1 TASK-016追加shape
+
+```ts
+interface PayrollPlan {
+  id: string;
+  memberId: string;
+  targetYear: number;
+  active: boolean;
+  baseMonthlyYen: Yen;
+  taxableAllowanceMonthlyYen: Yen;
+  averageMonthlyOvertimeMinutes: number;
+  scheduledMonthlyMinutes: number;
+  overtimeRateBasisPoints: number;
+  monthlyNonTaxableCommutingYen: Yen;
+  bonuses: BonusPayment[];
+}
+
+interface TakeHomeCompensationBinding {
+  takeHomePlanId: string;
+  payrollPlanId: string;
+  active: boolean;
+}
+
+interface BudgetIncomePolicy {
+  targetId: string;
+  mode: 'auto-take-home' | 'legacy';
+}
+```
+
+同一人物・対象年のactive`PayrollPlan`は最大1件、計算手取りのactive bindingは最大1件、policyの`targetId`は配列内で一意とする。bindingは同一人物・対象年の既存recordだけを参照し、policyは既存`IncomeTarget`だけを参照する。派生給与集計と`InvestmentFundingContext`は永続化しない。
 
 ## 3. ライフプラン
 
@@ -288,4 +322,4 @@ interface BackupMetadata {
 - ライフプランの基準日はnullまたは実在するISO日付、開始年はnullまたは1..9999、投影終了年は9999以下とする。
 - ライフイベントIDは一意かつ更新で不変とし、存在しない更新・有効切替・削除を拒否する。
 - ライフプラン設定の4項目は一括検証し、不正時にState publishまたはstorage writeを行わない。
-- 年次投資観測点、拠出整合性、金融資産合計をAppStateへ追加せず、schemaVersion 7を維持する。
+- 年次投資観測点、拠出整合性、金融資産合計をAppStateへ追加せず、TASK-016のschemaVersion 8でもruntime derivedのまま維持する。

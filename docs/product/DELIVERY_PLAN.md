@@ -107,6 +107,14 @@
 - 固定キャッシュフローと実投資拠出の月次整合性検出、最初の不一致以降の合計非表示
 - 失敗したactive投資、負の現預金、安全整数範囲外を0円または通常合計にしない
 - schema v7、既存migration・calculator public結果、6 route、standalone `file://`を維持
+
+## TASK-016 給与から投資までの連携ワークフロー
+
+- top-levelを総合サマリ、給与計算、手取り計算、家計簿、NISA + iDeCo、設定の6 routeへ再編
+- schema v8でPayrollPlan、TakeHomeCompensationBinding、BudgetIncomePolicyをtop-level追加
+- 給与→手取り→家計→投資資金の一方向DAGとfail-closed authority
+- TASK-014/TASK-015を総合サマリ内「将来資産シミュレーション」に保持
+- responsiveな共有dashboard UI、standalone `file://`、runtime network 0を維持
 - 負債・純資産、dynamic cashflow再計算、chart、TASK-013/shared、Release、Distribution、Pagesは対象外
 
 ## 実装順序の制約

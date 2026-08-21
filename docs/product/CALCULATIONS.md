@@ -1,5 +1,24 @@
 # 計算仕様 v0.2
 
+## 0. 給与計算と資金連携
+
+給与の残業代は円・整数分・basis pointsを使い、次の有理数をBigIntでround-half-upする。
+
+```text
+overtimeMonthlyYen = round-half-up(
+  baseMonthlyYen * averageMonthlyOvertimeMinutes * overtimeRateBasisPoints
+  / scheduledMonthlyMinutes / 10000
+)
+monthlyTaxableSalaryYen = baseMonthlyYen + taxableAllowanceMonthlyYen + overtimeMonthlyYen
+monthlyGrossYen = monthlyTaxableSalaryYen + monthlyNonTaxableCommutingYen
+annualTaxableSalaryYen = monthlyTaxableSalaryYen * 12 + sum(bonuses)
+annualGrossYen = annualTaxableSalaryYen + monthlyNonTaxableCommutingYen * 12
+```
+
+給与連携時は既存手取りplanをcloneし、月次課税給与、月次非課税通勤、年次集計、給与賞与だけを一時的に適用する。`annualOtherTaxableSalaryYen`は0、雇用保険賃金overrideはnullとし、賞与を月次給与へ混ぜない。直接modeの入力・結果は変更しない。
+
+家計auto policyは基準日の年と人物が一致する唯一のactive計算手取りだけを採用する。投資資金contextは人物別の家計残額から、同月のNISA拠出とiDeCo掛金（口座管理費を除く）を減算する。未確定値は0へ変換せず、超過時もplanを減額しない。
+
 ## 1. 共通
 
 - 入力金額は円単位整数

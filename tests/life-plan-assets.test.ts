@@ -397,7 +397,7 @@ describe("life plan financial-assets selector", () => {
       expect(row.totalFinancialAssetsYen).toBe(row.closingLiquidAssetsYen);
       expect(row.totalStatus).toBe("complete");
     }
-    expect(SCHEMA_VERSION).toBe(7);
+    expect(SCHEMA_VERSION).toBe(8);
     expect(routeIds).toHaveLength(6);
   });
 
@@ -739,6 +739,6 @@ describe("life plan financial-assets selector", () => {
     expect(row.totalStatus).toBe("out-of-range");
     expect(row.totalFinancialAssetsYen).toBeNull();
     expect(row.totalReasons).toContain("arithmetic-out-of-range");
-    expect(state.schemaVersion).toBe(7);
+    expect(state.schemaVersion).toBe(8);
   });
 });

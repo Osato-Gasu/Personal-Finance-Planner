@@ -2,10 +2,10 @@ import type { RouteId } from "../domain/state";
 
 export const routeIds = [
   "overview",
-  "budget",
+  "payroll",
   "take-home",
+  "budget",
   "investments",
-  "life-plan",
   "settings",
 ] as const satisfies readonly RouteId[];
 
@@ -15,6 +15,7 @@ export function hashForRoute(route: RouteId): string {
 
 export function routeFromHash(hash: string): RouteId {
   const value = hash.startsWith("#/") ? hash.slice(2) : "";
+  if (value === "life-plan") return "overview";
   return routeIds.includes(value as RouteId) ? (value as RouteId) : "overview";
 }
 

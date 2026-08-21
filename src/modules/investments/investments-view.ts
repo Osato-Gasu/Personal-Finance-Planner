@@ -6,6 +6,7 @@ import {
   type NisaProjectionResult,
   type ScenarioKind,
 } from "../../domain/nisa";
+import { selectInvestmentFundingContext } from "../../domain/investment-funding";
 import { nisaRuleSources } from "../../rules/jp/nisa/rules-2024";
 import { createIdecoRenderer } from "./ideco-view";
 
@@ -81,6 +82,7 @@ function resultView(
 ): HTMLElement {
   const section = node(document, "section");
   section.className = `nisa-result status-${result.status}`;
+  section.dataset.area = "result";
   section.dataset.testid = "nisa-result";
   section.append(node(document, "h4", `試算状態: ${result.status}`));
   if (result.assumptions) {
@@ -286,6 +288,71 @@ export function createInvestmentsRenderer(
       alert.className = "form-error";
       main.append(alert);
     }
+    const fundingSection = node(document, "section");
+    fundingSection.className = "dashboard-card funding-context";
+    fundingSection.dataset.area = "result";
+    fundingSection.append(node(document, "h3", "家計簿から自動連携"));
+    try {
+      const funding = selectInvestmentFundingContext(
+        state,
+        options.getReferenceDate(),
+      );
+      const grid = node(document, "div");
+      grid.className = "summary-grid";
+      [
+        ["投資可能額", funding.household.availableYen],
+        ["NISA月額", funding.household.nisaContributionYen],
+        ["iDeCo月額", funding.household.idecoContributionYen],
+        ["投資後残額", funding.household.remainingAfterInvestmentYen],
+      ].forEach(([label, value]) => {
+        const card = node(document, "article");
+        card.className = "summary-card";
+        card.append(
+          node(document, "h4", String(label)),
+          node(
+            document,
+            "strong",
+            typeof value === "number"
+              ? `${value.toLocaleString("ja-JP")}円`
+              : "未計算",
+          ),
+        );
+        grid.append(card);
+      });
+      fundingSection.append(grid);
+      if (funding.household.oversubscribed) {
+        const warning = node(
+          document,
+          "p",
+          `投資額が投資可能額を${(
+            funding.household.shortfallYen ?? 0
+          ).toLocaleString(
+            "ja-JP",
+          )}円超過しています。設定額は自動変更しません。`,
+        );
+        warning.className = "warning-message";
+        warning.setAttribute("role", "status");
+        fundingSection.append(warning);
+      } else if (funding.status !== "available") {
+        const warning = node(
+          document,
+          "p",
+          "家計または現在の拠出額を確定できないため、投資後残額は未計算です。",
+        );
+        warning.className = "warning-message";
+        warning.setAttribute("role", "status");
+        fundingSection.append(warning);
+      }
+    } catch (error) {
+      const warning = node(
+        document,
+        "p",
+        `家計連携を表示できません。${error instanceof Error ? ` ${error.message}` : ""}`,
+      );
+      warning.setAttribute("role", "alert");
+      fundingSection.append(warning);
+    }
+    main.append(fundingSection);
     main.append(
       node(
         document,
@@ -303,6 +370,7 @@ export function createInvestmentsRenderer(
         null;
     }
     const memberLabel = node(document, "label", "NISA計画の対象人物");
+    memberLabel.dataset.area = "input";
     const memberSelect = node(document, "select");
     memberSelect.dataset.testid = "nisa-member-select";
     for (const member of state.members) {
@@ -383,6 +451,7 @@ export function createInvestmentsRenderer(
         card.append(planActions);
         const form = node(document, "div");
         form.className = "form-grid nisa-form";
+        form.dataset.area = "input";
         const resident = node(document, "label");
         resident.className = "nisa-checkbox";
         const residentInput = node(document, "input");
