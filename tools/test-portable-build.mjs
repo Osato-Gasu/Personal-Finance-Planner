@@ -1443,13 +1443,41 @@ try {
   const housingCard = page
     .locator(".life-plan-event")
     .filter({ hasText: "住宅購入" });
+  const housingEventId = await housingCard.getAttribute("data-event-id");
+  assert.ok(housingEventId);
+  const housingEventBeforeEdit = await page.evaluate(
+    ({ key, eventId }) => {
+      const bytes = globalThis.localStorage.getItem(key);
+      if (!bytes) return null;
+      return (
+        JSON.parse(bytes).lifePlan.events.find((item) => item.id === eventId) ??
+        null
+      );
+    },
+    { key: storageKey, eventId: housingEventId },
+  );
+  assert.ok(housingEventBeforeEdit);
   await housingCard.getByRole("button", { name: "編集", exact: true }).click();
   const housingEdit = page
     .locator(".life-plan-event")
     .filter({ hasText: "住宅購入" });
   await housingEdit.getByLabel("イベント名").fill("住宅購入（更新）");
   await housingEdit.getByRole("button", { name: "変更を保存" }).click();
-  await page.getByText("住宅購入（更新）", { exact: true }).waitFor();
+  const updatedHousingCard = page
+    .locator(".life-plan-event")
+    .filter({ hasText: "住宅購入（更新）" });
+  await updatedHousingCard
+    .getByText("住宅購入（更新）", { exact: true })
+    .waitFor();
+  await updatedHousingCard
+    .getByRole("button", { name: "編集", exact: true })
+    .waitFor();
+  assert.equal(
+    await updatedHousingCard
+      .getByRole("button", { name: "変更を保存" })
+      .count(),
+    0,
+  );
   const incomeCard = page
     .locator(".life-plan-event")
     .filter({ hasText: "副収入" });
@@ -1469,6 +1497,21 @@ try {
       storageKey,
     ),
     lifePlanBytesBeforeReload,
+  );
+  assert.deepEqual(
+    await page.evaluate(
+      ({ key, eventId }) => {
+        const bytes = globalThis.localStorage.getItem(key);
+        if (!bytes) return null;
+        return (
+          JSON.parse(bytes).lifePlan.events.find(
+            (item) => item.id === eventId,
+          ) ?? null
+        );
+      },
+      { key: storageKey, eventId: housingEventId },
+    ),
+    { ...housingEventBeforeEdit, name: "住宅購入（更新）" },
   );
   await page.setViewportSize({ width: 360, height: 800 });
   assert.equal(

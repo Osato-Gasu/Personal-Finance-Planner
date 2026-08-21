@@ -297,6 +297,7 @@ export function createLifePlanRenderer(
               event: editFields.read(),
             });
             editingEventId = null;
+            options.requestRender();
           } catch (error) {
             setStatus(
               status,
