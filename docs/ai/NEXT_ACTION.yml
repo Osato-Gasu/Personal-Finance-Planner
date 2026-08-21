@@ -7,7 +7,7 @@ next_actor: Codex
 next_role: IMPLEMENTER
 model: 5.6 Sol
 effort: high
-session_mode: existing_or_new
+session_mode: new
 handoff_file: docs/ai/handoffs/TASK-016/CODEX_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
@@ -26,7 +26,7 @@ request_review_status: none
 review_model: none
 review_effort: none
 reviewed_candidate: none
-reviewed_spec_revision: 4
+reviewed_spec_revision: none
 review_request_id: none
 review_started_at: none
 review_completed_at: none

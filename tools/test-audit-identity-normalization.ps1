@@ -151,7 +151,7 @@ try {
     Assert-Fail 'invalid declared_by_commit' $case 'declared_by_commit is invalid'
     $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
     $case.identities[0].historical_mismatch.declared_by_commit = ('f' * 40)
-    Assert-Fail 'nonexistent declared_by_commit' $case 'git rev-parse.*failed'
+    Assert-Fail 'nonexistent declared_by_commit' $case '(?s)git rev-parse.*failed'
     $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
     $case.identities[0].historical_mismatch.declared_by_path = 'C:/absolute.md'
     Assert-Fail 'invalid absolute declared_by_path' $case 'declared_by_path is invalid'
@@ -160,7 +160,7 @@ try {
     Assert-Fail 'declared_by_path traversal' $case 'declared_by_path is invalid'
     $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
     $case.identities[0].historical_mismatch.declared_by_path = 'missing.md'
-    Assert-Fail 'nonexistent declared_by_path' $case 'git rev-parse.*failed'
+    Assert-Fail 'nonexistent declared_by_path' $case '(?s)git rev-parse.*failed'
     $case = New-Registry $commit $blob $committedSha $committedBytes.LongLength 'relay-handoff.md' $historyBlob
     $case.identities[0].historical_mismatch.declared_by_git_blob = $blob
     Assert-Fail 'declared_by_git_blob mismatch' $case 'historical Git blob mismatch'
