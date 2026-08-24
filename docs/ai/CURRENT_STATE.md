@@ -2,7 +2,7 @@
 updated_at: 2026-08-21
 active_tasks:
   - TASK-016
-next_action: Codex implements TASK-016 from the canonical activation branch
+next_action: Codex processes APPROVED relay for TASK-016
 ---
 
 # Current state

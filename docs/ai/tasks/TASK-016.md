@@ -1,19 +1,19 @@
 ---
 task_id: TASK-016
 title: 給与→手取り→家計→NISA+iDeCo自動連携・6タブUI再設計
-status: ready
+status: approved
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 4
 spec_status: accepted
-current_phase: implementation
+current_phase: release
 current_role_id: IMPLEMENTER
 next_actor: Codex
 next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-016/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-016/RELEASE_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -31,6 +31,9 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements
 accepted_product_sha256: D6BF0CC2C99D65EC46DC5154F079D7C3CBD1A36661E9E4A7AC668B7EF5BB1173
 shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 implementation_candidate: 6f9bbb97bf7a3075576dea1ceff0e4114bf58277
+reviewed_candidate: 6f9bbb97bf7a3075576dea1ceff0e4114bf58277
+changes_requested_cycles: 0
+review_stage: implementation
 updated_at: 2026-08-21
 ---
 
