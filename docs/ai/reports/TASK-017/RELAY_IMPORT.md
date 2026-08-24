@@ -1,21 +1,28 @@
 # RELAY IMPORT — TASK-017
 
-- source bundle: TASK-017_REQUIREMENTS_DEFINED_RELAY_BUNDLE.json
-- source SHA-256: BC52D6AEFFE46329F0C30249180D81304000DBE5D40393AE5C3014205D6929D5
-- source bytes: 6529
+- source bundle: TASK-017_APPROVED_RELAY_BUNDLE.json
+- source SHA-256: B5F14EFAF191F411423D4A879DA5556F0D108E0AE9F40057DAEC71E44AFE5019
+- source bytes: 3576
 - identity verified: true
 - canonical bundle: docs/ai/reports/TASK-017/RELAY_BUNDLE.json
-- canonical SHA-256: BC52D6AEFFE46329F0C30249180D81304000DBE5D40393AE5C3014205D6929D5
-- canonical bytes: 6529
+- canonical SHA-256: B5F14EFAF191F411423D4A879DA5556F0D108E0AE9F40057DAEC71E44AFE5019
+- canonical bytes: 3576
 - semantic round-trip: verified
-- decision: REQUIREMENTS_DEFINED
+- decision: APPROVED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
-- candidate: none
-- handoff HEAD: none
-- routing_mode: legacy_unspecified
+- candidate: cf1d6c10a6c223990c6dccf72dd3fcc0e6e6adef
+- handoff HEAD: 0f213e0d88585c772a342acdb743372ab2d28066
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-017-payroll-ui-simplification
+- resolved_commit: 0f213e0d88585c772a342acdb743372ab2d28066
+- next_action_blob: b8ee78c232dcf3abead4373f19ea68e38908cf4b
+- handoff_blob: 6ad754601fd930de0bce5a37de311f69557c677c
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
+- implementation_candidate: cf1d6c10a6c223990c6dccf72dd3fcc0e6e6adef
 - imported findings: 0
 - accepted findings: 0
 - finding dispositions: 0

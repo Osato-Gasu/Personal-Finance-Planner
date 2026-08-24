@@ -1,19 +1,19 @@
 ---
 task_id: TASK-017
 title: 給与計算タブUI簡略化・通勤燃料試算
-status: ready
+status: approved
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 2
 spec_status: accepted
-current_phase: implementation
+current_phase: release
 current_role_id: IMPLEMENTER
 next_actor: Codex
 next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-017/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-017/RELEASE_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -31,6 +31,10 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements
 accepted_product_sha256: 365BD21FA3675199258E0861A16F1D733682959E250232B402DBC7B06FC73409
 implementation_candidate: cf1d6c10a6c223990c6dccf72dd3fcc0e6e6adef
 
+reviewed_candidate: cf1d6c10a6c223990c6dccf72dd3fcc0e6e6adef
+shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+changes_requested_cycles: 0
+review_stage: implementation
 updated_at: 2026-08-24
 ---
 
