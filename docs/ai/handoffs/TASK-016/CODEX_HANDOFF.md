@@ -14,6 +14,7 @@
 - branch: codex/task-016-linked-finance-workflow
 - baseline_commit: 2c99809634e613963574fea63383889da8ece025
 - candidate_commit: none
+- implementation_candidate: 6f9bbb97bf7a3075576dea1ceff0e4114bf58277
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - canonical_candidate_field: TASK-016 implementation_candidate after commit
 - product_identity: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*

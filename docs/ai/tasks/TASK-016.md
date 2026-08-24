@@ -30,6 +30,7 @@ base_tree: cf199677778a9bc612c26d6a6b866a9685f04f54
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: D6BF0CC2C99D65EC46DC5154F079D7C3CBD1A36661E9E4A7AC668B7EF5BB1173
 shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+implementation_candidate: 6f9bbb97bf7a3075576dea1ceff0e4114bf58277
 updated_at: 2026-08-21
 ---
 
