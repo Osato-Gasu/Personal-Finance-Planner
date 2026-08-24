@@ -1,14 +1,13 @@
 ---
-updated_at: 2026-08-21
-active_tasks:
-  - TASK-016
-next_action: Codex processes APPROVED relay for TASK-016
+updated_at: 2026-08-24
+active_tasks: []
+next_action: ChatGPT selects the next TASK from BACKLOG; TASK-009 remains queued and unstarted
 ---
 
 # Current state
 
-TASK-016 spec revision 4「給与→手取り→家計→NISA+iDeCo自動連携・6タブUI再設計」をexact parent baseline `2c99809634e613963574fea63383889da8ece025`（tree `cf199677778a9bc612c26d6a6b866a9685f04f54`）からcanonical implementation routeとしてactive化する。専用branchは `codex/task-016-linked-finance-workflow`、actor/roleは `Codex | IMPLEMENTER`。shared governanceはmain baseline lockのversion `0.12.20` / commit `10cd1466b10f814f1bd2aab2c5f6ba6465c5899e`を維持する。
+TASK-016 Revision 4 completed. Approved product candidate is `6f9bbb97bf7a3075576dea1ceff0e4114bf58277`, with product tree `043d7b44c636863d6e13f3811017cb7f20f0b83a`. The exact candidate received high-risk VERIFY PASS and candidate Governance CI success in run `32680364388`, run #152, attempt 1.
 
-TASK-013は `codex/task-013-public-audit-stable-id` の別branch/worktreeに残る独立recovery lineageであり、TASK-016はそのworktree、lock v1.0.1、shared checkout、state、handoff、branchを再利用・変更・完了しない。TASK-016のsource-present shared checkはambient shared rootではなく、0.12.20 lock commitのclean disposable source rootを明示指定する。
+Independent Implementation Review Attempt 1 returned `CHANGES_REQUIRED` with finding `T16-IIR-A1-01`. The finding was accepted and corrected. Independent Implementation Review Attempt 2 returned `PASS`, marked `T16-IIR-A1-01` resolved, and reported 0 actionable findings.
 
-Main integration、tag、Release、Distribution、Pages、deployment、TASK-009開始は未承認。TASK-016はcandidate + separate high-risk VERIFY + candidate CI evidenceをChatGPTへ返してimplementation reviewを受ける。
+The completed TASK packet uses the project adapter's `git_only` policy and is removed from the current tree. No tag, GitHub Release, Distribution, Pages, deployment, TASK-009 start, or TASK-013/shared-recovery action occurred. TASK-009 remains queued and unstarted; TASK-013/shared recovery remains untouched.
