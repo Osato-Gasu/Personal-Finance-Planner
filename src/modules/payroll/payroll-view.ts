@@ -45,26 +45,11 @@ function input(
   return result;
 }
 
-function help(
+function bindHelpInteractions(
   document: Document,
-  id: string,
-  label: string,
-  description: string,
-): HTMLSpanElement {
-  const wrapper = node(document, "span");
-  wrapper.className = "payroll-help";
-  const trigger = node(document, "button", "?");
-  trigger.type = "button";
-  trigger.className = "payroll-help-trigger";
-  trigger.setAttribute("aria-label", `${label}の説明`);
-  trigger.setAttribute("aria-expanded", "false");
-  trigger.setAttribute("aria-controls", id);
-  trigger.setAttribute("aria-describedby", id);
-  const panel = node(document, "span", description);
-  panel.id = id;
-  panel.className = "payroll-help-panel";
-  panel.setAttribute("role", "tooltip");
-  panel.hidden = true;
+  trigger: HTMLButtonElement,
+  panel: HTMLElement,
+): void {
   const setOpen = (open: boolean) => {
     panel.hidden = !open;
     trigger.setAttribute("aria-expanded", String(open));
@@ -96,6 +81,66 @@ function help(
     event.preventDefault();
     setOpen(false);
   });
+}
+
+function help(
+  document: Document,
+  id: string,
+  label: string,
+  description: string,
+): HTMLSpanElement {
+  const wrapper = node(document, "span");
+  wrapper.className = "payroll-help";
+  const trigger = node(document, "button", "?");
+  trigger.type = "button";
+  trigger.className = "payroll-help-trigger";
+  trigger.setAttribute("aria-label", `${label}の説明`);
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-controls", id);
+  trigger.setAttribute("aria-describedby", id);
+  const panel = node(document, "span", description);
+  panel.id = id;
+  panel.className = "payroll-help-panel";
+  panel.setAttribute("role", "tooltip");
+  panel.hidden = true;
+  bindHelpInteractions(document, trigger, panel);
+  wrapper.append(trigger, panel);
+  return wrapper;
+}
+
+function resultHelp(options: {
+  document: Document;
+  id: string;
+  label: string;
+  description: string;
+  breakdown: readonly [string, string][];
+}): HTMLDivElement {
+  const wrapper = node(options.document, "div");
+  wrapper.className = "payroll-help payroll-result-help";
+  const trigger = node(options.document, "button", options.label);
+  trigger.type = "button";
+  trigger.className = "payroll-help-trigger payroll-result-label-trigger";
+  trigger.setAttribute("aria-label", `${options.label}の詳細`);
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-controls", options.id);
+  trigger.setAttribute("aria-describedby", options.id);
+  const panel = node(options.document, "div");
+  panel.id = options.id;
+  panel.className = "payroll-help-panel payroll-result-help-panel";
+  panel.setAttribute("role", "tooltip");
+  panel.hidden = true;
+  const description = node(options.document, "p", options.description);
+  description.className = "payroll-result-description";
+  const breakdown = node(options.document, "dl");
+  breakdown.className = "payroll-result-breakdown";
+  for (const [label, value] of options.breakdown) {
+    breakdown.append(
+      node(options.document, "dt", label),
+      node(options.document, "dd", value),
+    );
+  }
+  panel.append(description, breakdown);
+  bindHelpInteractions(options.document, trigger, panel);
   wrapper.append(trigger, panel);
   return wrapper;
 }
@@ -192,26 +237,17 @@ function resultCard(options: {
   const heading = node(options.document, "div");
   heading.className = "payroll-result-heading";
   heading.append(
-    node(options.document, "span", options.label),
-    help(
-      options.document,
-      `payroll-result-${options.id}-help`,
-      options.label,
-      options.description,
-    ),
+    resultHelp({
+      document: options.document,
+      id: `payroll-result-${options.id}-help`,
+      label: options.label,
+      description: options.description,
+      breakdown: options.breakdown,
+    }),
   );
-  const breakdown = node(options.document, "dl");
-  breakdown.className = "payroll-result-breakdown";
-  for (const [label, value] of options.breakdown) {
-    breakdown.append(
-      node(options.document, "dt", label),
-      node(options.document, "dd", value),
-    );
-  }
   card.append(
     heading,
     node(options.document, "strong", displayYen(options.value)),
-    breakdown,
   );
   return card;
 }

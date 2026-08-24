@@ -384,6 +384,7 @@ main > section > h3 {
   max-width: 32rem;
   overflow: auto;
   padding: 0.85rem 1rem;
+  pointer-events: none;
   position: fixed;
   transform: translateY(-50%);
   z-index: 20;
@@ -400,6 +401,33 @@ main > section > h3 {
 
 .payroll-result-heading {
   font-weight: 700;
+  justify-content: flex-start;
+}
+
+.payroll-result-help {
+  display: flex;
+}
+
+.payroll-result-label-trigger {
+  background: transparent;
+  border: 0;
+  border-radius: 0.3rem;
+  color: #15345f;
+  font-size: inherit;
+  font-weight: 750;
+  inline-size: auto;
+  min-height: 2rem;
+  padding: 0.1rem 0.25rem;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2rem;
+}
+
+.payroll-result-label-trigger:hover:not(:disabled) {
+  background: #e7efff;
+}
+
+.payroll-result-description {
+  margin: 0;
 }
 
 .payroll-result-breakdown {
@@ -408,6 +436,11 @@ main > section > h3 {
   gap: 0.2rem 0.5rem;
   grid-template-columns: minmax(0, 1fr) auto;
   margin: 0.75rem 0 0;
+}
+
+.payroll-result-help-panel .payroll-result-breakdown dt,
+.payroll-result-help-panel .payroll-result-breakdown dd {
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .payroll-result-breakdown dt,

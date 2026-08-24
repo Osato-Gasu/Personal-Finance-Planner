@@ -376,10 +376,36 @@ try {
   ]);
   assert.equal(await page.getByTestId("payroll-primary-result").count(), 3);
   assert.deepEqual(
-    await page
-      .locator(".payroll-result-heading > span:first-child")
-      .allTextContents(),
+    await page.locator(".payroll-result-label-trigger").allTextContents(),
     ["月収", "実質月収", "年収"],
+  );
+  assert.equal(
+    await page
+      .locator(".payroll-primary-result > .payroll-result-breakdown")
+      .count(),
+    0,
+  );
+  assert.equal(
+    await page.locator(".payroll-result-help-panel:visible").count(),
+    0,
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='monthly-income'] > strong")
+      .textContent(),
+    "370,000円",
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='practical-monthly-income'] > strong")
+      .textContent(),
+    "362,800円",
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='practical-annual-income'] > strong")
+      .textContent(),
+    "4,753,600円",
   );
   await assertContains(
     page.locator("[data-result-kind='practical-monthly-income']"),
@@ -389,21 +415,140 @@ try {
     page.getByTestId("payroll-practical-note"),
     "税・社会保険の計算には使いません",
   );
+  assert.equal(
+    await page.getByTestId("payroll-practical-note").isVisible(),
+    true,
+  );
   const monthlyHelp = page.getByRole("button", {
-    name: "月収の説明",
+    name: "月収の詳細",
     exact: true,
   });
+  const monthlyHelpPanel = page.locator("#payroll-result-monthly-income-help");
+  const practicalHelp = page.getByRole("button", {
+    name: "実質月収の詳細",
+    exact: true,
+  });
+  const practicalHelpPanel = page.locator(
+    "#payroll-result-practical-monthly-income-help",
+  );
+  const annualHelp = page.getByRole("button", {
+    name: "年収の詳細",
+    exact: true,
+  });
+  const annualHelpPanel = page.locator(
+    "#payroll-result-practical-annual-income-help",
+  );
+  for (const { trigger, panel, labels } of [
+    {
+      trigger: monthlyHelp,
+      panel: monthlyHelpPanel,
+      labels: ["税、社会保険控除前", "基本給", "手当", "残業代", "通勤手当"],
+    },
+    {
+      trigger: practicalHelp,
+      panel: practicalHelpPanel,
+      labels: [
+        "月収",
+        "通勤手当",
+        "推定ガソリン代",
+        "通勤収支",
+        "実質月収",
+        "税引後手取りではなく",
+      ],
+    },
+    {
+      trigger: annualHelp,
+      panel: annualHelpPanel,
+      labels: [
+        "実質月収 × 12",
+        "賞与（年）",
+        "年収",
+        "税務上の年収・年間総支給ではありません",
+      ],
+    },
+  ]) {
+    assert.equal(await panel.isVisible(), false);
+    await trigger.hover();
+    assert.equal(await panel.isVisible(), true);
+    for (const label of labels) await assertContains(panel, label);
+    await page.mouse.move(0, 0);
+    assert.equal(await panel.isVisible(), false);
+  }
   await monthlyHelp.focus();
   assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "true");
   await monthlyHelp.press("Escape");
   assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "false");
   await monthlyHelp.press("Enter");
   assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "true");
-  const helpBox = await page
-    .locator("#payroll-result-monthly-income-help")
-    .boundingBox();
+  await monthlyHelp.press("Enter");
+  assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "false");
+  await monthlyHelp.press("Space");
+  assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "true");
+  await monthlyHelp.press("Space");
+  assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "false");
+  await monthlyHelp.dispatchEvent("click");
+  assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "true");
+  await monthlyHelp.dispatchEvent("click");
+  assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "false");
+  await monthlyHelp.dispatchEvent("click");
+  assert.equal(await monthlyHelp.getAttribute("aria-expanded"), "true");
+  const helpBox = await monthlyHelpPanel.boundingBox();
   assert.ok(helpBox);
   assert.ok(helpBox.x >= 0 && helpBox.x + helpBox.width <= 1280);
+  await monthlyHelp.press("Escape");
+
+  const touchState = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
+  );
+  assert.ok(touchState);
+  const touchContext = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 375, height: 900 },
+  });
+  try {
+    await touchContext.addInitScript(() => {
+      const NativeDate = Date;
+      const fixedNow = "2026-08-13T03:00:00.000Z";
+      class FixedDate extends NativeDate {
+        constructor(...args) {
+          super(...(args.length === 0 ? [fixedNow] : args));
+        }
+        static now() {
+          return new NativeDate(fixedNow).getTime();
+        }
+      }
+      globalThis.Date = FixedDate;
+    });
+    const touchPage = await touchContext.newPage();
+    touchPage.setDefaultNavigationTimeout(90_000);
+    observeRuntimePage(touchPage);
+    await touchPage.goto(`${standaloneUrl}#/payroll`, { waitUntil: "load" });
+    await touchPage.evaluate(
+      ({ key, value }) => globalThis.localStorage.setItem(key, value),
+      { key: storageKey, value: touchState },
+    );
+    await touchPage.reload({ waitUntil: "load" });
+    const touchMonthlyHelp = touchPage.getByRole("button", {
+      name: "月収の詳細",
+      exact: true,
+    });
+    await touchMonthlyHelp.tap();
+    assert.equal(await touchMonthlyHelp.getAttribute("aria-expanded"), "true");
+    await touchMonthlyHelp.tap();
+    assert.equal(await touchMonthlyHelp.getAttribute("aria-expanded"), "false");
+    assert.equal(
+      await touchPage.evaluate(
+        () =>
+          globalThis.document.documentElement.scrollWidth <=
+          globalThis.document.documentElement.clientWidth,
+      ),
+      true,
+    );
+  } finally {
+    await touchContext.close();
+  }
 
   await page.evaluate(
     ({ key, bonuses }) => {
@@ -437,6 +582,18 @@ try {
     assert.ok(resultBefore);
     await page.getByText("詳細", { exact: true }).click();
     await page.getByText("賞与明細（既存データ）", { exact: true }).click();
+    const mobileMonthlyHelp = page.getByRole("button", {
+      name: "月収の詳細",
+      exact: true,
+    });
+    await mobileMonthlyHelp.dispatchEvent("click");
+    const mobileHelpBox = await page
+      .locator("#payroll-result-monthly-income-help")
+      .boundingBox();
+    assert.ok(mobileHelpBox);
+    assert.ok(
+      mobileHelpBox.x >= 0 && mobileHelpBox.x + mobileHelpBox.width <= width,
+    );
     assert.equal(
       await page.evaluate(
         () =>
@@ -446,6 +603,7 @@ try {
       true,
       `Payroll must not overflow at ${String(width)}px with disclosures open`,
     );
+    await mobileMonthlyHelp.dispatchEvent("click");
     const resultAfter = await page.locator(".result-card").boundingBox();
     assert.ok(resultAfter);
     assert.equal(resultAfter.width, resultBefore.width);
@@ -2079,7 +2237,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK017-payroll-ui-fuel-v9-plus-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, payrollFuel=7200, payrollBonusPreservation=passed, payrollBonusCancelAtomic=passed, payrollBonusConfirmedFlatten=passed, payrollHelp=keyboard-and-viewport, payrollViewport=320px-and-375px, compactChoices=${String(compactChoiceCount)}, v8ToV9Migration=bytes-preserved, supportedYear2027=passed, unsupportedBindingImport=blocked, grossOnly2027=visible, downstream2027=unavailable, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v9, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK017-fix1-compact-result-details-plus-payroll-ui-fuel-v9-and-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, payrollResultRestingView=compact, payrollResultNumbers=previous-candidate-equivalent, payrollResultDetails=label-hover-focus-enter-space-click-touch-escape, payrollFuel=7200, payrollBonusPreservation=passed, payrollBonusCancelAtomic=passed, payrollBonusConfirmedFlatten=passed, payrollHelp=keyboard-and-viewport, payrollViewport=320px-and-375px, compactChoices=${String(compactChoiceCount)}, v8ToV9Migration=bytes-preserved, supportedYear2027=passed, unsupportedBindingImport=blocked, grossOnly2027=visible, downstream2027=unavailable, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v9, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();
