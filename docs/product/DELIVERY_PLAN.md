@@ -81,13 +81,12 @@
 - cleanな常設mainのff-only同期とclean/reachable TASK worktreeの安全cleanup automation
 - data preservation、migration、import atomicity、launcher freshness、main/worktree safetyはレビューで緩和しない
 
-## TASK-009 配布
+## TASK-009 配布 — 取り下げ
 
-- GitHub Release
-- static deployment
-- distribution automation
-- release checklist
-- 配布version管理、制度確認日表示
+- 個人利用のみで配布不要という2026-08-24の明示的なユーザー決定により、TASK-009は取り下げ（計画対象外）とする。
+- GitHub Release、static deployment、distribution automation、release checklist、配布version管理・制度確認日表示は不要であり、TASK-009の実装は開始しない。
+- 当初の配布計画項目は上記のとおり履歴として残すが、すべて中止・計画対象外である。
+- 将来配布が必要になった場合はTASK-009を暗黙に再開せず、その時点の新たなユーザー依頼からChatGPTが新規TASKを定義する。
 
 ## TASK-014 ライフプラン年間キャッシュフローMVP
 

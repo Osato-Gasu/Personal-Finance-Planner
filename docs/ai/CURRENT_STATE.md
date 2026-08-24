@@ -1,13 +1,15 @@
 ---
 updated_at: 2026-08-24
 active_tasks: []
-next_action: ChatGPT selects the next TASK from BACKLOG; TASK-009 remains queued and unstarted
+next_action: ChatGPT waits for the user's next explicit feature or maintenance request; no planned product TASK remains
 ---
 
 # Current state
 
-TASK-016 Revision 4 completed. Approved product candidate is `6f9bbb97bf7a3075576dea1ceff0e4114bf58277`, with product tree `043d7b44c636863d6e13f3811017cb7f20f0b83a`. The exact candidate received high-risk VERIFY PASS and candidate Governance CI success in run `32680364388`, run #152, attempt 1.
+TASK-016 is completed and integrated into main. The canonical local main path is `C:\Users\satoshi-sugaya.dh\Development\personal\Personal-Finance-Planner`.
 
-Independent Implementation Review Attempt 1 returned `CHANGES_REQUIRED` with finding `T16-IIR-A1-01`. The finding was accepted and corrected. Independent Implementation Review Attempt 2 returned `PASS`, marked `T16-IIR-A1-01` resolved, and reported 0 actionable findings.
+TASK-010 and TASK-011 already completed the historical carry-forward responsibilities from TASK-004 and TASK-005. TASK-004 and TASK-005 remain historically terminated and unapproved; they are not future candidates. TASK-009 was retired by explicit user decision because distribution is unnecessary for personal use.
 
-The completed TASK packet uses the project adapter's `git_only` policy and is removed from the current tree. No tag, GitHub Release, Distribution, Pages, deployment, TASK-009 start, or TASK-013/shared-recovery action occurred. TASK-009 remains queued and unstarted; TASK-013/shared recovery remains untouched.
+BACKLOG now has zero planned product TASKs. No product implementation starts until the user makes an explicit new feature or maintenance request and ChatGPT defines a new TASK from it.
+
+No tag, GitHub Release, Distribution, Pages, deployment, or TASK-013/shared-recovery action occurred.

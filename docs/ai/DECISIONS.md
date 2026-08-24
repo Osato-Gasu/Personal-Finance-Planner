@@ -99,3 +99,12 @@
 - `FINDING-012-R1-01` and `FINDING-012-R1-02` are resolved. PowerShell 7／5.1 completion matrices retained 34 cases each; product evidence remained 462 Vitest, 69 take-home, 68 NISA, 86 iDeCo, 28 overview, and 284 portable checks with runtime requests 0, console errors 0, and page errors 0.
 - TASK-008 local completion used exact completion commit `74b6f47b2e11dfe622f956de2fb3ba2640413552` and main CI `31756479657`; TASK-012 local completion used exact completion commit `4e217b8d47cc955f3b3e3da54d97ead811346381` and the same exact main CI. Each registered TASK worktree was clean, reachable, operation-free, and removed/pruned without touching the separate user-owned same-name worktree.
 - TASK-012 active TASK/handoff/report artifacts are removed from the current tree under the project adapter's `git_only` policy and remain fully auditable at release head `4e217b8d47cc955f3b3e3da54d97ead811346381`. No tag, GitHub Release, static deployment, distribution, or user-owned worktree/manifest change was made. The next requirements candidate is TASK-009.
+
+## GOV-014 Backlog reconciliation and TASK-009 retirement
+
+- Date: 2026-08-24.
+- The user explicitly decided that the application is for personal use only and distribution is not required. TASK-009 is therefore removed from the planned backlog, retired/not planned, and must not be started.
+- The stale TASK-004 and TASK-005 candidate rows are removed because their carry-forward responsibilities were already completed by TASK-010 and TASK-011 respectively.
+- TASK-004 and TASK-005 remain historically terminated and unapproved. This decision does not retroactively approve either TASK.
+- The planned product backlog count after this decision is zero. A new product TASK requires a future explicit user request; TASK-009, TASK-004, and TASK-005 are not automatically revived.
+- Canonical local main path invariant: `C:\Users\satoshi-sugaya.dh\Development\personal\Personal-Finance-Planner`. Final completion is accepted only when this path is on clean `main` with `HEAD == origin/main`.

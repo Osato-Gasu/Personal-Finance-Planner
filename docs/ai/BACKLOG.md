@@ -2,10 +2,12 @@
 
 `docs/product/DELIVERY_PLAN.md` is the product delivery source. These entries are candidates only; TASK-001 does not start product implementation.
 
+TASK-004の未解消作業はTASK-010で完了済みです。TASK-004自体は歴史上の打ち切り・未承認状態を維持し、将来作業の候補にはしません。
+TASK-005の未解消作業はTASK-011で完了済みです。TASK-005自体は歴史上の打ち切り・未承認状態を維持し、将来作業の候補にはしません。
+TASK-009「配布」は、個人利用のみで配布不要という2026-08-24の明示的なユーザー決定により、取り下げ（計画対象外）としました。
+現在、計画済みの製品TASK候補はありません。
+
 <!-- PROGRESS:START -->
 | ID | 優先度 | 状態 | リスク | フェーズ | タイトル | 依存 | 次の作業 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-004 | high | blocked | high | implementation_review | 手取り計算ベータ | TASK-002 | 最終レビュー打ち切り。未解消事項はTASK-010で解消、candidateは未承認・main未反映 |
-| TASK-005 | normal | blocked | high | implementation_review | NISAベータ | TASK-002 | 最終レビュー打ち切り。candidate未承認・attempt 4禁止・FINDING-005-R3-01はTASK-011へ移管し、packetはGit履歴で監査する |
-| TASK-009 | low | queued | medium | requirements | 配布 | TASK-008 | release条件を定義する |
 <!-- PROGRESS:END -->

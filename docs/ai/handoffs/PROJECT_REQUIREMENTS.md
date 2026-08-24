@@ -5,16 +5,25 @@
 - source: `docs/ai/CURRENT_STATE.md`, `docs/ai/BACKLOG.md`, `docs/product/`, user request
 - purpose: active TASKがない状態から次TASKの目的、scope、受入条件、禁止変更、test/build、review、model/effortを確定する
 - repository: Osato-Gasu/Personal-Finance-Planner
-- branch_policy: 原則mainの固定baselineから専用branchを作る。TASK-011はユーザー承認済みcarry-forwardのためtransition exact commitをbaseとする
+- branch_policy: 将来の新規TASKは、その時点のexactなmain baselineから開始する
 - product_source: docs/product/
-- next_candidate: TASK-009
+- next_candidate: none
+- planned_product_backlog: none
+- current_routing: 計画済み製品TASKは存在しない。ChatGPTは明示的な新機能またはmaintenanceのユーザー依頼を待ってから新規TASKを定義する
+- retired_TASK_009: TASK-009「配布」は、個人利用のみで配布不要という2026-08-24のユーザー決定により取り下げ・計画対象外であり、開始しない
+- completed_successor_TASK_010: TASK-010はTASK-004のhistorical carry-forwardを完了済みで、次候補ではない
+- completed_successor_TASK_011_current_routing: TASK-011はTASK-005のhistorical carry-forwardを完了済みで、次候補ではない
+- do_not_automatically_revive: TASK-009、TASK-004、TASK-005を自動的に再開・再候補化しない
+- canonical_local_main_worktree: C:\Users\satoshi-sugaya.dh\Development\personal\Personal-Finance-Planner
+- future_task_worktrees: 将来のTASK worktreeは別の場所でもよい
+- permanent_local_finalization_invariant: 最終完了はcanonical local main worktreeがcleanなmainでHEAD == origin/mainになるまで受理しない
 - resolved_carry_forward_TASK_002: TASK-002のactive link整合性問題はTASK-003で検証を実装済み
 - accepted_unresolved_issue: TASK-003でユーザー受容済みのschema v1改行表示名の単一行input保存互換性問題を、TASK-008の要件と受入条件へ引き継ぐ
 - blocked_predecessor: TASK-004はattempt 3最終レビューで打ち切り、candidate 0f7ae95e296caa741ab3fdde03b9180c3bea122eは未承認・main未反映のまま維持する
 - resolved_carry_forward_TASK_004: FINDING-004-R2-09-REMAINDERはTASK-010 approved candidate aa3d7275de00ce3bfe900741750e642c780904adで解消し、main baseline 74599efd2afedfa8c1fba196aaab51459571913eへ統合済み
 - completed_successor: TASK-010はTASK-004 attempt 4ではなく独立TASKとしてattempt 2／standardでAPPROVEDとなり、main統合・git_only completion sync済み
 - blocked_predecessor_TASK_005: TASK-005はattempt 3／relaxed／finalで打ち切り、candidate d127f26a78342ab3d7674ee99e6f50d87532e891（tree fa83cf0bc4f7de19adc1dff92b8fd538dba3d443）は未承認・main未反映、attempt 4禁止のまま維持する
-- required_carry_forward_TASK_005: FINDING-005-R3-01（attempt 3開始承認artifactの宣言SHA-256／bytesとcommit済みLF bytesのidentity不一致）をTASK-011の唯一の修復対象として要件・受入条件・testへ含める
+- historical_carry_forward_TASK_005: FINDING-005-R3-01（attempt 3開始承認artifactの宣言SHA-256／bytesとcommit済みLF bytesのidentity不一致）はTASK-011の唯一の修復対象として引き継がれ、完了済み
 - successor_policy_TASK_011: TASK-011はTASK-005 attempt 4ではなく独立TASKとしてreview attempt 1／standard／cycles 0から開始し、TASK-005をretroactive APPROVEDにしない
 - carry_forward_candidate_TASK_011: TASK-005 product candidate d127f26a78342ab3d7674ee99e6f50d87532e891／tree fa83cf0bc4f7de19adc1dff92b8fd538dba3d443を製品source無変更で継承し、TASK-011の新しい承認・release経路とする
 - completed_successor_TASK_011: TASK-011はTASK-005 attempt 4ではなく独立TASKとしてattempt 2／standard、cycles 1、findings 0でAPPROVEDとなり、release-handoff commit 51548c913cb83bd42b88f76abc294e8f4331d5be（tree 55d3684f9330162f90135bcc2ad223bec3085375）をmainへfast-forward統合済み
@@ -50,7 +59,7 @@
 - resolved_findings_TASK_012: FINDING-012-R1-01、FINDING-012-R1-02は解消済み。attempt 3とattempt 4は作成せず、tag、GitHub Release、distributionも行っていない
 - completion_evidence_TASK_012: PowerShell 7／5.1 completion各34 cases、462 Vitest、69 take-home、68 NISA、86 iDeCo、28 overview、284 portable checks、runtime requests 0、console errors 0、page errors 0をPASS
 - task_history_TASK_012: active TASK/handoff/report packetはrelease head `4e217b8d47cc955f3b3e3da54d97ead811346381`のGit履歴で完全に追跡可能で、git_only completion sync後のcurrent treeには残さない
-- next_requirements_TASK_009: ChatGPTがpermanent handoff、BACKLOG、docs/product/**からTASK-009「配布」の正式要件を定義する
+- retirement_record_TASK_009: TASK-009は2026-08-24の明示的なユーザー決定により取り下げ・計画対象外。将来配布が必要になった場合は、新たなユーザー依頼から別の新規TASKを定義する
 
 ## TASK-011 requirements draft (lossless user-decision carry-forward)
 
