@@ -25,15 +25,18 @@ import {
 import {
   EMPTY_COMMUTING_FUEL_ESTIMATE,
   parsePayrollPlan,
+  parseSchemaVersion9PayrollPlan,
   parseSchemaVersion8PayrollPlan,
   validatePayrollPlan,
   type PayrollPlan,
+  type SchemaVersion9PayrollPlan,
   type SchemaVersion8PayrollPlan,
 } from "./payroll";
 import { isTakeHomeSupportedYear } from "./take-home-support";
 
-export const SCHEMA_VERSION = 9 as const;
-export const PREVIOUS_SCHEMA_VERSION = 8 as const;
+export const SCHEMA_VERSION = 10 as const;
+export const PREVIOUS_SCHEMA_VERSION = 9 as const;
+export const SCHEMA_VERSION_8 = 8 as const;
 export const SCHEMA_VERSION_7 = 7 as const;
 export const SCHEMA_VERSION_6 = 6 as const;
 export const SCHEMA_VERSION_5 = 5 as const;
@@ -165,7 +168,7 @@ export interface BudgetIncomePolicy {
 }
 
 export interface AppState {
-  schemaVersion: 9;
+  schemaVersion: 10;
   activeRoute: RouteId;
   members: HouseholdMember[];
   payrollPlans: PayrollPlan[];
@@ -181,6 +184,14 @@ export interface AppState {
   idecoPlans: IdecoPlan[];
   backup: BackupMetadata;
   lifePlan: LifePlanState;
+}
+
+export interface SchemaVersion9AppState extends Omit<
+  AppState,
+  "schemaVersion" | "payrollPlans"
+> {
+  schemaVersion: 9;
+  payrollPlans: SchemaVersion9PayrollPlan[];
 }
 
 export interface SchemaVersion8AppState extends Omit<
@@ -1328,7 +1339,7 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
-    schemaVersion: 9,
+    schemaVersion: 10,
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
@@ -1394,20 +1405,47 @@ export function parseAppState(value: unknown): AppState {
   return state;
 }
 
+export function parseSchemaVersion9AppState(
+  value: unknown,
+): SchemaVersion9AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  const payrollPlans = requireArray(value, "payrollPlans").map(
+    parseSchemaVersion9PayrollPlan,
+  );
+  const currentLike = {
+    ...value,
+    schemaVersion: 10,
+    payrollPlans: payrollPlans.map((plan) => ({
+      ...structuredClone(plan),
+      commutingAllowanceMode: "legacy-monthly" as const,
+      nonTaxableCommutingAllowanceYenPerWorkday: 800,
+    })),
+  };
+  const parsed = parseAppState(currentLike);
+  return {
+    ...structuredClone(parsed),
+    schemaVersion: 9,
+    payrollPlans,
+  };
+}
+
 export function parseSchemaVersion8AppState(
   value: unknown,
 ): SchemaVersion8AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_8)
     throw new Error("unsupported schema version");
   const payrollPlans = requireArray(value, "payrollPlans").map(
     parseSchemaVersion8PayrollPlan,
   );
   const currentLike = {
     ...value,
-    schemaVersion: 9,
+    schemaVersion: 10,
     payrollPlans: payrollPlans.map((plan) => ({
       ...structuredClone(plan),
       commutingFuelEstimate: structuredClone(EMPTY_COMMUTING_FUEL_ESTIMATE),
+      commutingAllowanceMode: "legacy-monthly" as const,
+      nonTaxableCommutingAllowanceYenPerWorkday: 800,
     })),
   };
   const parsed = parseAppState(currentLike);
@@ -1578,7 +1616,7 @@ export function parseSchemaVersion4AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 9,
+    schemaVersion: 10,
     payrollPlans: [],
     takeHomeCompensationBindings: [],
     budgetIncomePolicies: [],
@@ -1621,7 +1659,7 @@ export function parseSchemaVersion3AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 9,
+    schemaVersion: 10,
     payrollPlans: [],
     takeHomeCompensationBindings: [],
     budgetIncomePolicies: [],
@@ -1651,6 +1689,7 @@ export function parseSchemaVersion2AppState(
 export function cloneState<
   T extends
     | AppState
+    | SchemaVersion9AppState
     | SchemaVersion8AppState
     | SchemaVersion7AppState
     | SchemaVersion6AppState
@@ -2723,7 +2762,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },

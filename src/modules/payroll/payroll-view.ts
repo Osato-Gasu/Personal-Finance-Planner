@@ -7,6 +7,7 @@ import {
   EMPTY_COMMUTING_FUEL_ESTIMATE,
   requiresAnnualBonusReplacementConfirmation,
   selectPayrollPlanForContext,
+  type CommutingAllowanceMode,
   type CommutingFuelEstimateInput,
   type PayrollPlan,
 } from "../../domain/payroll";
@@ -258,6 +259,16 @@ function fuelInput(
   return selected?.commutingFuelEstimate ?? EMPTY_COMMUTING_FUEL_ESTIMATE;
 }
 
+export function resolveCommutingAllowanceModeForSave(options: {
+  selectedMode: CommutingAllowanceMode | null;
+  checkboxChecked: boolean;
+  checkboxTouched: boolean;
+}): CommutingAllowanceMode {
+  if (options.selectedMode === "legacy-monthly" && !options.checkboxTouched)
+    return "legacy-monthly";
+  return options.checkboxChecked ? "car-daily" : "none";
+}
+
 export function createPayrollRenderer(
   options: Options,
 ): (container: HTMLElement) => void {
@@ -310,6 +321,8 @@ export function createPayrollRenderer(
 
     const form = node(document, "form");
     form.className = "form-grid payroll-form";
+    let commutingModeTouched = false;
+    const initialCommutingMode = selected?.commutingAllowanceMode ?? "none";
     const base = input(
       document,
       "number",
@@ -331,13 +344,13 @@ export function createPayrollRenderer(
     );
     overtime.min = "0";
     overtime.step = "0.016666666666666666";
-    const commuting = input(
-      document,
-      "number",
-      String(selected?.monthlyNonTaxableCommutingYen ?? 0),
-    );
-    commuting.min = "0";
-    commuting.step = "1";
+    const carCommute = input(document, "checkbox", "car-daily");
+    carCommute.id = "payroll-car-commute";
+    carCommute.checked = initialCommutingMode === "car-daily";
+    if (initialCommutingMode === "legacy-monthly") {
+      carCommute.indeterminate = true;
+      carCommute.setAttribute("aria-checked", "mixed");
+    }
     const workdays = input(
       document,
       "number",
@@ -352,6 +365,29 @@ export function createPayrollRenderer(
     );
     annualBonus.min = "0";
     annualBonus.step = "1";
+    const commutingToggle = node(document, "div");
+    commutingToggle.className = "payroll-field payroll-commuting-toggle";
+    const commutingToggleHeading = node(document, "div");
+    commutingToggleHeading.className = "payroll-commuting-toggle-heading";
+    const commutingToggleLabel = node(document, "label", "車で通勤");
+    commutingToggleLabel.htmlFor = carCommute.id;
+    commutingToggleHeading.append(carCommute, commutingToggleLabel);
+    const commutingModeStatus = node(document, "small");
+    commutingModeStatus.id = "payroll-commuting-mode-status";
+    commutingModeStatus.className = "payroll-commuting-mode-status";
+    carCommute.setAttribute("aria-describedby", commutingModeStatus.id);
+    const updateCommutingModePresentation = () => {
+      if (initialCommutingMode === "legacy-monthly" && !commutingModeTouched) {
+        commutingModeStatus.textContent =
+          "旧月額を使用中。チェックを操作して新方式へ切り替えます。";
+        return;
+      }
+      commutingModeStatus.textContent = carCommute.checked
+        ? "車通勤ON：出勤日数と日額から通勤手当を計算します。"
+        : "車通勤OFF：通勤手当とガソリン代試算は0円です。入力値は保持します。";
+    };
+    updateCommutingModePresentation();
+    commutingToggle.append(commutingToggleHeading, commutingModeStatus);
     form.append(
       field(
         document,
@@ -374,13 +410,7 @@ export function createPayrollRenderer(
         "1か月あたりの平均残業時間。",
         overtime,
       ),
-      field(
-        document,
-        "payroll-commuting",
-        "通勤手当（月・非課税）",
-        "給与として支給される非課税通勤手当。ガソリン代見積とは別で、法定計算値を直接減らしません。",
-        commuting,
-      ),
+      commutingToggle,
       field(
         document,
         "payroll-workdays",
@@ -416,6 +446,13 @@ export function createPayrollRenderer(
     );
     rate.min = "0";
     rate.step = "0.0001";
+    const dailyCommutingAllowance = input(
+      document,
+      "number",
+      String(selected?.nonTaxableCommutingAllowanceYenPerWorkday ?? 800),
+    );
+    dailyCommutingAllowance.min = "0";
+    dailyCommutingAllowance.step = "1";
     const price = input(
       document,
       "number",
@@ -454,6 +491,13 @@ export function createPayrollRenderer(
       ),
       field(
         document,
+        "payroll-daily-commuting-allowance",
+        "通勤手当（日）",
+        "入力した日額を現行モデルでは非課税通勤手当として計算します。法定の距離別非課税限度額や課税超過分は自動判定しません。",
+        dailyCommutingAllowance,
+      ),
+      field(
+        document,
         "payroll-gasoline-price",
         "ガソリン単価（1L）",
         "1リットルあたりの想定価格。",
@@ -474,7 +518,48 @@ export function createPayrollRenderer(
         efficiency,
       ),
     );
+    const carOnlyInputs = [
+      workdays,
+      dailyCommutingAllowance,
+      price,
+      distance,
+      efficiency,
+    ];
+    const updateCarOnlyInputs = () => {
+      const enabled =
+        initialCommutingMode === "legacy-monthly" && !commutingModeTouched
+          ? true
+          : carCommute.checked;
+      for (const control of carOnlyInputs) control.disabled = !enabled;
+    };
+    carCommute.addEventListener("change", () => {
+      commutingModeTouched = true;
+      carCommute.indeterminate = false;
+      carCommute.setAttribute("aria-checked", String(carCommute.checked));
+      updateCommutingModePresentation();
+      updateCarOnlyInputs();
+    });
+    updateCarOnlyInputs();
     advanced.append(advancedGrid);
+    if (selected?.commutingAllowanceMode === "legacy-monthly") {
+      const legacyCommuting = node(document, "div");
+      legacyCommuting.className = "payroll-legacy-commuting";
+      legacyCommuting.dataset.testid = "payroll-legacy-commuting";
+      const legacyValue = node(document, "dl");
+      legacyValue.append(
+        node(document, "dt", "旧通勤手当（月）"),
+        node(document, "dd", yen(selected.monthlyNonTaxableCommutingYen)),
+      );
+      legacyCommuting.append(
+        node(
+          document,
+          "p",
+          "旧方式の月額を使用中です。車通勤チェックを操作して新方式へ切り替えます。",
+        ),
+        legacyValue,
+      );
+      advanced.append(legacyCommuting);
+    }
     form.append(advanced);
 
     const showLegacyBonusDetails =
@@ -610,11 +695,18 @@ export function createPayrollRenderer(
             "所定労働時間（月）",
           ),
           overtimeRateBasisPoints: basisPoints(rate.value, "時間外倍率"),
-          monthlyNonTaxableCommutingYen: nonNegativeInteger(
-            commuting.value,
-            "通勤手当（月・非課税）",
-          ),
+          monthlyNonTaxableCommutingYen:
+            selected?.monthlyNonTaxableCommutingYen ?? 0,
           commutingFuelEstimate,
+          commutingAllowanceMode: resolveCommutingAllowanceModeForSave({
+            selectedMode: selected?.commutingAllowanceMode ?? null,
+            checkboxChecked: carCommute.checked,
+            checkboxTouched: commutingModeTouched,
+          }),
+          nonTaxableCommutingAllowanceYenPerWorkday: nonNegativeInteger(
+            dailyCommutingAllowance.value,
+            "通勤手当（日）",
+          ),
           bonuses,
         };
         store.dispatch(
@@ -669,7 +761,7 @@ export function createPayrollRenderer(
               ["基本給", yen(selected.baseMonthlyYen)],
               ["手当", yen(selected.taxableAllowanceMonthlyYen)],
               ["残業代", yen(statutory.overtimeMonthlyYen)],
-              ["通勤手当", yen(selected.monthlyNonTaxableCommutingYen)],
+              ["通勤手当", yen(statutory.monthlyNonTaxableCommutingYen)],
             ],
           }),
           resultCard({
@@ -681,7 +773,7 @@ export function createPayrollRenderer(
               "月収から推定ガソリン代を差し引いた生活試算です。税引後手取りではなく、税・社会保険計算値も変更しません。",
             breakdown: [
               ["月収", yen(practical.monthlyIncomeYen)],
-              ["通勤手当", yen(selected.monthlyNonTaxableCommutingYen)],
+              ["通勤手当", yen(statutory.monthlyNonTaxableCommutingYen)],
               ["推定ガソリン代", displayYen(practical.estimatedGasolineYen)],
               ["通勤収支", displayYen(practical.commutingBalanceYen)],
               ["実質月収", displayYen(practical.practicalMonthlyIncomeYen)],
@@ -734,6 +826,7 @@ export function createPayrollRenderer(
       "残業単価の基礎は基本給のみで、課税手当を含めません。",
       "所定労働時間と時間外倍率は編集可能な便宜上の初期値で、法的な保証ではありません。",
       "深夜・法定休日・月60時間超の割増区分は自動計算しません。",
+      "通勤手当（日）は現行モデルで非課税通勤手当として扱い、法定の距離別非課税限度額や課税超過分は自動判定しません。",
       "実際の勤務先の給与計算規程と異なる場合があります。",
     ].forEach((text) => list.append(node(document, "li", text)));
     disclosure.append(list);

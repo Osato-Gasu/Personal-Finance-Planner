@@ -122,13 +122,13 @@ describe("AppState schema v4 migration", () => {
     const previous = v3Fixture();
     const before = JSON.stringify(previous);
     const migrated = migrateToCurrentState(previous);
-    expect(migrated.schemaVersion).toBe(9);
+    expect(migrated.schemaVersion).toBe(10);
     expect(migrated.nisaPlans).toEqual([]);
     expect(migrated.investmentScenarios).toEqual([]);
     expect({
       ...previous,
       schemaVersion: migrated.schemaVersion,
-    }).toEqual({ ...previous, schemaVersion: 9 });
+    }).toEqual({ ...previous, schemaVersion: 10 });
     expect(migrated.idecoPlans).toEqual([]);
     expect(migrated.activeRoute).toBe(previous.activeRoute);
     expect(migrated.members).toEqual(previous.members);
@@ -166,7 +166,7 @@ describe("AppState schema v4 migration", () => {
       expect(
         repository.prepareImport(JSON.stringify(candidate)).preview
           .schemaVersion,
-      ).toBe(9);
+      ).toBe(10);
       expect(storage.getItem(STORAGE_KEY)).toBe(before);
     }
   });
@@ -176,7 +176,7 @@ describe("AppState schema v4 migration", () => {
     const previousBytes = JSON.stringify(v3Fixture());
     storage.values.set(SCHEMA_VERSION_3_STORAGE_KEY, previousBytes);
     const loaded = new StorageRepository(storage).load();
-    expect(loaded?.schemaVersion).toBe(9);
+    expect(loaded?.schemaVersion).toBe(10);
     expect(loaded?.nisaPlans).toEqual([]);
     expect(loaded?.investmentScenarios).toEqual([]);
     expect(storage.getItem(SCHEMA_VERSION_3_STORAGE_KEY)).toBe(previousBytes);

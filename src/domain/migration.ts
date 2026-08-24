@@ -1,6 +1,7 @@
 import {
   SCHEMA_VERSION,
   parseAppState,
+  parseSchemaVersion9AppState,
   parseSchemaVersion8AppState,
   parseSchemaVersion7AppState,
   parseSchemaVersion6AppState,
@@ -15,6 +16,7 @@ import {
   type ExpenseItem,
   type HouseholdMember,
   type IncomeTarget,
+  type SchemaVersion9AppState,
   type SchemaVersion8AppState,
   type SchemaVersion2AppState,
   type SchemaVersion3AppState,
@@ -41,36 +43,50 @@ function uniqueId(preferred: string, used: Set<string>): string {
 export function migrateToCurrentState(value: unknown): AppState {
   if (!isRecord(value)) throw new Error("state must be an object");
   if (value.schemaVersion === SCHEMA_VERSION) return parseAppState(value);
+  if (value.schemaVersion === 9)
+    return migrateV9(parseSchemaVersion9AppState(value));
   if (value.schemaVersion === 8)
-    return migrateV8(parseSchemaVersion8AppState(value));
+    return migrateV9(migrateV8(parseSchemaVersion8AppState(value)));
   if (value.schemaVersion === 7)
-    return migrateV8(migrateV7(parseSchemaVersion7AppState(value)));
+    return migrateV9(migrateV8(migrateV7(parseSchemaVersion7AppState(value))));
   if (value.schemaVersion === 6)
-    return migrateV8(migrateV7(migrateV6(parseSchemaVersion6AppState(value))));
+    return migrateV9(
+      migrateV8(migrateV7(migrateV6(parseSchemaVersion6AppState(value)))),
+    );
   if (value.schemaVersion === 5)
-    return migrateV8(
-      migrateV7(migrateV6(migrateV5(parseSchemaVersion5AppState(value)))),
+    return migrateV9(
+      migrateV8(
+        migrateV7(migrateV6(migrateV5(parseSchemaVersion5AppState(value)))),
+      ),
     );
   if (value.schemaVersion === 4)
-    return migrateV8(
-      migrateV7(
-        migrateV6(migrateV5(migrateV4(parseSchemaVersion4AppState(value)))),
+    return migrateV9(
+      migrateV8(
+        migrateV7(
+          migrateV6(migrateV5(migrateV4(parseSchemaVersion4AppState(value)))),
+        ),
       ),
     );
   if (value.schemaVersion === 3)
-    return migrateV8(
-      migrateV7(
-        migrateV6(
-          migrateV5(migrateV4(migrateV3(parseSchemaVersion3AppState(value)))),
+    return migrateV9(
+      migrateV8(
+        migrateV7(
+          migrateV6(
+            migrateV5(migrateV4(migrateV3(parseSchemaVersion3AppState(value)))),
+          ),
         ),
       ),
     );
   if (value.schemaVersion === 2)
-    return migrateV8(
-      migrateV7(
-        migrateV6(
-          migrateV5(
-            migrateV4(migrateV3(migrateV2(parseSchemaVersion2AppState(value)))),
+    return migrateV9(
+      migrateV8(
+        migrateV7(
+          migrateV6(
+            migrateV5(
+              migrateV4(
+                migrateV3(migrateV2(parseSchemaVersion2AppState(value))),
+              ),
+            ),
           ),
         ),
       ),
@@ -159,8 +175,12 @@ export function migrateToCurrentState(value: unknown): AppState {
       ...source,
     })),
   };
-  return migrateV8(
-    migrateV7(migrateV6(migrateV5(migrateV4(migrateV3(migrateV2(migrated)))))),
+  return migrateV9(
+    migrateV8(
+      migrateV7(
+        migrateV6(migrateV5(migrateV4(migrateV3(migrateV2(migrated))))),
+      ),
+    ),
   );
 }
 
@@ -251,8 +271,10 @@ export function migrateV7(
   };
 }
 
-export function migrateV8(previous: SchemaVersion8AppState): AppState {
-  const migrated: AppState = {
+export function migrateV8(
+  previous: SchemaVersion8AppState,
+): SchemaVersion9AppState {
+  return parseSchemaVersion9AppState({
     ...structuredClone(previous),
     schemaVersion: 9,
     payrollPlans: previous.payrollPlans.map((plan) => ({
@@ -263,6 +285,18 @@ export function migrateV8(previous: SchemaVersion8AppState): AppState {
         fuelEfficiencyKmPerLiterTenths: null,
         gasolinePriceYenPerLiter: null,
       },
+    })),
+  });
+}
+
+export function migrateV9(previous: SchemaVersion9AppState): AppState {
+  const migrated: AppState = {
+    ...structuredClone(previous),
+    schemaVersion: 10,
+    payrollPlans: previous.payrollPlans.map((plan) => ({
+      ...structuredClone(plan),
+      commutingAllowanceMode: "legacy-monthly",
+      nonTaxableCommutingAllowanceYenPerWorkday: 800,
     })),
   };
   validateAppState(migrated);

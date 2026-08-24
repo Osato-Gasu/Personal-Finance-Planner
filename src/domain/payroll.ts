@@ -15,6 +15,8 @@ export const EMPTY_COMMUTING_FUEL_ESTIMATE: Readonly<CommutingFuelEstimateInput>
     gasolinePriceYenPerLiter: null,
   });
 
+export type CommutingAllowanceMode = "legacy-monthly" | "car-daily" | "none";
+
 export interface PayrollPlan {
   id: string;
   memberId: string;
@@ -27,11 +29,18 @@ export interface PayrollPlan {
   overtimeRateBasisPoints: number;
   monthlyNonTaxableCommutingYen: number;
   commutingFuelEstimate: CommutingFuelEstimateInput;
+  commutingAllowanceMode: CommutingAllowanceMode;
+  nonTaxableCommutingAllowanceYenPerWorkday: number;
   bonuses: BonusPayment[];
 }
 
-export type SchemaVersion8PayrollPlan = Omit<
+export type SchemaVersion9PayrollPlan = Omit<
   PayrollPlan,
+  "commutingAllowanceMode" | "nonTaxableCommutingAllowanceYenPerWorkday"
+>;
+
+export type SchemaVersion8PayrollPlan = Omit<
+  SchemaVersion9PayrollPlan,
   "commutingFuelEstimate"
 >;
 
@@ -164,6 +173,10 @@ function validatePayrollPlanFields(plan: Readonly<PayrollPlan>): void {
     ["taxableAllowanceMonthlyYen", plan.taxableAllowanceMonthlyYen],
     ["averageMonthlyOvertimeMinutes", plan.averageMonthlyOvertimeMinutes],
     ["monthlyNonTaxableCommutingYen", plan.monthlyNonTaxableCommutingYen],
+    [
+      "nonTaxableCommutingAllowanceYenPerWorkday",
+      plan.nonTaxableCommutingAllowanceYenPerWorkday,
+    ],
   ] as const) {
     if (!Number.isSafeInteger(value) || value < 0)
       throw new Error(`${field} must be a non-negative safe integer`);
@@ -180,7 +193,19 @@ function validatePayrollPlanFields(plan: Readonly<PayrollPlan>): void {
     throw new Error(
       "overtimeRateBasisPoints must be a non-negative safe integer",
     );
+  const commutingAllowanceMode: unknown = plan.commutingAllowanceMode;
+  if (
+    commutingAllowanceMode !== "legacy-monthly" &&
+    commutingAllowanceMode !== "car-daily" &&
+    commutingAllowanceMode !== "none"
+  )
+    throw new Error("commutingAllowanceMode is invalid");
   validateCommutingFuelEstimate(plan.commutingFuelEstimate);
+  if (
+    plan.commutingAllowanceMode === "car-daily" &&
+    plan.commutingFuelEstimate.averageWorkdaysPerMonthTenths === null
+  )
+    throw new Error("car-daily requires average workdays");
   const bonusIds = new Set<string>();
   for (const bonus of plan.bonuses) {
     if (!bonus.id || bonusIds.has(bonus.id))
@@ -251,21 +276,46 @@ export function parsePayrollPlan(value: unknown): PayrollPlan {
     commutingFuelEstimate: parseCommutingFuelEstimate(
       value.commutingFuelEstimate,
     ),
+    commutingAllowanceMode: (() => {
+      const mode = value.commutingAllowanceMode;
+      if (mode !== "legacy-monthly" && mode !== "car-daily" && mode !== "none")
+        throw new Error("commutingAllowanceMode is invalid");
+      return mode;
+    })(),
+    nonTaxableCommutingAllowanceYenPerWorkday: requireNonNegativeInteger(
+      value,
+      "nonTaxableCommutingAllowanceYenPerWorkday",
+    ),
     bonuses: value.bonuses.map(parseBonus),
   };
   validatePayrollPlan(plan);
   return plan;
 }
 
+export function parseSchemaVersion9PayrollPlan(
+  value: unknown,
+): SchemaVersion9PayrollPlan {
+  if (!isRecord(value)) throw new Error("payroll plan must be an object");
+  const parsed = parsePayrollPlan({
+    ...value,
+    commutingAllowanceMode: "legacy-monthly",
+    nonTaxableCommutingAllowanceYenPerWorkday: 800,
+  });
+  const legacy = structuredClone(parsed) as Partial<PayrollPlan>;
+  Reflect.deleteProperty(legacy, "commutingAllowanceMode");
+  Reflect.deleteProperty(legacy, "nonTaxableCommutingAllowanceYenPerWorkday");
+  return legacy as SchemaVersion9PayrollPlan;
+}
+
 export function parseSchemaVersion8PayrollPlan(
   value: unknown,
 ): SchemaVersion8PayrollPlan {
   if (!isRecord(value)) throw new Error("payroll plan must be an object");
-  const parsed = parsePayrollPlan({
+  const parsed = parseSchemaVersion9PayrollPlan({
     ...value,
     commutingFuelEstimate: EMPTY_COMMUTING_FUEL_ESTIMATE,
   });
-  const legacy = structuredClone(parsed) as Partial<PayrollPlan>;
+  const legacy = structuredClone(parsed) as Partial<SchemaVersion9PayrollPlan>;
   Reflect.deleteProperty(legacy, "commutingFuelEstimate");
   return legacy as SchemaVersion8PayrollPlan;
 }
@@ -287,6 +337,37 @@ function halfUp(numerator: bigint, denominator: bigint): bigint {
   if (denominator <= 0n)
     throw new Error("rounding denominator must be positive");
   return (numerator * 2n + denominator) / (denominator * 2n);
+}
+
+function effectiveMonthlyNonTaxableCommutingYenUnchecked(
+  plan: Readonly<PayrollPlan>,
+): number {
+  switch (plan.commutingAllowanceMode) {
+    case "legacy-monthly":
+      return plan.monthlyNonTaxableCommutingYen;
+    case "none":
+      return 0;
+    case "car-daily": {
+      const workdays = plan.commutingFuelEstimate.averageWorkdaysPerMonthTenths;
+      if (workdays === null)
+        throw new Error("car-daily requires average workdays");
+      return safeNumber(
+        halfUp(
+          BigInt(workdays) *
+            BigInt(plan.nonTaxableCommutingAllowanceYenPerWorkday),
+          10n,
+        ),
+        "monthly non-taxable commuting allowance",
+      );
+    }
+  }
+}
+
+export function effectiveMonthlyNonTaxableCommutingYen(
+  plan: Readonly<PayrollPlan>,
+): number {
+  validatePayrollPlanFields(plan);
+  return effectiveMonthlyNonTaxableCommutingYenUnchecked(plan);
 }
 
 export function validateCommutingFuelEstimate(
@@ -397,10 +478,25 @@ export function calculatePayrollPracticalResult(
   plan: Readonly<PayrollPlan>,
 ): PayrollPracticalResult {
   const statutory = calculatePayroll(plan);
+  const bonuses = annualBonusYen(plan.bonuses);
+  if (plan.commutingAllowanceMode === "none") {
+    const practicalAnnual =
+      BigInt(statutory.monthlyGrossYen) * 12n + BigInt(bonuses);
+    return {
+      monthlyIncomeYen: statutory.monthlyGrossYen,
+      estimatedGasolineYen: 0,
+      commutingBalanceYen: 0,
+      practicalMonthlyIncomeYen: statutory.monthlyGrossYen,
+      annualBonusYen: bonuses,
+      practicalAnnualIncomeYen: safeSignedNumber(
+        practicalAnnual,
+        "practical annual income",
+      ),
+    };
+  }
   const estimatedGasolineYen = calculateEstimatedGasolineYen(
     plan.commutingFuelEstimate,
   );
-  const bonuses = annualBonusYen(plan.bonuses);
   if (estimatedGasolineYen === null) {
     return {
       monthlyIncomeYen: statutory.monthlyGrossYen,
@@ -417,7 +513,8 @@ export function calculatePayrollPracticalResult(
     monthlyIncomeYen: statutory.monthlyGrossYen,
     estimatedGasolineYen,
     commutingBalanceYen: safeSignedNumber(
-      BigInt(plan.monthlyNonTaxableCommutingYen) - BigInt(estimatedGasolineYen),
+      BigInt(statutory.monthlyNonTaxableCommutingYen) -
+        BigInt(estimatedGasolineYen),
       "commuting balance",
     ),
     practicalMonthlyIncomeYen: safeSignedNumber(
@@ -443,7 +540,9 @@ function calculatePayrollUnchecked(plan: Readonly<PayrollPlan>): PayrollResult {
     BigInt(plan.baseMonthlyYen) +
     BigInt(plan.taxableAllowanceMonthlyYen) +
     overtime;
-  const monthlyNonTaxable = BigInt(plan.monthlyNonTaxableCommutingYen);
+  const effectiveMonthlyNonTaxable =
+    effectiveMonthlyNonTaxableCommutingYenUnchecked(plan);
+  const monthlyNonTaxable = BigInt(effectiveMonthlyNonTaxable);
   const bonusTotal = plan.bonuses.reduce(
     (sum, bonus) => sum + BigInt(bonus.grossYen),
     0n,
@@ -456,7 +555,7 @@ function calculatePayrollUnchecked(plan: Readonly<PayrollPlan>): PayrollResult {
     targetYear: plan.targetYear,
     overtimeMonthlyYen: safeNumber(overtime, "monthly overtime pay"),
     monthlyTaxableSalaryYen: safeNumber(monthlyTaxable, "monthly taxable pay"),
-    monthlyNonTaxableCommutingYen: plan.monthlyNonTaxableCommutingYen,
+    monthlyNonTaxableCommutingYen: effectiveMonthlyNonTaxable,
     monthlyGrossYen: safeNumber(
       monthlyTaxable + monthlyNonTaxable,
       "monthly gross pay",

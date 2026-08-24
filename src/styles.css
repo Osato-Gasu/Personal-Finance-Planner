@@ -285,6 +285,31 @@ main > section > h3 {
   padding-block: 0.35rem;
 }
 
+.payroll-commuting-toggle {
+  align-self: stretch;
+  background: #f8fbff;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.payroll-commuting-toggle-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.payroll-commuting-toggle-heading label {
+  font-weight: 700;
+}
+
+.payroll-commuting-mode-status {
+  color: var(--muted);
+  display: block;
+  line-height: 1.45;
+  margin-top: 0.35rem;
+}
+
 .payroll-details,
 .payroll-legacy-bonuses,
 .payroll-submit,
@@ -321,6 +346,33 @@ main > section > h3 {
   display: grid;
   gap: 0.6rem;
   padding-top: 0.75rem;
+}
+
+.payroll-legacy-commuting {
+  background: #fff8e8;
+  border: 1px solid #e5c66b;
+  border-radius: 0.55rem;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.payroll-legacy-commuting p,
+.payroll-legacy-commuting dl,
+.payroll-legacy-commuting dt,
+.payroll-legacy-commuting dd {
+  margin: 0;
+}
+
+.payroll-legacy-commuting dl {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+}
+
+.payroll-legacy-commuting dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .payroll-legacy-bonus-row {

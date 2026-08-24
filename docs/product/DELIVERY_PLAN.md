@@ -128,6 +128,17 @@
 - 320px／375px、standalone `file://`、runtime network 0を含むregression
 - 他tab redesign、2027+手取りrule、common settings、TASK-013/shared、main統合、Release、Distribution、Pagesは対象外
 
+## TASK-018 車通勤ON/OFF・日額通勤手当自動計算
+
+- schema v10へ`legacy-monthly / car-daily / none`と非課税通勤手当日額だけを追加するv9→v10 lossless migration
+- 旧月額、日額derived、OFF 0円を競合させないsingle commuting allowance authority
+- `car-daily`の日数0.1単位×日額をBigInt half-upし、給与→手取りへeffective通勤手当だけを連携
+- `none`の通勤手当・ガソリン・通勤収支exact 0と、OFF中のcar詳細値保持
+- legacy mixed checkbox、明示adoption guard、詳細内の日額と旧月額read-only表示
+- 日額を現行モデルで非課税として扱い、距離別非課税限度額・課税超過分を自動判定しないaccessible disclosure
+- 320px／375px、backup/import、standalone `file://`、runtime network 0とTASK-017 regression
+- 駐車場・公共交通・法定上限engine・一般transport architecture・shared更新・main統合・Release・Distribution・Pagesは対象外
+
 ## 実装順序の制約
 
 - TASK-002のspikeを通過するまで本格的な制度計算を実装しない。

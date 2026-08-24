@@ -60,10 +60,22 @@ function required<T>(value: T | undefined, message: string): T {
 
 function schemaVersion8Payroll(
   plan: Readonly<PayrollPlan>,
-): Omit<PayrollPlan, "commutingFuelEstimate"> {
+): Omit<
+  PayrollPlan,
+  | "commutingFuelEstimate"
+  | "commutingAllowanceMode"
+  | "nonTaxableCommutingAllowanceYenPerWorkday"
+> {
   const legacy = structuredClone(plan) as Partial<PayrollPlan>;
   Reflect.deleteProperty(legacy, "commutingFuelEstimate");
-  return legacy as Omit<PayrollPlan, "commutingFuelEstimate">;
+  Reflect.deleteProperty(legacy, "commutingAllowanceMode");
+  Reflect.deleteProperty(legacy, "nonTaxableCommutingAllowanceYenPerWorkday");
+  return legacy as Omit<
+    PayrollPlan,
+    | "commutingFuelEstimate"
+    | "commutingAllowanceMode"
+    | "nonTaxableCommutingAllowanceYenPerWorkday"
+  >;
 }
 
 function payroll(overrides: Partial<PayrollPlan> = {}): PayrollPlan {
@@ -79,6 +91,8 @@ function payroll(overrides: Partial<PayrollPlan> = {}): PayrollPlan {
     overtimeRateBasisPoints: 12_500,
     monthlyNonTaxableCommutingYen: 5_000,
     commutingFuelEstimate: fuel(),
+    commutingAllowanceMode: "legacy-monthly",
+    nonTaxableCommutingAllowanceYenPerWorkday: 800,
     bonuses: [],
     ...overrides,
   };
@@ -293,7 +307,7 @@ describe("TASK-017 schema v9 commuting-fuel persistence", () => {
     const migrated = migrateToCurrentState(v8);
 
     expect(JSON.stringify(v8)).toBe(before);
-    expect(migrated.schemaVersion).toBe(9);
+    expect(migrated.schemaVersion).toBe(10);
     expect(migrated.payrollPlans[0]).toEqual(currentPayroll);
     const oldOther = structuredClone(v8) as Partial<typeof v8>;
     Reflect.deleteProperty(oldOther, "schemaVersion");
@@ -305,7 +319,7 @@ describe("TASK-017 schema v9 commuting-fuel persistence", () => {
     expect(migrateToCurrentState(migrated)).toEqual(migrated);
   });
 
-  it("loads v8 from its frozen key, preserves bytes, and round-trips v9 export/import", () => {
+  it("loads v8 from its frozen key, preserves bytes, and round-trips current export/import", () => {
     const storage = new MemoryStorage();
     const state = createInitialState();
     state.payrollPlans = [
@@ -330,7 +344,7 @@ describe("TASK-017 schema v9 commuting-fuel persistence", () => {
     storage.values.set(SCHEMA_VERSION_8_STORAGE_KEY, v8Bytes);
     const repository = new StorageRepository(storage);
     const loaded = repository.load();
-    expect(loaded?.schemaVersion).toBe(9);
+    expect(loaded?.schemaVersion).toBe(10);
     expect(storage.getItem(SCHEMA_VERSION_8_STORAGE_KEY)).toBe(v8Bytes);
     expect(storage.getItem(STORAGE_KEY)).toBe(JSON.stringify(loaded));
 
@@ -341,7 +355,7 @@ describe("TASK-017 schema v9 commuting-fuel persistence", () => {
     expect(repository.commitImport(prepared)).toEqual(state);
   });
 
-  it("fails closed on corrupt current v9 instead of falling back to valid v8", () => {
+  it("fails closed on corrupt current v10 instead of falling back to valid v8", () => {
     const storage = new MemoryStorage();
     const state = createInitialState();
     storage.values.set(STORAGE_KEY, "{broken");

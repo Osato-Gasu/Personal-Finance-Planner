@@ -9,7 +9,8 @@ import { chromium } from "playwright-core";
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const builtHtml = path.join(projectRoot, "Personal-Finance-Planner.html");
 const distHtml = path.join(projectRoot, "dist", "index.html");
-const storageKey = "personal-finance-planner:state:v9";
+const storageKey = "personal-finance-planner:state:v10";
+const schemaVersion9StorageKey = "personal-finance-planner:state:v9";
 const schemaVersion8StorageKey = "personal-finance-planner:state:v8";
 const schemaVersion6StorageKey = "personal-finance-planner:state:v6";
 const legacyStorageKey = "personal-finance-planner:state:v1";
@@ -220,6 +221,7 @@ try {
       0,
     );
     await page2027.getByLabel("基本給（月）", { exact: true }).fill("300000");
+    await page2027.getByLabel("車で通勤", { exact: true }).check();
     await page2027
       .getByLabel("出勤日数（月平均）", { exact: true })
       .fill("0.0");
@@ -300,7 +302,7 @@ try {
       },
     ];
     await page2027.locator('input[name="backup-import"]').setInputFiles({
-      name: "unsupported-binding-v9.json",
+      name: "unsupported-binding-v10.json",
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(invalidUnsupportedState), "utf8"),
     });
@@ -342,10 +344,47 @@ try {
     0,
   );
   assert.equal(await page.locator(".payroll-bonus-row").count(), 0);
+  const carCommute = page.getByLabel("車で通勤", { exact: true });
+  assert.equal(await carCommute.count(), 1);
+  assert.equal(await carCommute.isChecked(), false);
+  assert.equal(
+    await page.getByLabel("通勤手当（月・非課税）", { exact: true }).count(),
+    0,
+  );
+  assert.equal(
+    await page.getByLabel("出勤日数（月平均）", { exact: true }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page.getByLabel("通勤手当（日）", { exact: true }).inputValue(),
+    "800",
+  );
+  assert.equal(
+    await page.getByLabel("通勤手当（日）", { exact: true }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByLabel("通勤手当（日）", { exact: true })
+      .evaluate((element) =>
+        Boolean(element.closest("details.payroll-details")),
+      ),
+    true,
+  );
+  await assertContains(
+    page.locator("#payroll-commuting-mode-status"),
+    "通勤手当とガソリン代試算は0円",
+  );
+  await carCommute.focus();
+  await carCommute.press("Space");
+  assert.equal(await carCommute.isChecked(), true);
+  assert.equal(
+    await page.getByLabel("出勤日数（月平均）", { exact: true }).isEnabled(),
+    true,
+  );
   await page.getByLabel("基本給（月）", { exact: true }).fill("320000");
   await page.getByLabel("残業（月平均）", { exact: true }).fill("10");
   await page.getByLabel("手当（月）", { exact: true }).fill("20000");
-  await page.getByLabel("通勤手当（月・非課税）", { exact: true }).fill("5000");
   await page.getByLabel("出勤日数（月平均）", { exact: true }).fill("20.0");
   await page.getByLabel("賞与（年）", { exact: true }).fill("400000");
   await page.getByText("詳細", { exact: true }).click();
@@ -359,6 +398,9 @@ try {
     return state.payrollPlans[0];
   }, storageKey);
   assert.ok(createdPayroll?.id);
+  assert.equal(createdPayroll.commutingAllowanceMode, "car-daily");
+  assert.equal(createdPayroll.nonTaxableCommutingAllowanceYenPerWorkday, 800);
+  assert.equal(createdPayroll.monthlyNonTaxableCommutingYen, 0);
   assert.deepEqual(createdPayroll.commutingFuelEstimate, {
     averageWorkdaysPerMonthTenths: 200,
     roundTripDistanceKmTenths: 200,
@@ -393,19 +435,19 @@ try {
     await page
       .locator("[data-result-kind='monthly-income'] > strong")
       .textContent(),
-    "370,000円",
+    "381,000円",
   );
   assert.equal(
     await page
       .locator("[data-result-kind='practical-monthly-income'] > strong")
       .textContent(),
-    "362,800円",
+    "373,800円",
   );
   assert.equal(
     await page
       .locator("[data-result-kind='practical-annual-income'] > strong")
       .textContent(),
-    "4,753,600円",
+    "4,885,600円",
   );
   await assertContains(
     page.locator("[data-result-kind='practical-monthly-income']"),
@@ -496,6 +538,26 @@ try {
   assert.ok(helpBox);
   assert.ok(helpBox.x >= 0 && helpBox.x + helpBox.width <= 1280);
   await monthlyHelp.press("Escape");
+  await page.getByText("詳細", { exact: true }).click();
+  const dailyAllowanceHelp = page.getByRole("button", {
+    name: "通勤手当（日）の説明",
+    exact: true,
+  });
+  const dailyAllowanceHelpPanel = page.locator(
+    "#payroll-daily-commuting-allowance-help",
+  );
+  await dailyAllowanceHelp.focus();
+  assert.equal(await dailyAllowanceHelp.getAttribute("aria-expanded"), "true");
+  await assertContains(dailyAllowanceHelpPanel, "非課税通勤手当");
+  await assertContains(dailyAllowanceHelpPanel, "距離別非課税限度額");
+  await assertContains(dailyAllowanceHelpPanel, "課税超過分は自動判定しません");
+  await dailyAllowanceHelp.press("Escape");
+  assert.equal(await dailyAllowanceHelp.getAttribute("aria-expanded"), "false");
+  await dailyAllowanceHelp.dispatchEvent("click");
+  assert.equal(await dailyAllowanceHelp.getAttribute("aria-expanded"), "true");
+  await dailyAllowanceHelp.dispatchEvent("click");
+  assert.equal(await dailyAllowanceHelp.getAttribute("aria-expanded"), "false");
+  await page.getByText("詳細", { exact: true }).click();
 
   const touchState = await page.evaluate(
     (key) => globalThis.localStorage.getItem(key),
@@ -538,6 +600,24 @@ try {
     assert.equal(await touchMonthlyHelp.getAttribute("aria-expanded"), "true");
     await touchMonthlyHelp.tap();
     assert.equal(await touchMonthlyHelp.getAttribute("aria-expanded"), "false");
+    await touchPage.getByText("詳細", { exact: true }).tap();
+    const touchDailyHelp = touchPage.getByRole("button", {
+      name: "通勤手当（日）の説明",
+      exact: true,
+    });
+    await touchDailyHelp.tap();
+    assert.equal(await touchDailyHelp.getAttribute("aria-expanded"), "true");
+    await assertContains(
+      touchPage.locator("#payroll-daily-commuting-allowance-help"),
+      "課税超過分は自動判定しません",
+    );
+    await touchDailyHelp.tap();
+    assert.equal(await touchDailyHelp.getAttribute("aria-expanded"), "false");
+    const touchCarCommute = touchPage.getByLabel("車で通勤", { exact: true });
+    await touchCarCommute.tap();
+    assert.equal(await touchCarCommute.isChecked(), false);
+    await touchCarCommute.tap();
+    assert.equal(await touchCarCommute.isChecked(), true);
     assert.equal(
       await touchPage.evaluate(
         () =>
@@ -548,6 +628,221 @@ try {
     );
   } finally {
     await touchContext.close();
+  }
+
+  const carValuesBeforeOff = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    const plan = state.payrollPlans[0];
+    return {
+      commutingFuelEstimate: plan.commutingFuelEstimate,
+      daily: plan.nonTaxableCommutingAllowanceYenPerWorkday,
+      monthlyCompatibility: plan.monthlyNonTaxableCommutingYen,
+    };
+  }, storageKey);
+  await carCommute.uncheck();
+  await assertContains(
+    page.locator("#payroll-commuting-mode-status"),
+    "通勤手当とガソリン代試算は0円",
+  );
+  assert.equal(
+    await page.getByLabel("出勤日数（月平均）", { exact: true }).isDisabled(),
+    true,
+  );
+  await page.getByRole("button", { name: "給与計画を更新" }).click();
+  await page.getByRole("button", { name: "給与計画を更新" }).waitFor();
+  const offPayroll = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return state.payrollPlans[0];
+  }, storageKey);
+  assert.equal(offPayroll.commutingAllowanceMode, "none");
+  assert.deepEqual(
+    offPayroll.commutingFuelEstimate,
+    carValuesBeforeOff.commutingFuelEstimate,
+  );
+  assert.equal(
+    offPayroll.nonTaxableCommutingAllowanceYenPerWorkday,
+    carValuesBeforeOff.daily,
+  );
+  assert.equal(
+    offPayroll.monthlyNonTaxableCommutingYen,
+    carValuesBeforeOff.monthlyCompatibility,
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='monthly-income'] > strong")
+      .textContent(),
+    "365,000円",
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='practical-monthly-income'] > strong")
+      .textContent(),
+    "365,000円",
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='practical-annual-income'] > strong")
+      .textContent(),
+    "4,780,000円",
+  );
+  await carCommute.check();
+  assert.equal(
+    await page.getByLabel("出勤日数（月平均）", { exact: true }).inputValue(),
+    "20.0",
+  );
+  assert.equal(
+    await page.getByLabel("通勤手当（日）", { exact: true }).inputValue(),
+    "800",
+  );
+  await page.getByRole("button", { name: "給与計画を更新" }).click();
+  const restoredPayroll = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return state.payrollPlans[0];
+  }, storageKey);
+  assert.equal(restoredPayroll.commutingAllowanceMode, "car-daily");
+  assert.deepEqual(
+    restoredPayroll.commutingFuelEstimate,
+    carValuesBeforeOff.commutingFuelEstimate,
+  );
+  assert.equal(
+    await page
+      .locator("[data-result-kind='practical-monthly-income'] > strong")
+      .textContent(),
+    "373,800円",
+  );
+
+  const legacyV9Bytes = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    state.schemaVersion = 9;
+    for (const plan of state.payrollPlans) {
+      plan.monthlyNonTaxableCommutingYen = 5_000;
+      delete plan.commutingAllowanceMode;
+      delete plan.nonTaxableCommutingAllowanceYenPerWorkday;
+    }
+    return JSON.stringify(state);
+  }, storageKey);
+  const legacyContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+  });
+  try {
+    const legacyPage = await legacyContext.newPage();
+    legacyPage.setDefaultNavigationTimeout(90_000);
+    observeRuntimePage(legacyPage);
+    await legacyPage.goto(`${standaloneUrl}#/payroll`, { waitUntil: "load" });
+    await legacyPage.evaluate(
+      ({ currentKey, previousKey, bytes }) => {
+        globalThis.localStorage.setItem(previousKey, bytes);
+        globalThis.localStorage.removeItem(currentKey);
+      },
+      {
+        currentKey: storageKey,
+        previousKey: schemaVersion9StorageKey,
+        bytes: legacyV9Bytes,
+      },
+    );
+    await legacyPage.reload({ waitUntil: "load" });
+    assert.equal(
+      await legacyPage.evaluate(
+        (key) => globalThis.localStorage.getItem(key),
+        schemaVersion9StorageKey,
+      ),
+      legacyV9Bytes,
+    );
+    const migratedLegacy = await legacyPage.evaluate((key) => {
+      const state = JSON.parse(globalThis.localStorage.getItem(key));
+      return state.payrollPlans[0];
+    }, storageKey);
+    assert.equal(migratedLegacy.commutingAllowanceMode, "legacy-monthly");
+    assert.equal(migratedLegacy.nonTaxableCommutingAllowanceYenPerWorkday, 800);
+    const legacyCheckbox = legacyPage.getByLabel("車で通勤", { exact: true });
+    assert.equal(
+      await legacyCheckbox.evaluate((element) => element.indeterminate),
+      true,
+    );
+    assert.equal(await legacyCheckbox.getAttribute("aria-checked"), "mixed");
+    await assertContains(
+      legacyPage.locator("#payroll-commuting-mode-status"),
+      "旧月額を使用中",
+    );
+    assert.equal(
+      await legacyPage
+        .getByLabel("通勤手当（月・非課税）", { exact: true })
+        .count(),
+      0,
+    );
+    await legacyPage.getByText("詳細", { exact: true }).click();
+    await assertContains(
+      legacyPage.getByTestId("payroll-legacy-commuting"),
+      "旧通勤手当（月）",
+    );
+    await assertContains(
+      legacyPage.getByTestId("payroll-legacy-commuting"),
+      "5,000円",
+    );
+    assert.equal(
+      await legacyPage
+        .locator("[data-result-kind='monthly-income'] > strong")
+        .textContent(),
+      "370,000円",
+    );
+    await legacyPage.getByLabel("基本給（月）", { exact: true }).fill("321000");
+    await legacyPage.getByRole("button", { name: "給与計画を更新" }).click();
+    assert.equal(
+      await legacyPage.evaluate((key) => {
+        const state = JSON.parse(globalThis.localStorage.getItem(key));
+        return state.payrollPlans[0].commutingAllowanceMode;
+      }, storageKey),
+      "legacy-monthly",
+    );
+    await legacyCheckbox.check();
+    await legacyPage.getByRole("button", { name: "給与計画を更新" }).click();
+    assert.equal(
+      await legacyPage.evaluate((key) => {
+        const state = JSON.parse(globalThis.localStorage.getItem(key));
+        return state.payrollPlans[0].commutingAllowanceMode;
+      }, storageKey),
+      "car-daily",
+    );
+
+    await legacyPage.evaluate(
+      ({ currentKey, previousKey, bytes }) => {
+        globalThis.localStorage.setItem(previousKey, bytes);
+        globalThis.localStorage.removeItem(currentKey);
+      },
+      {
+        currentKey: storageKey,
+        previousKey: schemaVersion9StorageKey,
+        bytes: legacyV9Bytes,
+      },
+    );
+    await legacyPage.reload({ waitUntil: "load" });
+    const legacyOffCheckbox = legacyPage.getByLabel("車で通勤", {
+      exact: true,
+    });
+    await legacyOffCheckbox.evaluate((element) => {
+      element.indeterminate = false;
+      element.checked = false;
+      element.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+    });
+    assert.equal(
+      await legacyPage
+        .getByLabel("出勤日数（月平均）", { exact: true })
+        .isDisabled(),
+      true,
+    );
+    await legacyPage.getByRole("button", { name: "給与計画を更新" }).click();
+    const adoptedOff = await legacyPage.evaluate((key) => {
+      const state = JSON.parse(globalThis.localStorage.getItem(key));
+      return state.payrollPlans[0];
+    }, storageKey);
+    assert.equal(adoptedOff.commutingAllowanceMode, "none");
+    assert.equal(adoptedOff.monthlyNonTaxableCommutingYen, 5_000);
+    assert.deepEqual(
+      adoptedOff.commutingFuelEstimate,
+      migratedLegacy.commutingFuelEstimate,
+    );
+  } finally {
+    await legacyContext.close();
   }
 
   await page.evaluate(
@@ -1519,7 +1814,7 @@ try {
     savedBeforeReload,
     "application state was not saved to localStorage",
   );
-  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 9);
+  assert.equal(JSON.parse(savedBeforeReload).schemaVersion, 10);
   await page.reload({ waitUntil: "load" });
   await page.getByRole("heading", { level: 2, name: "家計簿" }).waitFor();
   await assertContains(page.getByTestId("household-expense"), "108,772円");
@@ -1533,8 +1828,11 @@ try {
     ({ currentKey, previousKey }) => {
       const current = JSON.parse(globalThis.localStorage.getItem(currentKey));
       current.schemaVersion = 8;
-      for (const payrollPlan of current.payrollPlans)
+      for (const payrollPlan of current.payrollPlans) {
         delete payrollPlan.commutingFuelEstimate;
+        delete payrollPlan.commutingAllowanceMode;
+        delete payrollPlan.nonTaxableCommutingAllowanceYenPerWorkday;
+      }
       const bytes = JSON.stringify(current);
       globalThis.localStorage.setItem(previousKey, bytes);
       globalThis.localStorage.removeItem(currentKey);
@@ -1550,19 +1848,27 @@ try {
     ),
     portableV8Bytes,
   );
-  const migratedV9 = JSON.parse(
+  const migratedV10 = JSON.parse(
     await page.evaluate(
       (key) => globalThis.localStorage.getItem(key),
       storageKey,
     ),
   );
-  assert.equal(migratedV9.schemaVersion, 9);
-  assert.deepEqual(migratedV9.payrollPlans[0].commutingFuelEstimate, {
+  assert.equal(migratedV10.schemaVersion, 10);
+  assert.deepEqual(migratedV10.payrollPlans[0].commutingFuelEstimate, {
     averageWorkdaysPerMonthTenths: null,
     roundTripDistanceKmTenths: null,
     fuelEfficiencyKmPerLiterTenths: null,
     gasolinePriceYenPerLiter: null,
   });
+  assert.equal(
+    migratedV10.payrollPlans[0].commutingAllowanceMode,
+    "legacy-monthly",
+  );
+  assert.equal(
+    migratedV10.payrollPlans[0].nonTaxableCommutingAllowanceYenPerWorkday,
+    800,
+  );
 
   await page.getByRole("link", { name: "総合サマリ" }).click();
   await page.waitForURL(`${standaloneUrl}#/overview`);
@@ -1977,7 +2283,7 @@ try {
         storageKey,
       ),
     ).schemaVersion,
-    9,
+    10,
   );
 
   await page.goto(`${standaloneUrl}#/life-plan`, { waitUntil: "load" });
@@ -2237,7 +2543,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK017-fix1-compact-result-details-plus-payroll-ui-fuel-v9-and-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, payrollResultRestingView=compact, payrollResultNumbers=previous-candidate-equivalent, payrollResultDetails=label-hover-focus-enter-space-click-touch-escape, payrollFuel=7200, payrollBonusPreservation=passed, payrollBonusCancelAtomic=passed, payrollBonusConfirmedFlatten=passed, payrollHelp=keyboard-and-viewport, payrollViewport=320px-and-375px, compactChoices=${String(compactChoiceCount)}, v8ToV9Migration=bytes-preserved, supportedYear2027=passed, unsupportedBindingImport=blocked, grossOnly2027=visible, downstream2027=unavailable, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v9, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK018-car-commute-daily-v10-plus-TASK017-and-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, payrollResultRestingView=compact, payrollResultDetails=label-hover-focus-enter-space-click-touch-escape, payrollFuel=7200, payrollCarDefault=off-daily800, payrollCarToggle=off-retains-reon-restores, payrollLegacy=mixed-preserved-explicit-adoption, payrollTaxHelp=keyboard-touch-disclosure, payrollBonusPreservation=passed, payrollBonusCancelAtomic=passed, payrollBonusConfirmedFlatten=passed, payrollHelp=keyboard-and-viewport, payrollViewport=320px-and-375px, compactChoices=${String(compactChoiceCount)}, v9ToV10Migration=bytes-preserved, v8ToV10Migration=bytes-preserved, supportedYear2027=passed, unsupportedBindingImport=blocked, grossOnly2027=visible, downstream2027=unavailable, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v10, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

@@ -44,7 +44,7 @@ describe("schema v6 backup metadata", () => {
       budgetIncomePolicies,
       ...domain
     } = migrated;
-    expect(domain).toEqual({ ...v5, schemaVersion: 9 });
+    expect(domain).toEqual({ ...v5, schemaVersion: 10 });
     expect(payrollPlans).toEqual([]);
     expect(takeHomeCompensationBindings).toEqual([]);
     expect(budgetIncomePolicies).toEqual([]);

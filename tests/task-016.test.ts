@@ -71,6 +71,8 @@ function payroll(overrides: Partial<PayrollPlan> = {}): PayrollPlan {
       fuelEfficiencyKmPerLiterTenths: null,
       gasolinePriceYenPerLiter: null,
     },
+    commutingAllowanceMode: "legacy-monthly",
+    nonTaxableCommutingAllowanceYenPerWorkday: 800,
     bonuses: [],
     ...overrides,
   };
@@ -807,7 +809,7 @@ describe("TASK-016 schema and routes", () => {
     const migrated = migrateToCurrentState(v7);
     expect(JSON.stringify(v7)).toBe(before);
     expect(migrated).toMatchObject({
-      schemaVersion: 9,
+      schemaVersion: 10,
       activeRoute: "overview",
       payrollPlans: [],
       takeHomeCompensationBindings: [],
