@@ -1,21 +1,28 @@
 # RELAY IMPORT — TASK-018
 
-- source bundle: TASK-018_REQUIREMENTS_DEFINED_RELAY_BUNDLE.json
-- source SHA-256: 3330BF261145DAA38CBC5BB5766EF9A0BFA4B57CFA36297F065029F6E1677208
-- source bytes: 6361
+- source bundle: TASK-018_APPROVED_RELAY_BUNDLE.json
+- source SHA-256: 03DA11681896FFAD2C105DDE80789E370D8B679D04B6A70BACB5139CD2B1D179
+- source bytes: 3959
 - identity verified: true
 - canonical bundle: docs/ai/reports/TASK-018/RELAY_BUNDLE.json
-- canonical SHA-256: 3330BF261145DAA38CBC5BB5766EF9A0BFA4B57CFA36297F065029F6E1677208
-- canonical bytes: 6361
+- canonical SHA-256: 03DA11681896FFAD2C105DDE80789E370D8B679D04B6A70BACB5139CD2B1D179
+- canonical bytes: 3959
 - semantic round-trip: verified
-- decision: REQUIREMENTS_DEFINED
+- decision: APPROVED
 - relay_recipient: Codex
 - relay_recipient_role: IMPLEMENTER
 - result_return_to: ChatGPT
-- candidate: none
-- handoff HEAD: none
-- routing_mode: legacy_unspecified
+- candidate: 4816f7c153931bcc4a754cf5d238546873c99a6c
+- handoff HEAD: 416928c5cc33c111848ac965ecc8be6f481c8b7c
+- routing_mode: connector_read_only
+- route_repository: Osato-Gasu/Personal-Finance-Planner
+- requested_ref: refs/heads/codex/task-018-car-commute-daily-allowance
+- resolved_commit: 416928c5cc33c111848ac965ecc8be6f481c8b7c
+- next_action_blob: 06574fa612af8c259de3d1f9e450fbdac444fdb1
+- handoff_blob: 7385421dace2dfc66e5e6b5773f7558d0b023656
+- adapter_blob: 3f9dd1a4e2e981fc58ddfd476c45e2f3d1748054
 - review_stage: implementation
+- implementation_candidate: 4816f7c153931bcc4a754cf5d238546873c99a6c
 - imported findings: 0
 - accepted findings: 0
 - finding dispositions: 0

@@ -1,19 +1,19 @@
 ---
 task_id: TASK-018
 title: 車通勤ON/OFF・日額通勤手当自動計算
-status: ready
+status: approved
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 2
 spec_status: accepted
-current_phase: implementation
+current_phase: release
 current_role_id: IMPLEMENTER
 next_actor: Codex
 next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-018/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-018/RELEASE_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -31,6 +31,10 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements
 accepted_product_sha256: 585BEE35CB2D1D5EEEB7BD2344B66E1344974B8B380886935007A087E58DF5AB
 implementation_candidate: 4816f7c153931bcc4a754cf5d238546873c99a6c
 
+reviewed_candidate: 4816f7c153931bcc4a754cf5d238546873c99a6c
+shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+changes_requested_cycles: 0
+review_stage: implementation
 updated_at: 2026-08-24
 ---
 
