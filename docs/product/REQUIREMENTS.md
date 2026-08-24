@@ -92,9 +92,13 @@
 
 `PayrollPlan`の総支給計算・保存は複数年を扱えるが、手取りruleと自動連携の対応年は単一のdomain authorityが定め、現在は2026年だけとする。非対応年の給与計画はgross-pay-onlyとして保持し、総支給計算は利用できる一方、手取り自動連携が利用できないことを給与画面へ文字で表示する。2027年以降の税・社会保険rule追加は別TASKとする。
 
-同一人物・同一年かつ手取り対応年の給与計画は`TakeHomeCompensationBinding`で手取り計算へ連携できる。連携中はpersist済み直接入力を変更せず、給与結果から月次modeの一時的なcompensationを作る。賞与は一度だけ含め、不正・欠落・曖昧な連携は直接入力へfallbackしない。非対応年のactive bindingはcurrent v8として受理しない。
+同一人物・同一年かつ手取り対応年の給与計画は`TakeHomeCompensationBinding`で手取り計算へ連携できる。連携中はpersist済み直接入力を変更せず、給与結果から月次modeの一時的なcompensationを作る。賞与は一度だけ含め、不正・欠落・曖昧な連携は直接入力へfallbackしない。非対応年のactive bindingはcurrent v9として受理しない。
 
-新規v8アプリの通常フローでは、計算手取りplanの作成年を同じsupported-year authorityから導出する。その対応年について同一人物・同一年のactive給与計画がexact 1件なら、plan追加とactive binding追加を同じStore遷移で行う。0件または複数なら自動選択せずdirectのままにし、runtime resolverが未binding recordを暗黙連携してはならない。作成後は利用者がdirectまたは対応年の有効な給与計画へ明示的に切り替えられ、非active側の直接入力bytesを保全する。
+新規currentアプリの通常フローでは、計算手取りplanの作成年を同じsupported-year authorityから導出する。その対応年について同一人物・同一年のactive給与計画がexact 1件なら、plan追加とactive binding追加を同じStore遷移で行う。0件または複数なら自動選択せずdirectのままにし、runtime resolverが未binding recordを暗黙連携してはならない。作成後は利用者がdirectまたは対応年の有効な給与計画へ明示的に切り替えられ、非active側の直接入力bytesを保全する。
+
+給与通常画面は`role === "self"`の本人と`getReferenceDate()`由来の現在年へ固定し、人物・対象年を編集させない。候補解決はself/current-yearへ限定した後にselected ID、active、先頭の順とし、候補がなければ本人・現在年の新規給与計画を追加する。相手・過去年planとbindingを再利用・書換しない。賞与（年）は既存`bonuses[]`の合計adapterとし、無関係な編集では全metadataを保持、1件の金額変更では`grossYen`だけを変更、複数件の合計変更は明示確認後だけflattenする。
+
+通勤燃料の4入力はschema v9の`commutingFuelEstimate`へ固定小数整数で保存する。主要結果はexactly `月収`、`実質月収`、`年収`の3枚とし、後者2つはガソリン代を差し引く税引前生活試算で、燃料入力不完備時は`未計算`とする。燃料入力・生活試算は法定給与、課税・非課税支給、給与→手取り、税・社会保険・雇用保険のauthorityから隔離し、その旨を常時表示する。短縮labelの説明はhover、focus、Enter/Space、touch/click、Escapeで利用でき、`title`だけに依存しない。
 
 家計収入は`BudgetIncomePolicy`により、従来の手入力／`LinkDefinition`または対象年の唯一のactive計算手取りを選ぶ。autoで0件、複数、未計算なら利用不可とし、手入力0円へ置換しない。家計簿後の残額は「投資可能額」であり、自動投資額ではない。
 
@@ -271,7 +275,7 @@ TASK-015のiDeCo評価は、保存済み`baseReferenceDate`とその年から作
 - iDeCo固定月額費用は投資口座内の費用として扱い、世帯の外部拠出比較へ含めない。
 - 年末現預金が0円以上で、安全整数の加算が成功する。
 
-最初の拠出不一致月を人物・domain・sourceとともに保持し、その月を含む行以降は、後に再一致しても金融資産合計を`—`とする。投資拠出を現預金から再度差し引かず、投資残高へ元本を重ねて加算しない。負の現預金は不足額として表示するが金融資産合計を数値にしない。この合計は表示対象の金融資産だけで、負債を含む純資産ではない。年次結果はruntime導出のみとし、schemaVersion 8でも永続化しない。
+最初の拠出不一致月を人物・domain・sourceとともに保持し、その月を含む行以降は、後に再一致しても金融資産合計を`—`とする。投資拠出を現預金から再度差し引かず、投資残高へ元本を重ねて加算しない。負の現預金は不足額として表示するが金融資産合計を数値にしない。この合計は表示対象の金融資産だけで、負債を含む純資産ではない。年次結果はruntime導出のみとし、schemaVersion 9でも永続化しない。
 
 ## 10. ツール間連携
 
@@ -296,8 +300,8 @@ TASK-015のiDeCo評価は、保存済み`baseReferenceDate`とその年から作
 ## 11. 保存とバックアップ
 
 - localStorageへはRepositoryだけがアクセスし、有効なState遷移だけを保存する。
-- current AppStateはschemaVersion 8とする。v7境界を凍結し、v7→v8では空の`payrollPlans`、`takeHomeCompensationBindings`、`budgetIncomePolicies`だけを追加し、旧`life-plan` routeを`overview`へ写像する。v1～currentを決定的かつidempotentに移行する。
-- current keyは`personal-finance-planner:state:v8`とし、v8が存在する場合は壊れていてもv7以下へfallbackしない。v8がなく有効なv7以下がある場合だけv8へ移行保存し、legacy bytesを変更しない。
+- current AppStateはschemaVersion 9とする。v8境界を凍結し、v8→v9では各`PayrollPlan`へnull初期値の通勤燃料4項目だけを追加する。v1～currentを決定的かつidempotentに移行する。
+- current keyは`personal-finance-planner:state:v9`とし、v9が存在する場合は壊れていてもv8以下へfallbackしない。v9がなく有効なv8以下がある場合だけv9へ移行保存し、legacy bytesを変更しない。
 - migration前のlegacy bytesを削除・上書きしない。migration失敗時はlegacy/current双方を変更せず、corrupt currentを古いlegacyへ黙ってfallbackして上書きしない。
 - schema v1のotherwise-validな表示名に含まれるLF、CR、CRLF、前後空白、50文字超、日本語・記号をlosslessに保持する。単一行inputのDOM正規化値を自動write-backせず、明示的な名前編集と保存が行われた場合だけ置換する。
 - JSON exportはvalidate済みcurrent AppStateだけをUTF-8で生成し、derived resultを重複保存しない。JSON生成とbrowser file handoffが成功した場合だけ`lastExportedAt`を更新する。
@@ -380,7 +384,7 @@ TASK-015のiDeCo評価は、保存済み`baseReferenceDate`とその年から作
 - `npm run test:portable`が、空白・日本語を含む別folderのHTML単体を実browserの`file://`で検証する。
 - standalone HTMLで6 route、未知route正規化、戻る、進む、reload、same-path localStorage復元が機能する。
 - ライフプランの保存基準日と開始年は現在時刻で再解釈されず、同じ保存Stateから同じ年次結果を返す。
-- v1～v7からv8への移行で旧bytesを保持し、壊れたv8から旧keyへ黙ってfallbackしない。
+- v1～v8からv9への移行で旧bytesを保持し、壊れたv9から旧keyへ黙ってfallbackしない。
 - ライフイベントの追加・編集・有効切替・削除、暦年inclusive適用、負残高警告、安全整数範囲外停止が機能する。
 - TASK-014の年末現預金結果を変更せず、active人物のNISA・iDeCoだけを正確な`YYYY-12`投影点で集計する。
 - 投資計画の開始後、終了後、追加購入月を含む月次拠出が固定キャッシュフローと異なる最初の月を検出し、その行以降の金融資産合計を表示しない。

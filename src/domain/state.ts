@@ -23,14 +23,18 @@ import {
   type IdecoPlan,
 } from "./ideco";
 import {
+  EMPTY_COMMUTING_FUEL_ESTIMATE,
   parsePayrollPlan,
+  parseSchemaVersion8PayrollPlan,
   validatePayrollPlan,
   type PayrollPlan,
+  type SchemaVersion8PayrollPlan,
 } from "./payroll";
 import { isTakeHomeSupportedYear } from "./take-home-support";
 
-export const SCHEMA_VERSION = 8 as const;
-export const PREVIOUS_SCHEMA_VERSION = 7 as const;
+export const SCHEMA_VERSION = 9 as const;
+export const PREVIOUS_SCHEMA_VERSION = 8 as const;
+export const SCHEMA_VERSION_7 = 7 as const;
 export const SCHEMA_VERSION_6 = 6 as const;
 export const SCHEMA_VERSION_5 = 5 as const;
 export const SCHEMA_VERSION_4 = 4 as const;
@@ -161,7 +165,7 @@ export interface BudgetIncomePolicy {
 }
 
 export interface AppState {
-  schemaVersion: 8;
+  schemaVersion: 9;
   activeRoute: RouteId;
   members: HouseholdMember[];
   payrollPlans: PayrollPlan[];
@@ -177,6 +181,14 @@ export interface AppState {
   idecoPlans: IdecoPlan[];
   backup: BackupMetadata;
   lifePlan: LifePlanState;
+}
+
+export interface SchemaVersion8AppState extends Omit<
+  AppState,
+  "schemaVersion" | "payrollPlans"
+> {
+  schemaVersion: 8;
+  payrollPlans: SchemaVersion8PayrollPlan[];
 }
 
 export interface SchemaVersion7AppState {
@@ -819,7 +831,7 @@ function validateCurrentMembersAndIncome(
   }
 }
 
-function validateVersion8Relationships(state: AppState): void {
+function validateCurrentRelationships(state: AppState): void {
   uniqueIds(state.payrollPlans, "payroll plan");
   const memberIds = new Set(state.members.map((member) => member.id));
   const activePayrollKeys = new Set<string>();
@@ -901,7 +913,7 @@ export function validateAppState(state: AppState): void {
   validateLifePlanState(state.lifePlan);
   validateBackupMetadata(state.backup);
   validateCurrentMembersAndIncome(state);
-  validateVersion8Relationships(state);
+  validateCurrentRelationships(state);
   uniqueIds(state.nisaPlans, "NISA plan");
   uniqueIds(state.investmentScenarios, "investment scenario");
   const memberIds = new Set(state.members.map((member) => member.id));
@@ -1316,7 +1328,7 @@ export function parseAppState(value: unknown): AppState {
   const members = parseMembers(value, true);
   const memberProfiles = new Map(members.map((member) => [member.id, member]));
   const state: AppState = {
-    schemaVersion: 8,
+    schemaVersion: 9,
     activeRoute: (() => {
       if (
         typeof value.activeRoute !== "string" ||
@@ -1382,10 +1394,34 @@ export function parseAppState(value: unknown): AppState {
   return state;
 }
 
+export function parseSchemaVersion8AppState(
+  value: unknown,
+): SchemaVersion8AppState {
+  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+    throw new Error("unsupported schema version");
+  const payrollPlans = requireArray(value, "payrollPlans").map(
+    parseSchemaVersion8PayrollPlan,
+  );
+  const currentLike = {
+    ...value,
+    schemaVersion: 9,
+    payrollPlans: payrollPlans.map((plan) => ({
+      ...structuredClone(plan),
+      commutingFuelEstimate: structuredClone(EMPTY_COMMUTING_FUEL_ESTIMATE),
+    })),
+  };
+  const parsed = parseAppState(currentLike);
+  return {
+    ...structuredClone(parsed),
+    schemaVersion: 8,
+    payrollPlans,
+  };
+}
+
 export function parseSchemaVersion7AppState(
   value: unknown,
 ): SchemaVersion7AppState {
-  if (!isRecord(value) || value.schemaVersion !== PREVIOUS_SCHEMA_VERSION)
+  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION_7)
     throw new Error("unsupported schema version");
   if (
     typeof value.activeRoute !== "string" ||
@@ -1401,8 +1437,8 @@ export function parseSchemaVersion7AppState(
     takeHomeCompensationBindings: [],
     budgetIncomePolicies: [],
   };
-  const parsed = parseAppState(currentLike);
-  const previous = structuredClone(parsed) as Partial<AppState>;
+  const parsed = parseSchemaVersion8AppState(currentLike);
+  const previous = structuredClone(parsed) as Partial<SchemaVersion8AppState>;
   Reflect.deleteProperty(previous, "payrollPlans");
   Reflect.deleteProperty(previous, "takeHomeCompensationBindings");
   Reflect.deleteProperty(previous, "budgetIncomePolicies");
@@ -1542,7 +1578,7 @@ export function parseSchemaVersion4AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 8,
+    schemaVersion: 9,
     payrollPlans: [],
     takeHomeCompensationBindings: [],
     budgetIncomePolicies: [],
@@ -1585,7 +1621,7 @@ export function parseSchemaVersion3AppState(
   };
   validateAppState({
     ...structuredClone(state),
-    schemaVersion: 8,
+    schemaVersion: 9,
     payrollPlans: [],
     takeHomeCompensationBindings: [],
     budgetIncomePolicies: [],
@@ -1615,6 +1651,7 @@ export function parseSchemaVersion2AppState(
 export function cloneState<
   T extends
     | AppState
+    | SchemaVersion8AppState
     | SchemaVersion7AppState
     | SchemaVersion6AppState
     | SchemaVersion5AppState
@@ -2686,7 +2723,7 @@ function assertExpenseDestination(state: AppState, item: ExpenseItem): void {
 
 export function createInitialState(): AppState {
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     activeRoute: "overview",
     members: [
       { id: "member-self", role: "self", displayName: "本人", active: true },

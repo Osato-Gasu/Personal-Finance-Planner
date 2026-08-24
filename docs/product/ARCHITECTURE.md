@@ -190,11 +190,13 @@ resolve(domain, targetDate, context)
 
 `StorageRepository`だけがlocalStorageへアクセスする。
 
-current schemaはv8、current storage keyは`personal-finance-planner:state:v8`とする。v8が存在する場合はparse失敗をfail closedとし、旧keyへfallbackしない。v8がなくv7以下が存在する場合だけ決定的なmigrationを実行し、legacy bytesを保持したままv8をatomic saveする。v7 route/state境界は凍結し、v7→v8では3つの空top-level配列と`life-plan`→`overview`写像だけを追加する。
+current schemaはv9、current storage keyは`personal-finance-planner:state:v9`とする。v9が存在する場合はparse失敗をfail closedとし、旧keyへfallbackしない。v9がなくv8以下が存在する場合だけ決定的なmigrationを実行し、legacy bytesを保持したままv9をatomic saveする。v8→v9では各`PayrollPlan`へnull初期値の`commutingFuelEstimate`だけを追加し、賞与metadata、binding、他domainを変更しない。
 
 ### 11.1 TASK-016 連携DAG
 
 `PayrollPlan`は対象年を2026年へ制限せず、`calculatePayroll()`で複数年のgross-pay derived resultを作る。activeな`TakeHomeCompensationBinding`が同一人物・同一年かつTake-home対応年を指す場合だけ、一時的な月次`TakeHomePlan`へ適用する。非対応年はgross-pay-onlyとして保存を維持し、binding selectorへ提示しない。persist済み手取り入力は書き換えない。既存iDeCo控除連携はこの一時planへ適用した後も同じcalculator pathを使う。
+
+給与画面は`getReferenceDate()`を1回だけ読み、`role === "self"`と現在年へ候補を限定してselected ID、active、先頭の順に解決する。候補なしでは新規recordを追加し、相手・過去年recordを再利用しない。年間賞与欄は既存`bonuses[]`合計のadapterであり、未変更時は配列を保持、1件変更時は`grossYen`だけを変更、複数件変更時はdispatch前の明示確認後だけ現在日の1件へ置換する。
 
 `BudgetIncomePolicy`のauto modeは基準年の唯一のactive計算手取りを解決し、従来modeは既存`LinkDefinition`／manual authorityを完全に維持する。`selectInvestmentFundingContext()`は`BudgetSummary`とNISA/iDeCoの当月拠出観測だけを読み、将来投影calculatorを呼ばず、planを変更しない。この一方向DAGをOverviewが合成する。
 

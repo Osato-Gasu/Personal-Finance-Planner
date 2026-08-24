@@ -17,7 +17,7 @@ type EntityId = string;
 
 ```ts
 interface AppState {
-  schemaVersion: 8;
+  schemaVersion: 9;
   activeRoute: RouteId;
   members: HouseholdMember[];
   payrollPlans: PayrollPlan[];
@@ -36,11 +36,18 @@ interface AppState {
 }
 ```
 
-current正本はschemaVersion 8とする。schema v7はrouteを含む旧shapeをそのまま凍結し、v7→v8では3つの空top-level配列と`life-plan`→`overview` route写像だけを追加する。既存v1～v7 migrationの意味を変更しない。
+current正本はschemaVersion 9とする。schema v8はTASK-016 shapeを凍結し、v8→v9では各`PayrollPlan`へ4つのnullable fixed-point値だけを持つ`commutingFuelEstimate`を追加する。既存v1～v8 migrationの意味を変更しない。
 
 ### 2.1 TASK-016追加shape
 
 ```ts
+interface CommutingFuelEstimateInput {
+  averageWorkdaysPerMonthTenths: number | null; // 0.1日
+  roundTripDistanceKmTenths: number | null; // 0.1km
+  fuelEfficiencyKmPerLiterTenths: number | null; // 0.1km/L
+  gasolinePriceYenPerLiter: number | null; // 1円
+}
+
 interface PayrollPlan {
   id: string;
   memberId: string;
@@ -52,6 +59,7 @@ interface PayrollPlan {
   scheduledMonthlyMinutes: number;
   overtimeRateBasisPoints: number;
   monthlyNonTaxableCommutingYen: Yen;
+  commutingFuelEstimate: CommutingFuelEstimateInput;
   bonuses: BonusPayment[];
 }
 
@@ -69,7 +77,7 @@ interface BudgetIncomePolicy {
 
 同一人物・対象年のactive`PayrollPlan`は最大1件、計算手取りのactive bindingは最大1件、policyの`targetId`は配列内で一意とする。bindingは同一人物・対象年の既存recordだけを参照し、active bindingの対象年は単一のTake-home supported-year authorityに含まれなければならない。非対応年の`PayrollPlan`は削除・変換せずgross-pay-only recordとして保持する。policyは既存`IncomeTarget`だけを参照し、派生給与集計と`InvestmentFundingContext`は永続化しない。
 
-新規`createInitialState()`は本人・相手の既定IncomeTargetそれぞれに`auto-take-home` policyを作る。新しい計算`TakeHomePlan`の既定年はTake-home supported-year authorityから導出する。追加Store遷移は、その対応年について同一人物・同一年のactive給与計画がexact 1件の場合だけbindingも同じnext stateへ追加する。0件、複数、または非対応年では追加しない。これらは新規通常フローのdefaultであり、v7→v8 migrationは引き続き`takeHomeCompensationBindings: []`と`budgetIncomePolicies: []`を生成してlegacy bytes/authorityを保つ。
+新規`createInitialState()`は本人・相手の既定IncomeTargetそれぞれに`auto-take-home` policyを作る。新しい計算`TakeHomePlan`の既定年はTake-home supported-year authorityから導出する。追加Store遷移は、その対応年について同一人物・同一年のactive給与計画がexact 1件の場合だけbindingも同じnext stateへ追加する。0件、複数、または非対応年では追加しない。これらは新規通常フローのdefaultであり、v7→v8 migrationは引き続き`takeHomeCompensationBindings: []`と`budgetIncomePolicies: []`を生成してlegacy bytes/authorityを保つ。v8→v9は既存Payroll、賞与metadata、binding、他domainを保持し、燃料4項目をすべて`null`で追加する。
 
 ## 3. ライフプラン
 
@@ -324,4 +332,4 @@ interface BackupMetadata {
 - ライフプランの基準日はnullまたは実在するISO日付、開始年はnullまたは1..9999、投影終了年は9999以下とする。
 - ライフイベントIDは一意かつ更新で不変とし、存在しない更新・有効切替・削除を拒否する。
 - ライフプラン設定の4項目は一括検証し、不正時にState publishまたはstorage writeを行わない。
-- 年次投資観測点、拠出整合性、金融資産合計をAppStateへ追加せず、TASK-016のschemaVersion 8でもruntime derivedのまま維持する。
+- 年次投資観測点、拠出整合性、金融資産合計をAppStateへ追加せず、schemaVersion 9でもruntime derivedのまま維持する。

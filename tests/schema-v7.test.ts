@@ -94,7 +94,7 @@ describe("schema v7 life plan migration", () => {
     const before = JSON.stringify(previous);
     const migrated = migrateToCurrentState(previous);
     expect(JSON.stringify(previous)).toBe(before);
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.lifePlan).toEqual({
       baseReferenceDate: null,
       projectionStartYear: null,
@@ -107,7 +107,7 @@ describe("schema v7 life plan migration", () => {
     Reflect.deleteProperty(domain, "payrollPlans");
     Reflect.deleteProperty(domain, "takeHomeCompensationBindings");
     Reflect.deleteProperty(domain, "budgetIncomePolicies");
-    expect(domain).toEqual({ ...previous, schemaVersion: 8 });
+    expect(domain).toEqual({ ...previous, schemaVersion: 9 });
     expect(migrated.payrollPlans).toEqual([]);
     expect(migrated.takeHomeCompensationBindings).toEqual([]);
     expect(migrated.budgetIncomePolicies).toEqual([]);
@@ -155,7 +155,7 @@ describe("schema v7 life plan migration", () => {
     const bytes = JSON.stringify(v6Fixture());
     storage.values.set(SCHEMA_VERSION_6_STORAGE_KEY, bytes);
     const loaded = new StorageRepository(storage).load();
-    expect(loaded?.schemaVersion).toBe(8);
+    expect(loaded?.schemaVersion).toBe(9);
     expect(storage.getItem(SCHEMA_VERSION_6_STORAGE_KEY)).toBe(bytes);
     expect(storage.getItem(STORAGE_KEY)).toBe(JSON.stringify(loaded));
     expect(storage.writes).toBe(1);
@@ -181,7 +181,7 @@ describe("schema v7 life plan migration", () => {
       expect(
         repository.prepareImport(JSON.stringify(candidate)).preview
           .schemaVersion,
-      ).toBe(8);
+      ).toBe(9);
       expect(storage.getItem(STORAGE_KEY)).toBe(before);
     }
     expect(storage.writes).toBe(0);

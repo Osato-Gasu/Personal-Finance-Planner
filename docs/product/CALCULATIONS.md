@@ -15,6 +15,18 @@ annualTaxableSalaryYen = monthlyTaxableSalaryYen * 12 + sum(bonuses)
 annualGrossYen = annualTaxableSalaryYen + monthlyNonTaxableCommutingYen * 12
 ```
 
+通勤燃料試算は法定給与計算とは別の表示用authorityとする。出勤日数`W`、往復距離`D`、燃費`E`は0.1単位整数、単価`P`は円単位整数で保存し、4値が揃い`E > 0`の場合だけBigIntで計算する。
+
+```text
+estimatedGasolineYen = round-half-up(D * W * P / (10 * E))
+monthlyIncomeYen = monthlyGrossYen
+commutingBalanceYen = monthlyNonTaxableCommutingYen - estimatedGasolineYen
+practicalMonthlyIncomeYen = monthlyIncomeYen - estimatedGasolineYen
+practicalAnnualIncomeYen = practicalMonthlyIncomeYen * 12 + sum(bonuses)
+```
+
+途中丸めを行わず、最終月額だけを1円へhalf-upし、同じ丸め済み値を通勤収支・実質月収・年収へ再利用する。未入力または不正値は暗黙0にせず未計算／validation errorとし、signed結果を0へclampしない。燃料入力と試算結果は`calculatePayroll()`、給与→手取りcompensation、税、社会保険、雇用保険、bindingを変更しない。
+
 給与連携時は既存手取りplanをcloneし、月次課税給与、月次非課税通勤、年次集計、給与賞与だけを一時的に適用する。`annualOtherTaxableSalaryYen`は0、雇用保険賃金overrideはnullとし、賞与を月次給与へ混ぜない。直接modeの入力・結果は変更しない。
 
 給与のgross-pay計算は複数年で利用できる。手取り計算・給与連携のsupported-year authorityは現在2026年だけを定義し、非対応年の給与結果はgross-pay-onlyとして扱う。非対応年のactive bindingはvalidationで拒否し、税・社会保険額を0や別年ruleで補完しない。2027年以降のruleを暗黙に継続適用しない。

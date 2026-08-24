@@ -1,6 +1,7 @@
 import {
   SCHEMA_VERSION,
   parseAppState,
+  parseSchemaVersion8AppState,
   parseSchemaVersion7AppState,
   parseSchemaVersion6AppState,
   parseSchemaVersion5AppState,
@@ -14,6 +15,7 @@ import {
   type ExpenseItem,
   type HouseholdMember,
   type IncomeTarget,
+  type SchemaVersion8AppState,
   type SchemaVersion2AppState,
   type SchemaVersion3AppState,
   type SchemaVersion4AppState,
@@ -39,27 +41,37 @@ function uniqueId(preferred: string, used: Set<string>): string {
 export function migrateToCurrentState(value: unknown): AppState {
   if (!isRecord(value)) throw new Error("state must be an object");
   if (value.schemaVersion === SCHEMA_VERSION) return parseAppState(value);
+  if (value.schemaVersion === 8)
+    return migrateV8(parseSchemaVersion8AppState(value));
   if (value.schemaVersion === 7)
-    return migrateV7(parseSchemaVersion7AppState(value));
+    return migrateV8(migrateV7(parseSchemaVersion7AppState(value)));
   if (value.schemaVersion === 6)
-    return migrateV7(migrateV6(parseSchemaVersion6AppState(value)));
+    return migrateV8(migrateV7(migrateV6(parseSchemaVersion6AppState(value))));
   if (value.schemaVersion === 5)
-    return migrateV7(migrateV6(migrateV5(parseSchemaVersion5AppState(value))));
+    return migrateV8(
+      migrateV7(migrateV6(migrateV5(parseSchemaVersion5AppState(value)))),
+    );
   if (value.schemaVersion === 4)
-    return migrateV7(
-      migrateV6(migrateV5(migrateV4(parseSchemaVersion4AppState(value)))),
+    return migrateV8(
+      migrateV7(
+        migrateV6(migrateV5(migrateV4(parseSchemaVersion4AppState(value)))),
+      ),
     );
   if (value.schemaVersion === 3)
-    return migrateV7(
-      migrateV6(
-        migrateV5(migrateV4(migrateV3(parseSchemaVersion3AppState(value)))),
+    return migrateV8(
+      migrateV7(
+        migrateV6(
+          migrateV5(migrateV4(migrateV3(parseSchemaVersion3AppState(value)))),
+        ),
       ),
     );
   if (value.schemaVersion === 2)
-    return migrateV7(
-      migrateV6(
-        migrateV5(
-          migrateV4(migrateV3(migrateV2(parseSchemaVersion2AppState(value)))),
+    return migrateV8(
+      migrateV7(
+        migrateV6(
+          migrateV5(
+            migrateV4(migrateV3(migrateV2(parseSchemaVersion2AppState(value)))),
+          ),
         ),
       ),
     );
@@ -147,8 +159,8 @@ export function migrateToCurrentState(value: unknown): AppState {
       ...source,
     })),
   };
-  return migrateV7(
-    migrateV6(migrateV5(migrateV4(migrateV3(migrateV2(migrated))))),
+  return migrateV8(
+    migrateV7(migrateV6(migrateV5(migrateV4(migrateV3(migrateV2(migrated)))))),
   );
 }
 
@@ -225,8 +237,10 @@ export function migrateV6(
   };
 }
 
-export function migrateV7(previous: SchemaVersion7AppState): AppState {
-  const migrated: AppState = {
+export function migrateV7(
+  previous: SchemaVersion7AppState,
+): SchemaVersion8AppState {
+  return {
     ...structuredClone(previous),
     schemaVersion: 8,
     activeRoute:
@@ -234,6 +248,22 @@ export function migrateV7(previous: SchemaVersion7AppState): AppState {
     payrollPlans: [],
     takeHomeCompensationBindings: [],
     budgetIncomePolicies: [],
+  };
+}
+
+export function migrateV8(previous: SchemaVersion8AppState): AppState {
+  const migrated: AppState = {
+    ...structuredClone(previous),
+    schemaVersion: 9,
+    payrollPlans: previous.payrollPlans.map((plan) => ({
+      ...structuredClone(plan),
+      commutingFuelEstimate: {
+        averageWorkdaysPerMonthTenths: null,
+        roundTripDistanceKmTenths: null,
+        fuelEfficiencyKmPerLiterTenths: null,
+        gasolinePriceYenPerLiter: null,
+      },
+    })),
   };
   validateAppState(migrated);
   return migrated;

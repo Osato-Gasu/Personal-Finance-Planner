@@ -249,6 +249,202 @@ main > section > h3 {
   }
 }
 
+/* TASK-017: Payroll-scoped compact form and practical-income results. */
+.payroll-context {
+  color: var(--muted);
+  font-weight: 700;
+  margin: -0.35rem 0 1rem;
+}
+
+.payroll-form {
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.payroll-field {
+  min-width: 0;
+}
+
+.payroll-field-heading,
+.payroll-result-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.payroll-field-heading label {
+  display: inline;
+  font-weight: 650;
+}
+
+.payroll-field > input {
+  min-height: 2.35rem;
+  max-width: 18rem;
+  padding-block: 0.35rem;
+}
+
+.payroll-details,
+.payroll-legacy-bonuses,
+.payroll-submit,
+.payroll-activate {
+  grid-column: 1 / -1;
+}
+
+.payroll-details,
+.payroll-legacy-bonuses {
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.payroll-details > summary,
+.payroll-legacy-bonuses > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.payroll-details-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 0.85rem;
+}
+
+.payroll-submit,
+.payroll-activate {
+  justify-self: start;
+}
+
+.payroll-legacy-bonus-list {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+}
+
+.payroll-legacy-bonus-row {
+  background: #f8fbff;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  display: grid;
+  gap: 0.2rem 0.65rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0.65rem;
+}
+
+.payroll-legacy-bonus-row dt,
+.payroll-legacy-bonus-row dd {
+  margin: 0;
+}
+
+.payroll-legacy-bonus-row dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.payroll-legacy-bonus-row dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.payroll-help {
+  display: inline-flex;
+}
+
+.payroll-help-trigger {
+  align-items: center;
+  background: #eef4ff;
+  border-color: #9bb7e7;
+  border-radius: 50%;
+  color: #15345f;
+  display: inline-flex;
+  font-size: 0.8rem;
+  inline-size: 1.65rem;
+  justify-content: center;
+  min-height: 1.65rem;
+  padding: 0;
+}
+
+.payroll-help-trigger:hover:not(:disabled) {
+  background: #dfeaff;
+}
+
+.payroll-help-panel {
+  background: #102a56;
+  border: 1px solid #d8e1ec;
+  border-radius: 0.65rem;
+  box-shadow: 0 12px 32px rgba(16, 42, 86, 0.25);
+  color: #fff;
+  inset: 50% 1rem auto;
+  line-height: 1.55;
+  margin-inline: auto;
+  max-height: calc(100vh - 2rem);
+  max-width: 32rem;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+  position: fixed;
+  transform: translateY(-50%);
+  z-index: 20;
+}
+
+.payroll-primary-results {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.payroll-primary-result {
+  min-width: 0;
+  position: relative;
+}
+
+.payroll-result-heading {
+  font-weight: 700;
+}
+
+.payroll-result-breakdown {
+  display: grid;
+  font-size: 0.82rem;
+  gap: 0.2rem 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0.75rem 0 0;
+}
+
+.payroll-result-breakdown dt,
+.payroll-result-breakdown dd {
+  border-top: 1px solid #e5ebf3;
+  margin: 0;
+  padding-top: 0.25rem;
+}
+
+.payroll-result-breakdown dd {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.payroll-practical-note {
+  background: #eef6ff;
+  border-left: 0.3rem solid var(--primary);
+  margin-bottom: 0;
+  padding: 0.7rem 0.85rem;
+}
+
+@media (max-width: 40rem) {
+  .payroll-form,
+  .payroll-details-grid,
+  .payroll-primary-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .payroll-field > input {
+    max-width: 100%;
+  }
+
+  .payroll-legacy-bonus-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 body {
   margin: 0;
 }
@@ -672,6 +868,34 @@ fieldset input {
 }
 
 /* Cascade-final TASK-016 tokens and responsive layout. */
+/* Cascade-final TASK-017 Payroll grid constraints. */
+.form-grid.payroll-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kpi-grid.payroll-primary-results {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 40rem) {
+  .form-grid.payroll-form,
+  .payroll-details-grid,
+  .kpi-grid.payroll-primary-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* TASK-017: shared native checkbox/radio normalization only. */
+input:is([type="checkbox"], [type="radio"]) {
+  block-size: 1.15rem;
+  flex: 0 0 auto;
+  height: 1.15rem;
+  inline-size: 1.15rem;
+  min-height: auto;
+  padding: 0;
+  width: 1.15rem;
+}
+
 :root {
   background: #f2f6fb;
   color: #172033;

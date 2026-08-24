@@ -65,6 +65,12 @@ function payroll(overrides: Partial<PayrollPlan> = {}): PayrollPlan {
     scheduledMonthlyMinutes: 9_600,
     overtimeRateBasisPoints: 12_500,
     monthlyNonTaxableCommutingYen: 10_000,
+    commutingFuelEstimate: {
+      averageWorkdaysPerMonthTenths: null,
+      roundTripDistanceKmTenths: null,
+      fuelEfficiencyKmPerLiterTenths: null,
+      gasolinePriceYenPerLiter: null,
+    },
     bonuses: [],
     ...overrides,
   };
@@ -801,7 +807,7 @@ describe("TASK-016 schema and routes", () => {
     const migrated = migrateToCurrentState(v7);
     expect(JSON.stringify(v7)).toBe(before);
     expect(migrated).toMatchObject({
-      schemaVersion: 8,
+      schemaVersion: 9,
       activeRoute: "overview",
       payrollPlans: [],
       takeHomeCompensationBindings: [],

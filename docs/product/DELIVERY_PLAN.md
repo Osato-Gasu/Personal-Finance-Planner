@@ -117,6 +117,17 @@
 - responsiveな共有dashboard UI、standalone `file://`、runtime network 0を維持
 - 負債・純資産、dynamic cashflow再計算、chart、TASK-013/shared、Release、Distribution、Pagesは対象外
 
+## TASK-017 給与計算タブUI簡略化・通勤燃料試算
+
+- 本人・現在基準年へ限定するPayroll resolverとread-only context
+- 既存`bonuses[]`のmetadataを保持する年間賞与UI adapterと複数明細flatten前の明示確認
+- schema v9の通勤燃料4項目だけを追加するv8→v9 migrationとbackup/import roundtrip
+- fixed-point／BigInt／最終half-upによる月間ガソリン代、signed通勤収支、生活試算
+- 主要結果を`月収 / 実質月収 / 年収`の3枚へ限定し、法定給与・手取りauthorityから隔離
+- hover/focus/keyboard/touch対応help、Payroll-scoped compact layout、全tabのcheckbox/radio visual compact化
+- 320px／375px、standalone `file://`、runtime network 0を含むregression
+- 他tab redesign、2027+手取りrule、common settings、TASK-013/shared、main統合、Release、Distribution、Pagesは対象外
+
 ## 実装順序の制約
 
 - TASK-002のspikeを通過するまで本格的な制度計算を実装しない。
