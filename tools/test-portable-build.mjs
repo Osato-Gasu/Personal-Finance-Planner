@@ -116,21 +116,24 @@ try {
   const consoleErrors = [];
   const pageErrors = [];
   const unexpectedRequests = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
-  });
-  page.on("pageerror", (error) => pageErrors.push(error.message));
-  page.on("request", (request) => {
-    const requestUrl = request.url().split("#", 1)[0];
-    if (
-      request.isNavigationRequest() &&
-      request.resourceType() === "document" &&
-      requestUrl === standaloneUrl
-    ) {
-      return;
-    }
-    unexpectedRequests.push(`${request.resourceType()} ${request.url()}`);
-  });
+  const observeRuntimePage = (runtimePage) => {
+    runtimePage.on("console", (message) => {
+      if (message.type() === "error") consoleErrors.push(message.text());
+    });
+    runtimePage.on("pageerror", (error) => pageErrors.push(error.message));
+    runtimePage.on("request", (request) => {
+      const requestUrl = request.url().split("#", 1)[0];
+      if (
+        request.isNavigationRequest() &&
+        request.resourceType() === "document" &&
+        requestUrl === standaloneUrl
+      ) {
+        return;
+      }
+      unexpectedRequests.push(`${request.resourceType()} ${request.url()}`);
+    });
+  };
+  observeRuntimePage(page);
 
   await page.addInitScript(() => {
     const NativeDate = Date;
@@ -183,6 +186,115 @@ try {
       );
       await page.setViewportSize({ width: 1280, height: 900 });
     }
+  }
+
+  const reference2027Context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+  });
+  try {
+    await reference2027Context.addInitScript(() => {
+      const NativeDate = Date;
+      const fixedNow = "2027-08-24T03:00:00.000Z";
+      class FixedDate extends NativeDate {
+        constructor(...args) {
+          super(...(args.length === 0 ? [fixedNow] : args));
+        }
+        static now() {
+          return new NativeDate(fixedNow).getTime();
+        }
+      }
+      globalThis.Date = FixedDate;
+    });
+    const page2027 = await reference2027Context.newPage();
+    page2027.setDefaultNavigationTimeout(90_000);
+    observeRuntimePage(page2027);
+    await expectRoute(page2027, standaloneUrl, "payroll", "給与計算");
+    assert.equal(await page2027.getByLabel("対象年").inputValue(), "2027");
+    await page2027.getByLabel("基本給（月額）").fill("300000");
+    await page2027.getByRole("button", { name: "給与計画を保存" }).click();
+    await page2027.getByRole("button", { name: "給与計画を更新" }).waitFor();
+    await assertContains(
+      page2027.getByTestId("payroll-take-home-linkability"),
+      "この年は給与総支給のみ計算できます。手取り自動連携は2026年のみ対応しています。",
+    );
+    assert.equal(
+      await page2027
+        .getByTestId("payroll-take-home-linkability")
+        .getAttribute("data-linkability"),
+      "gross-only",
+    );
+    await assertContains(page2027.locator(".result-card"), "3,600,000円");
+    const payroll2027 = await page2027.evaluate((key) => {
+      const bytes = globalThis.localStorage.getItem(key);
+      if (!bytes) throw new Error("2027 state is missing");
+      return JSON.parse(bytes).payrollPlans[0];
+    }, storageKey);
+    assert.equal(payroll2027.targetYear, 2027);
+
+    await page2027.getByRole("link", { name: "手取り計算" }).click();
+    await page2027
+      .getByRole("button", { name: "2026年計算プランを作成" })
+      .click();
+    const payrollSource2027 = page2027.getByLabel("給与情報の入力元");
+    assert.equal(await payrollSource2027.inputValue(), "");
+    assert.deepEqual(
+      await payrollSource2027.locator("option").allTextContents(),
+      ["手取り画面で直接入力"],
+    );
+    const supportedYearState = await page2027.evaluate((key) => {
+      const bytes = globalThis.localStorage.getItem(key);
+      if (!bytes) throw new Error("2027 state is missing");
+      const state = JSON.parse(bytes);
+      return {
+        state,
+        takeHomeTargetYear: state.takeHomePlans[0]?.targetYear,
+        bindings: state.takeHomeCompensationBindings,
+      };
+    }, storageKey);
+    assert.equal(supportedYearState.takeHomeTargetYear, 2026);
+    assert.deepEqual(supportedYearState.bindings, []);
+
+    await page2027.getByRole("link", { name: "家計簿", exact: true }).click();
+    await assertContains(page2027.getByTestId("household-income"), "未計算");
+    await page2027.getByRole("link", { name: "NISA + iDeCo" }).click();
+    await assertContains(page2027.locator(".funding-context"), "未計算");
+
+    await page2027.getByRole("link", { name: "設定" }).click();
+    await page2027.waitForFunction((key) => {
+      const bytes = globalThis.localStorage.getItem(key);
+      if (!bytes) return false;
+      return JSON.parse(bytes).activeRoute === "settings";
+    }, storageKey);
+    const beforeInvalidUnsupportedImport = await page2027.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    );
+    assert.ok(beforeInvalidUnsupportedImport);
+    const invalidUnsupportedState = JSON.parse(beforeInvalidUnsupportedImport);
+    invalidUnsupportedState.takeHomePlans[0].targetYear = 2027;
+    invalidUnsupportedState.takeHomePlans[0].residentTax.assessmentYear = 2028;
+    invalidUnsupportedState.takeHomeCompensationBindings = [
+      {
+        takeHomePlanId: invalidUnsupportedState.takeHomePlans[0].id,
+        payrollPlanId: invalidUnsupportedState.payrollPlans[0].id,
+        active: true,
+      },
+    ];
+    await page2027.locator('input[name="backup-import"]').setInputFiles({
+      name: "unsupported-binding-v8.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(invalidUnsupportedState), "utf8"),
+    });
+    await assertContains(page2027.getByRole("alert"), "year is not supported");
+    assert.equal(
+      await page2027.evaluate(
+        (key) => globalThis.localStorage.getItem(key),
+        storageKey,
+      ),
+      beforeInvalidUnsupportedImport,
+    );
+  } finally {
+    await reference2027Context.close();
   }
 
   const portableBonusObservations = [
@@ -1779,7 +1891,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK016-autolink-extended, routes=${routes.length}, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v8, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK016-autolink-supported-year-extended, routes=${routes.length}, supportedYear2027=passed, unsupportedBindingImport=blocked, grossOnly2027=visible, downstream2027=unavailable, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v8, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

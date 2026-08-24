@@ -5,6 +5,10 @@ import {
   type CalculatedTakeHomePlan,
   type TakeHomeResult,
 } from "../../domain/take-home-plan";
+import {
+  DEFAULT_TAKE_HOME_SUPPORTED_YEAR,
+  isTakeHomeSupportedYear,
+} from "../../domain/take-home-support";
 import { prefectures } from "../../rules/jp/take-home/social-insurance/rules-2026";
 
 interface Options {
@@ -300,7 +304,22 @@ export function createTakeHomeRenderer(
         (plan) => plan.memberId === member.id,
       );
       if (plans.length === 0) {
-        const create = node(document, "button", "2026年計算プランを作成");
+        const linkablePayrollPlans = state.payrollPlans.filter(
+          (plan) =>
+            plan.active &&
+            plan.memberId === member.id &&
+            isTakeHomeSupportedYear(plan.targetYear),
+        );
+        const targetYear =
+          linkablePayrollPlans.length === 1
+            ? (linkablePayrollPlans[0]?.targetYear ??
+              DEFAULT_TAKE_HOME_SUPPORTED_YEAR)
+            : DEFAULT_TAKE_HOME_SUPPORTED_YEAR;
+        const create = node(
+          document,
+          "button",
+          `${String(targetYear)}年計算プランを作成`,
+        );
         create.type = "button";
         create.addEventListener("click", () =>
           dispatch({
@@ -308,6 +327,7 @@ export function createTakeHomeRenderer(
             plan: createCalculatedTakeHomePlan({
               id: options.createId(),
               memberId: member.id,
+              targetYear,
               birthDate: member.birthDate ?? null,
               residencePrefecture:
                 (member.residencePrefecture as
@@ -373,7 +393,8 @@ export function createTakeHomeRenderer(
           (candidate) =>
             candidate.active &&
             candidate.memberId === plan.memberId &&
-            candidate.targetYear === plan.targetYear,
+            candidate.targetYear === plan.targetYear &&
+            isTakeHomeSupportedYear(plan.targetYear),
         ))
           payrollBindingSelect.append(
             new Option(`給与計算 ${String(payroll.targetYear)}年`, payroll.id),

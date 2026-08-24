@@ -2,6 +2,7 @@ import type {
   EmploymentInsuranceCategory,
   PrefectureCode,
 } from "../rules/jp/take-home/social-insurance/rules-2026";
+import { DEFAULT_TAKE_HOME_SUPPORTED_YEAR } from "./take-home-support";
 
 export type ISODate = string;
 export type TakeHomePlanStatus =
@@ -596,10 +597,11 @@ export function createCalculatedTakeHomePlan(options: {
   birthDate?: string | null;
   residencePrefecture?: PrefectureCode | null;
 }): CalculatedTakeHomePlan {
+  const targetYear = options.targetYear ?? DEFAULT_TAKE_HOME_SUPPORTED_YEAR;
   return {
     id: options.id,
     memberId: options.memberId,
-    targetYear: options.targetYear ?? 2026,
+    targetYear,
     mode: "calculated",
     birthDate: options.birthDate ?? null,
     residencePrefecture: options.residencePrefecture ?? null,
@@ -639,7 +641,7 @@ export function createCalculatedTakeHomePlan(options: {
     },
     residentTax: {
       mode: "unsupported-uncomputed",
-      assessmentYear: (options.targetYear ?? 2026) + 1,
+      assessmentYear: targetYear + 1,
       annualResidentTaxYen: null,
       zeroYenConfirmed: false,
       municipalityNote: "",

@@ -21,6 +21,11 @@ import {
 import { calculateTakeHome } from "../src/domain/take-home-calculator";
 import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
 import {
+  DEFAULT_TAKE_HOME_SUPPORTED_YEAR,
+  TAKE_HOME_SUPPORTED_YEARS,
+  isTakeHomeSupportedYear,
+} from "../src/domain/take-home-support";
+import {
   StorageRepository,
   type StorageLike,
 } from "../src/data/storage-repository";
@@ -234,6 +239,91 @@ describe("TASK-016 payroll arithmetic", () => {
 });
 
 describe("TASK-016 payroll to take-home authority", () => {
+  it("uses one supported-year authority while preserving 2027 gross payroll", () => {
+    expect(TAKE_HOME_SUPPORTED_YEARS).toEqual([2026]);
+    expect(DEFAULT_TAKE_HOME_SUPPORTED_YEAR).toBe(2026);
+    expect(isTakeHomeSupportedYear(2026)).toBe(true);
+    expect(isTakeHomeSupportedYear(2027)).toBe(false);
+    expect(
+      createCalculatedTakeHomePlan({
+        id: "take-home-default",
+        memberId: "member-self",
+      }),
+    ).toMatchObject({
+      targetYear: 2026,
+      residentTax: { assessmentYear: 2027 },
+    });
+
+    const grossOnly = calculatePayroll(
+      payroll({
+        id: "payroll-self-2027",
+        targetYear: 2027,
+        baseMonthlyYen: 300_000,
+        taxableAllowanceMonthlyYen: 0,
+        averageMonthlyOvertimeMinutes: 0,
+        monthlyNonTaxableCommutingYen: 0,
+      }),
+    );
+    expect(grossOnly.monthlyGrossYen).toBe(300_000);
+    expect(grossOnly.annualGrossYen).toBe(3_600_000);
+  });
+
+  it("rejects unsupported active bindings and leaves 2027 gross-only downstream unavailable", () => {
+    const initial = createInitialState();
+    initial.payrollPlans = [
+      payroll({ id: "payroll-self-2027", targetYear: 2027 }),
+    ];
+    const unsupportedPlan = createCalculatedTakeHomePlan({
+      id: "take-home-self-2027",
+      memberId: "member-self",
+      targetYear: 2027,
+    });
+    const unsupportedReduced = reduceState(initial, {
+      type: "add-take-home-plan",
+      plan: unsupportedPlan,
+    });
+    expect(unsupportedReduced.takeHomeCompensationBindings).toEqual([]);
+
+    const malformed = structuredClone(unsupportedReduced);
+    malformed.takeHomeCompensationBindings = [
+      {
+        takeHomePlanId: unsupportedPlan.id,
+        payrollPlanId: "payroll-self-2027",
+        active: true,
+      },
+    ];
+    expect(() => validateAppState(malformed)).toThrow("year is not supported");
+    expect(() => parseAppState(malformed)).toThrow("year is not supported");
+
+    const unsupportedStore = new Store(unsupportedReduced);
+    expect(() =>
+      unsupportedStore.dispatch({
+        type: "set-take-home-compensation-binding",
+        takeHomePlanId: unsupportedPlan.id,
+        payrollPlanId: "payroll-self-2027",
+      }),
+    ).toThrow("year is not supported");
+    expect(unsupportedStore.getState().takeHomeCompensationBindings).toEqual(
+      [],
+    );
+
+    const normalStore = new Store(initial);
+    const normalTakeHome = createCalculatedTakeHomePlan({
+      id: "take-home-supported-default",
+      memberId: "member-self",
+    });
+    normalStore.dispatch({ type: "add-take-home-plan", plan: normalTakeHome });
+    expect(normalTakeHome.targetYear).toBe(2026);
+    expect(normalStore.getState().takeHomeCompensationBindings).toEqual([]);
+    expect(
+      calculateBudgetSummary(normalStore.getState(), "2027-08-21").self,
+    ).toMatchObject({ incomeYen: null, unresolvedIncome: true });
+    expect(
+      selectInvestmentFundingContext(normalStore.getState(), "2027-08-21")
+        .household,
+    ).toMatchObject({ status: "unavailable", availableYen: null });
+  });
+
   it("auto-links the new-user workflow without copying derived values", () => {
     const memory = new MemoryStorage();
     const repository = new StorageRepository(memory);

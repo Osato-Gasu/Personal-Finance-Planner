@@ -10,6 +10,7 @@ import {
 } from "./take-home-calculator";
 import { calculateIdecoPlan } from "./ideco";
 import { calculatePayroll } from "./payroll";
+import { isTakeHomeSupportedYear } from "./take-home-support";
 
 export type EffectiveTakeHomePlanResolution =
   | { status: "direct"; plan: Readonly<TakeHomePlan> }
@@ -29,6 +30,11 @@ export function resolveEffectiveTakeHomePlan(
     return {
       status: "unavailable",
       message: "給与連携が複数あるため手取りを計算できません。",
+    };
+  if (!isTakeHomeSupportedYear(plan.targetYear))
+    return {
+      status: "unavailable",
+      message: "この対象年は給与から手取りへ連携できません。",
     };
   const binding = bindings[0];
   const activeSources = state.payrollPlans.filter(

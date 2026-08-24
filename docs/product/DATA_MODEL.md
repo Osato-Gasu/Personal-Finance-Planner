@@ -67,9 +67,9 @@ interface BudgetIncomePolicy {
 }
 ```
 
-同一人物・対象年のactive`PayrollPlan`は最大1件、計算手取りのactive bindingは最大1件、policyの`targetId`は配列内で一意とする。bindingは同一人物・対象年の既存recordだけを参照し、policyは既存`IncomeTarget`だけを参照する。派生給与集計と`InvestmentFundingContext`は永続化しない。
+同一人物・対象年のactive`PayrollPlan`は最大1件、計算手取りのactive bindingは最大1件、policyの`targetId`は配列内で一意とする。bindingは同一人物・対象年の既存recordだけを参照し、active bindingの対象年は単一のTake-home supported-year authorityに含まれなければならない。非対応年の`PayrollPlan`は削除・変換せずgross-pay-only recordとして保持する。policyは既存`IncomeTarget`だけを参照し、派生給与集計と`InvestmentFundingContext`は永続化しない。
 
-新規`createInitialState()`は本人・相手の既定IncomeTargetそれぞれに`auto-take-home` policyを作る。新しい計算`TakeHomePlan`を追加するStore遷移は、同一人物・対象年のactive給与計画がexact 1件の場合だけbindingも同じnext stateへ追加する。0件または複数では追加しない。これらは新規通常フローのdefaultであり、v7→v8 migrationは引き続き`takeHomeCompensationBindings: []`と`budgetIncomePolicies: []`を生成してlegacy bytes/authorityを保つ。
+新規`createInitialState()`は本人・相手の既定IncomeTargetそれぞれに`auto-take-home` policyを作る。新しい計算`TakeHomePlan`の既定年はTake-home supported-year authorityから導出する。追加Store遷移は、その対応年について同一人物・同一年のactive給与計画がexact 1件の場合だけbindingも同じnext stateへ追加する。0件、複数、または非対応年では追加しない。これらは新規通常フローのdefaultであり、v7→v8 migrationは引き続き`takeHomeCompensationBindings: []`と`budgetIncomePolicies: []`を生成してlegacy bytes/authorityを保つ。
 
 ## 3. ライフプラン
 

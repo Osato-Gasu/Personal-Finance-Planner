@@ -29,8 +29,10 @@ import {
   type StandardRemunerationTable,
 } from "../rules/jp/take-home/social-insurance/rules-2026";
 import type { RuleRecord } from "../rules/jp/take-home/metadata";
-
-const SUPPORT_YEAR = 2026;
+import {
+  DEFAULT_TAKE_HOME_SUPPORTED_YEAR,
+  isTakeHomeSupportedYear,
+} from "./take-home-support";
 
 function checked(value: number, field: string): number {
   if (!Number.isSafeInteger(value) || value < 0)
@@ -207,7 +209,7 @@ function monthsFromInclusiveUntilExclusive(
   const fromKey = from.getUTCFullYear() * 12 + from.getUTCMonth();
   const untilKey = until.getUTCFullYear() * 12 + until.getUTCMonth();
   for (let month = 1; month <= 12; month += 1) {
-    const key = SUPPORT_YEAR * 12 + month - 1;
+    const key = DEFAULT_TAKE_HOME_SUPPORTED_YEAR * 12 + month - 1;
     if (key >= fromKey && key < untilKey) result.add(month);
   }
   return result;
@@ -269,7 +271,8 @@ function reachesAgeDuringSupportYear(
   reachedOn: "birthday" | "day-before-birthday",
 ): boolean {
   return (
-    ageBoundaryDate(birthDate, age, reachedOn).getUTCFullYear() === SUPPORT_YEAR
+    ageBoundaryDate(birthDate, age, reachedOn).getUTCFullYear() ===
+    DEFAULT_TAKE_HOME_SUPPORTED_YEAR
   );
 }
 
@@ -307,7 +310,9 @@ function automaticSocial(plan: CalculatedTakeHomePlan): SocialResult | string {
     careInsuranceEligibility2026.value.maximumAgeExclusive,
     careInsuranceEligibility2026.value.ageReachedOn,
   );
-  const supportYearEnd = new Date(Date.UTC(SUPPORT_YEAR, 11, 31));
+  const supportYearEnd = new Date(
+    Date.UTC(DEFAULT_TAKE_HOME_SUPPORTED_YEAR, 11, 31),
+  );
   if (careFirstCategoryStart <= supportYearEnd) {
     return "65～74歳の介護保険第1号被保険者の保険料は自動計算対象外です。第1号介護保険料を0円として扱っていません。社会保険計算方法を年額手入力へ切り替え、項目別に入力してください";
   }
@@ -675,7 +680,7 @@ export function calculateTakeHome(
       }
       annualIdecoContributionYen = linkedIdeco.annualContributionYen;
     }
-    if (plan.targetYear !== SUPPORT_YEAR)
+    if (!isTakeHomeSupportedYear(plan.targetYear))
       return emptyResult(
         plan,
         "missing-rule",

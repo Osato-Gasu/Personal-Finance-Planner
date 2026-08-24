@@ -27,6 +27,7 @@ import {
   validatePayrollPlan,
   type PayrollPlan,
 } from "./payroll";
+import { isTakeHomeSupportedYear } from "./take-home-support";
 
 export const SCHEMA_VERSION = 8 as const;
 export const PREVIOUS_SCHEMA_VERSION = 7 as const;
@@ -862,6 +863,10 @@ function validateVersion8Relationships(state: AppState): void {
         "take-home compensation binding member and year must match",
       );
     if (binding.active) {
+      if (!isTakeHomeSupportedYear(takeHome.targetYear))
+        throw new Error(
+          "active take-home compensation binding year is not supported",
+        );
       if (activeBindingTargets.has(binding.takeHomePlanId))
         throw new Error(
           "only one active compensation binding is allowed per take-home plan",
@@ -1759,7 +1764,10 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       break;
     case "add-take-home-plan":
       next.takeHomePlans.push(structuredClone(action.plan));
-      if (action.plan.mode === "calculated") {
+      if (
+        action.plan.mode === "calculated" &&
+        isTakeHomeSupportedYear(action.plan.targetYear)
+      ) {
         const payrollMatches = next.payrollPlans.filter(
           (plan) =>
             plan.active &&

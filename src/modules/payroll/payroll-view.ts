@@ -1,5 +1,9 @@
 import type { Store } from "../../app/store";
 import { calculatePayroll, type PayrollPlan } from "../../domain/payroll";
+import {
+  DEFAULT_TAKE_HOME_SUPPORTED_YEAR,
+  isTakeHomeSupportedYear,
+} from "../../domain/take-home-support";
 
 interface Options {
   document: Document;
@@ -325,6 +329,21 @@ export function createPayrollRenderer(
         node(document, "p", "給与条件を保存すると結果を表示します。"),
       );
     } else {
+      const linkability = node(
+        document,
+        "p",
+        isTakeHomeSupportedYear(selected.targetYear)
+          ? `${String(selected.targetYear)}年の給与計画は手取り自動連携に対応しています。`
+          : `この年は給与総支給のみ計算できます。手取り自動連携は${String(DEFAULT_TAKE_HOME_SUPPORTED_YEAR)}年のみ対応しています。`,
+      );
+      linkability.setAttribute("role", "status");
+      linkability.setAttribute("data-testid", "payroll-take-home-linkability");
+      linkability.dataset.linkability = isTakeHomeSupportedYear(
+        selected.targetYear,
+      )
+        ? "supported"
+        : "gross-only";
+      resultCard.append(linkability);
       try {
         const result = calculatePayroll(selected);
         const grid = node(document, "div");

@@ -99,7 +99,9 @@ ui
 
 Reducerまたは同等の一方向更新を使う。UIからStateオブジェクトを直接変更しない。保存は有効なState遷移後にRepositoryへ委譲する。
 
-新しい計算手取りplanの`add-take-home-plan`遷移は、同一人物・同一年のactive`PayrollPlan`がexact 1件の場合だけ`TakeHomeCompensationBinding`も同じnext stateへ追加する。Repository保存が成功してからplanとbindingを一括publishし、失敗時はどちらもpublishしない。0件または複数時はbindingを追加しない。runtime selectorはpersist済みbindingだけをauthorityとし、未binding planを暗黙に自動連携しない。
+`take-home-support`をTake-home対応年のdependency-lightな単一authorityとし、calculator、新規plan作成、UI、binding validation、automatic bindingが同じ定義を参照する。現在の対応年と既定年は2026年である。
+
+新しい計算手取りplanの`add-take-home-plan`遷移は、対象年がTake-home対応年であり、同一人物・同一年のactive`PayrollPlan`がexact 1件の場合だけ`TakeHomeCompensationBinding`も同じnext stateへ追加する。Repository保存が成功してからplanとbindingを一括publishし、失敗時はどちらもpublishしない。0件、複数、または非対応年ではbindingを追加しない。runtime selectorはpersist済みbindingだけをauthorityとし、未binding planを暗黙に自動連携しない。
 
 新規`createInitialState()`は既定2 IncomeTargetの`BudgetIncomePolicy`を`auto-take-home`で作る。一方、migrationはlegacy authority境界であり、v7→v8のpolicy/bindingは空配列のままにする。
 
@@ -192,7 +194,7 @@ current schemaはv8、current storage keyは`personal-finance-planner:state:v8`�
 
 ### 11.1 TASK-016 連携DAG
 
-`PayrollPlan`は`calculatePayroll()`でderived resultを作り、activeな`TakeHomeCompensationBinding`が同一人物・同一年を指す場合だけ一時的な月次`TakeHomePlan`へ適用する。persist済み手取り入力は書き換えない。既存iDeCo控除連携はこの一時planへ適用した後も同じcalculator pathを使う。
+`PayrollPlan`は対象年を2026年へ制限せず、`calculatePayroll()`で複数年のgross-pay derived resultを作る。activeな`TakeHomeCompensationBinding`が同一人物・同一年かつTake-home対応年を指す場合だけ、一時的な月次`TakeHomePlan`へ適用する。非対応年はgross-pay-onlyとして保存を維持し、binding selectorへ提示しない。persist済み手取り入力は書き換えない。既存iDeCo控除連携はこの一時planへ適用した後も同じcalculator pathを使う。
 
 `BudgetIncomePolicy`のauto modeは基準年の唯一のactive計算手取りを解決し、従来modeは既存`LinkDefinition`／manual authorityを完全に維持する。`selectInvestmentFundingContext()`は`BudgetSummary`とNISA/iDeCoの当月拠出観測だけを読み、将来投影calculatorを呼ばず、planを変更しない。この一方向DAGをOverviewが合成する。
 
