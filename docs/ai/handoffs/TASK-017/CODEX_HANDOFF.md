@@ -10,6 +10,7 @@
 - branch: codex/task-017-payroll-ui-simplification
 - reviewed_candidate: none
 - candidate_commit: none
+- implementation_candidate: cf1d6c10a6c223990c6dccf72dd3fcc0e6e6adef
 - reviewed_handoff_head: none
 - shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 - next_phase: implementation
