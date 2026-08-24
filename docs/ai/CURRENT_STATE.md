@@ -1,7 +1,8 @@
 ---
 updated_at: 2026-08-24
-active_tasks: []
-next_action: ChatGPT waits for the user's next explicit feature or maintenance request; no planned product TASK remains
+active_tasks:
+  - TASK-017
+next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-017
 ---
 
 # Current state
