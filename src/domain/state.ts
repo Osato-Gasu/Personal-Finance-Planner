@@ -3,6 +3,7 @@ import {
   parseTakeHomePlan,
   validateTakeHomePlan,
   type BonusPayment,
+  type CalculatedTakeHomePlan,
   type TakeHomePlan,
 } from "./take-home-plan";
 import { calculateTakeHome } from "./take-home-calculator";
@@ -321,6 +322,16 @@ export type AppAction =
       type: "set-take-home-compensation-binding";
       takeHomePlanId: string;
       payrollPlanId: string | null;
+    }
+  /**
+   * First persistence for a Payroll-backed Take-home preview.  Keeping the
+   * plan and binding in one action is important: a failed save must never
+   * publish only one half of the relationship.
+   */
+  | {
+      type: "add-take-home-plan-with-payroll-binding";
+      plan: CalculatedTakeHomePlan;
+      payrollPlanId: string;
     }
   | { type: "update-take-home"; sourceId: string; amountYen: number }
   | { type: "add-take-home-plan"; plan: TakeHomePlan }
@@ -1827,6 +1838,14 @@ export function reduceState(state: AppState, action: AppAction): AppState {
           active: true,
         });
       break;
+    case "add-take-home-plan-with-payroll-binding":
+      next.takeHomePlans.push(structuredClone(action.plan));
+      next.takeHomeCompensationBindings.push({
+        takeHomePlanId: action.plan.id,
+        payrollPlanId: action.payrollPlanId,
+        active: true,
+      });
+      break;
     case "update-take-home":
       {
         const plan = requirePresent(
@@ -2247,6 +2266,53 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       validateAppState({
         ...cloneState(state),
         takeHomeCompensationBindings: bindings,
+      });
+      return;
+    }
+    case "add-take-home-plan-with-payroll-binding": {
+      if (state.takeHomePlans.some((plan) => plan.id === action.plan.id))
+        throw new Error("take-home plan ID is already in use");
+      if (
+        state.takeHomeCompensationBindings.some(
+          (binding) => binding.takeHomePlanId === action.plan.id,
+        )
+      )
+        throw new Error("take-home compensation binding already exists");
+      validateTakeHomePlan(action.plan);
+      if (!isTakeHomeSupportedYear(action.plan.targetYear))
+        throw new Error("Payroll-bound take-home year is not supported");
+      const member = state.members.find(
+        (candidate) => candidate.id === action.plan.memberId,
+      );
+      if (!member) throw new Error("take-home plan member is missing");
+      const payroll = state.payrollPlans.find(
+        (candidate) => candidate.id === action.payrollPlanId,
+      );
+      if (!payroll) throw new Error("payroll plan is missing");
+      if (!payroll.active)
+        throw new Error(
+          "Payroll-bound first persistence requires an active payroll plan",
+        );
+      if (
+        payroll.memberId !== action.plan.memberId ||
+        payroll.targetYear !== action.plan.targetYear
+      )
+        throw new Error(
+          "payroll plan member and year must match take-home plan",
+        );
+      // Validate the complete candidate before reducing either side.  The
+      // Store then writes/publishes this single candidate atomically.
+      validateAppState({
+        ...cloneState(state),
+        takeHomePlans: [...state.takeHomePlans, structuredClone(action.plan)],
+        takeHomeCompensationBindings: [
+          ...state.takeHomeCompensationBindings,
+          {
+            takeHomePlanId: action.plan.id,
+            payrollPlanId: action.payrollPlanId,
+            active: true,
+          },
+        ],
       });
       return;
     }

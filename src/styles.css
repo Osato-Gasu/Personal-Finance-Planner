@@ -854,6 +854,223 @@ fieldset input {
   text-align: right;
 }
 
+/* TASK-019: Take-home keeps the normal path compact while preserving expert fields. */
+.take-home-card {
+  min-width: 0;
+}
+
+.take-home-layout {
+  margin-top: 1rem;
+}
+
+.take-home-card > h3,
+.take-home-output > h3 {
+  margin-top: 0;
+}
+
+.take-home-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 0.7rem;
+  justify-content: space-between;
+}
+
+.take-home-heading p {
+  color: #15345f;
+  font-size: 1.05rem;
+  font-weight: 750;
+  margin: 0 0 0.25rem;
+}
+
+.take-home-heading > span,
+.take-home-readonly-context {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.take-home-intro,
+.take-home-source-summary,
+.take-home-profile-summary,
+.take-home-prefecture-estimate {
+  color: var(--muted);
+}
+
+.take-home-provenance {
+  display: grid;
+  font-size: 0.9rem;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0.65rem 0;
+  padding: 0;
+}
+
+.take-home-payroll-summary {
+  display: grid;
+  gap: 0.4rem 0.8rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0.75rem 0;
+}
+
+.take-home-payroll-summary dt,
+.take-home-payroll-summary dd {
+  margin: 0;
+}
+
+.take-home-payroll-summary dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  text-align: right;
+}
+
+.take-home-profile-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin: 0 0 0.7rem;
+}
+
+.take-home-identity-correction {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 0.6rem;
+  max-width: 24rem;
+}
+
+.take-home-identity-correction input {
+  max-width: 11rem;
+}
+
+.take-home-primary-action {
+  margin-bottom: 0.8rem;
+}
+
+.take-home-primary-results {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0.7rem 0 0.8rem;
+}
+
+.take-home-primary-result {
+  background: #f7fbff;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.7rem;
+}
+
+.take-home-primary-result span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.take-home-primary-result strong {
+  color: #123d76;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.take-home-result > p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin: 0.6rem 0;
+}
+
+.take-home-result-details,
+.take-home-details {
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  margin-top: 0.8rem;
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+}
+
+.take-home-result-details > summary,
+.take-home-details > summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.take-home-details .take-home-form {
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 0.8rem;
+}
+
+.take-home-form label {
+  min-width: 0;
+}
+
+.take-home-form input:not([type="checkbox"]),
+.take-home-form select {
+  min-height: 2.35rem;
+  padding-block: 0.35rem;
+}
+
+.take-home-prefecture-correction select,
+.take-home-identity-correction input,
+.take-home-form input:not([type="checkbox"]),
+.take-home-form select {
+  max-width: 18rem;
+}
+
+.take-home-form input[type="checkbox"],
+.take-home-card input[type="checkbox"] {
+  height: 1rem;
+  inline-size: 1rem;
+  min-height: 1rem;
+  padding: 0;
+  width: 1rem;
+}
+
+.take-home-existing-data li {
+  margin-bottom: 0.45rem;
+}
+
+.take-home-existing-data button {
+  margin-left: 0.45rem;
+}
+
+.take-home-form label:has(input[type="checkbox"]) {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+}
+
+.take-home-assumptions {
+  background: var(--warning-bg);
+  border-left: 0.3rem solid var(--warning);
+  margin-top: 0.8rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.take-home-assumptions h5,
+.take-home-assumptions ul {
+  margin-block: 0;
+}
+
+.take-home-assumptions ul {
+  padding-left: 1.15rem;
+}
+
+@media (max-width: 40rem) {
+  .take-home-primary-results,
+  .take-home-details .take-home-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .take-home-primary-result strong {
+    font-size: 1.15rem;
+  }
+}
+
 .status-complete {
   border-left: 0.3rem solid #1a7f37;
   padding-left: 1rem;
