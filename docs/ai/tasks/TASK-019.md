@@ -29,6 +29,7 @@ base_commit: f343c5cade743aff6e75feb7f852da1cfd82d47b
 base_tree: 026338605739bc907c748bcd81cfcdef4e0e25cc
 accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements_*
 accepted_product_sha256: 26DA89C8BEDFEAE97F6DB1BCA9192ADDA68FF6EA30F4D53E5DABFB3431BBEDB9
+implementation_candidate: f5eb7dacce356e0b0067a2f5f91948ec7aa14fd9
 
 updated_at: 2026-08-25
 ---
