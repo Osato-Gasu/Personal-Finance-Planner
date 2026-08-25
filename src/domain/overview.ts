@@ -13,6 +13,7 @@ import {
   nisaContributionForMonth,
 } from "./investment-contributions";
 import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
+import { resolveCurrentTakeHomeContext } from "./take-home-current-context";
 import type { AppliedRule, CalculatedTakeHomePlan } from "./take-home-plan";
 
 export type OverviewStatus =
@@ -274,12 +275,14 @@ function overviewForMember(
   if (takeHomePlans.length === 1) {
     const plan = takeHomePlans[0] as CalculatedTakeHomePlan;
     takeHomePlanId = plan.id;
-    const result = calculateTakeHomeFromState(
-      state,
-      plan,
-      member,
-      referenceDate,
-    );
+    const currentContext =
+      member.role === "self"
+        ? resolveCurrentTakeHomeContext(state, referenceDate)
+        : null;
+    const result =
+      currentContext?.plan?.id === plan.id && currentContext.result !== null
+        ? currentContext.result
+        : calculateTakeHomeFromState(state, plan, member, referenceDate);
     takeHomeStatus = result.status;
     grossMonthlyYen =
       result.annualGrossYen === null

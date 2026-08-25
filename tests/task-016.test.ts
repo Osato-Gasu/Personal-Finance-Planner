@@ -18,6 +18,7 @@ import {
   calculateTakeHomeFromState,
   resolveEffectiveTakeHomePlan,
 } from "../src/domain/take-home-linked-calculator";
+import { resolveCurrentTakeHomeContext } from "../src/domain/take-home-current-context";
 import { calculateTakeHome } from "../src/domain/take-home-calculator";
 import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
 import {
@@ -373,12 +374,10 @@ describe("TASK-016 payroll to take-home authority", () => {
       linked.takeHomePlans[0],
       "take-home plan is missing",
     );
-    const takeHome = calculateTakeHomeFromState(
-      linked,
-      savedPlan,
-      required(linked.members[0], "member is missing"),
-      "2026-08-21",
-    );
+    const currentTakeHome = resolveCurrentTakeHomeContext(linked, "2026-08-21");
+    expect(currentTakeHome.status).toBe("persisted");
+    if (currentTakeHome.status !== "persisted") return;
+    const takeHome = currentTakeHome.result;
     expect(takeHome.status, takeHome.warnings.join(" ")).toBe("complete");
     expect(takeHome.annualGrossYen).toBe(
       calculatePayroll(required(linked.payrollPlans[0], "payroll missing"))

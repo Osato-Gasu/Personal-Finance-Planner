@@ -715,7 +715,7 @@ describe("life plan financial-assets selector", () => {
   it("withholds unsafe integer aggregation without changing schema", () => {
     const state = completeState({
       projectionYears: 1,
-      startingLiquidAssetsYen: 100_000,
+      startingLiquidAssetsYen: 1_000_000,
       budgetYen: 300_000,
     });
     const zeroScenario = scenario("member-self", {

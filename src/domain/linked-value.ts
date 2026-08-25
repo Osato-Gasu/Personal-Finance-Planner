@@ -1,4 +1,5 @@
 import type { AppState } from "./state";
+import { resolveCurrentTakeHomeContext } from "./take-home-current-context";
 import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
 
 export type LinkedValueResult =
@@ -56,12 +57,24 @@ export function resolveIncomeTarget(
         warning: `auto-take-home-member-unavailable:${targetId}`,
         sourceId: source?.id ?? `auto-take-home:${targetId}`,
       };
-    const result = calculateTakeHomeFromState(
-      state,
-      source,
-      member,
-      referenceDate,
-    );
+    const currentContext =
+      member.role === "self"
+        ? resolveCurrentTakeHomeContext(state, referenceDate)
+        : null;
+    if (
+      currentContext !== null &&
+      (currentContext.status !== "persisted" ||
+        currentContext.plan.id !== source.id)
+    )
+      return {
+        status: "broken-link",
+        warning: `auto-take-home-current-context:${currentContext.status}:${source.id}`,
+        sourceId: source.id,
+      };
+    const result =
+      currentContext?.status === "persisted"
+        ? currentContext.result
+        : calculateTakeHomeFromState(state, source, member, referenceDate);
     if (
       result.status !== "complete" ||
       result.averageMonthlyTakeHomeYen === null

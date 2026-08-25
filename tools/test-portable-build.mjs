@@ -253,14 +253,15 @@ try {
     assert.equal(payroll2027.targetYear, 2027);
 
     await page2027.getByRole("link", { name: "手取り計算" }).click();
-    await page2027
-      .getByRole("button", { name: "2026年計算プランを作成" })
-      .click();
-    const payrollSource2027 = page2027.getByLabel("給与情報の入力元");
-    assert.equal(await payrollSource2027.inputValue(), "");
-    assert.deepEqual(
-      await payrollSource2027.locator("option").allTextContents(),
-      ["手取り画面で直接入力"],
+    await assertContains(
+      page2027.locator("main [data-area='result']"),
+      "2027年の手取り計算ルールは未登録です",
+    );
+    assert.equal(
+      await page2027
+        .getByRole("button", { name: "2026年計算プランを作成" })
+        .count(),
+      0,
     );
     const supportedYearState = await page2027.evaluate((key) => {
       const bytes = globalThis.localStorage.getItem(key);
@@ -268,11 +269,11 @@ try {
       const state = JSON.parse(bytes);
       return {
         state,
-        takeHomeTargetYear: state.takeHomePlans[0]?.targetYear,
+        takeHomePlans: state.takeHomePlans,
         bindings: state.takeHomeCompensationBindings,
       };
     }, storageKey);
-    assert.equal(supportedYearState.takeHomeTargetYear, 2026);
+    assert.deepEqual(supportedYearState.takeHomePlans, []);
     assert.deepEqual(supportedYearState.bindings, []);
 
     await page2027.getByRole("link", { name: "家計簿", exact: true }).click();
@@ -292,8 +293,65 @@ try {
     );
     assert.ok(beforeInvalidUnsupportedImport);
     const invalidUnsupportedState = JSON.parse(beforeInvalidUnsupportedImport);
-    invalidUnsupportedState.takeHomePlans[0].targetYear = 2027;
-    invalidUnsupportedState.takeHomePlans[0].residentTax.assessmentYear = 2028;
+    invalidUnsupportedState.takeHomePlans = [
+      {
+        id: "unsupported-take-home-2027",
+        memberId: invalidUnsupportedState.payrollPlans[0].memberId,
+        targetYear: 2027,
+        mode: "calculated",
+        birthDate: null,
+        residencePrefecture: null,
+        inputMode: "annual",
+        compensation: {
+          annualTaxableSalaryYen: 0,
+          annualNonTaxableCommutingYen: 0,
+          monthlyTaxableSalaryYen: 0,
+          monthlyNonTaxableCommutingYen: 0,
+          annualOtherTaxableSalaryYen: 0,
+          bonuses: [],
+          monthlyEmploymentInsuranceWagesYen: null,
+          employmentInsuranceWageOverrideYen: null,
+        },
+        employment: {
+          employmentType: "employee",
+          oneEmployerFullYearConfirmed: true,
+          salaryIncomeOnlyConfirmed: true,
+          employmentInsuranceCategory: "general",
+          note: "",
+        },
+        socialInsurance: {
+          mode: "kyokai-auto",
+          standardRemunerationMode: "estimate-from-remuneration",
+          employerPrefecture: null,
+          standardMonthlyRemunerationYen: null,
+          monthlyRemunerationYen: null,
+          healthBonusPriorFiscalYearCumulativeYen: 0,
+          manual: {
+            annualHealthInsuranceYen: null,
+            annualCareInsuranceYen: null,
+            annualAdditionalInsuranceYen: null,
+            annualPensionYen: null,
+            annualEmploymentInsuranceYen: null,
+            annualOtherStatutoryDeductionYen: 0,
+          },
+        },
+        residentTax: {
+          mode: "unsupported-uncomputed",
+          assessmentYear: 2028,
+          annualResidentTaxYen: null,
+          zeroYenConfirmed: false,
+          municipalityNote: "",
+        },
+        deductions: {
+          annualIdecoContributionYen: 0,
+          idecoContributionMode: "manual",
+          linkedIdecoPlanId: null,
+          annualOtherIncomeDeductionsYen: 0,
+          otherIncomeDeductionsNote: "",
+        },
+        active: true,
+      },
+    ];
     invalidUnsupportedState.takeHomeCompensationBindings = [
       {
         takeHomePlanId: invalidUnsupportedState.takeHomePlans[0].id,
@@ -1344,225 +1402,57 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("button", { name: "2026年計算プランを作成" }).click();
-  assert.equal(
-    await page.getByLabel("給与情報の入力元").inputValue(),
-    savedPayroll.id,
+  await page.waitForURL(`${standaloneUrl}#/take-home`);
+  await page.getByRole("heading", { level: 3, name: "計算条件" }).waitFor();
+  await assertContains(page.locator("main"), "本人 / 2026年（自動）");
+  await assertContains(page.locator("main"), "給与: 給与計算から取得");
+  await assertContains(page.locator("main"), "就業前提: 概算のため仮定");
+  await assertContains(page.locator("main"), "住民税: 2026年支払額を自動概算");
+  await assertContains(page.locator("main"), "月収（給与計算から）");
+  await assertContains(page.locator("main"), "年間総支給（賞与込）");
+  await assertContains(page.locator("main"), "通勤手当（月）");
+  const stateBeforeTransientPreview = await page.evaluate(
+    (key) => globalThis.localStorage.getItem(key),
+    storageKey,
   );
-  const automaticallyLinkedState = await page.evaluate((key) => {
-    const state = JSON.parse(globalThis.localStorage.getItem(key));
-    return {
-      policies: state.budgetIncomePolicies,
-      bindings: state.takeHomeCompensationBindings,
-      takeHomePlanId: state.takeHomePlans[0]?.id,
-      payrollPlanId: state.payrollPlans[0]?.id,
-    };
-  }, storageKey);
-  assert.deepEqual(automaticallyLinkedState.policies, [
-    { targetId: "budget-income-self", mode: "auto-take-home" },
-    { targetId: "budget-income-partner", mode: "auto-take-home" },
-  ]);
-  assert.deepEqual(automaticallyLinkedState.bindings, [
-    {
-      takeHomePlanId: automaticallyLinkedState.takeHomePlanId,
-      payrollPlanId: automaticallyLinkedState.payrollPlanId,
-      active: true,
-    },
-  ]);
-  await page.getByLabel("生年月日", { exact: true }).fill("1990-01-01");
-  await page.getByLabel("生年月日", { exact: true }).press("Tab");
-  await page.getByLabel("計算プランの生年月日").fill("1990-01-01");
-  await page.getByLabel("計算プランの生年月日").press("Tab");
-  await page.getByLabel("計算プランの居住都道府県").selectOption("JP-13");
-  await page.getByLabel("年間課税給与（賞与を含む）").fill("6000000");
-  await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
-  await page.getByLabel("事業所都道府県").selectOption("JP-13");
-  await page.getByLabel("月額報酬（標準報酬推定用）").fill("300000");
-  await page.getByLabel("月額報酬（標準報酬推定用）").press("Tab");
-  const januaryWage = page.getByLabel("1月の雇用保険対象賃金（賞与除く）", {
-    exact: true,
-  });
-  const februaryWage = page.getByLabel("2月の雇用保険対象賃金（賞与除く）", {
-    exact: true,
-  });
-  assert.equal(await januaryWage.inputValue(), "");
-  assert.equal(await februaryWage.inputValue(), "");
-  await januaryWage.fill("500000");
-  await januaryWage.press("Tab");
-  await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
-  assert.equal(await februaryWage.inputValue(), "");
+  const transientState = JSON.parse(stateBeforeTransientPreview);
+  assert.equal(transientState.takeHomePlans.length, 0);
+  assert.equal(transientState.takeHomeCompensationBindings.length, 0);
   await page.reload({ waitUntil: "load" });
   assert.equal(
-    await page
-      .getByLabel("1月の雇用保険対象賃金（賞与除く）", { exact: true })
-      .inputValue(),
-    "500000",
+    await page.evaluate(
+      (key) => globalThis.localStorage.getItem(key),
+      storageKey,
+    ),
+    stateBeforeTransientPreview,
   );
-  assert.equal(
-    await page
-      .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
-      .inputValue(),
-    "",
-  );
-  await page
-    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
-    .fill("0");
-  await page
-    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
-    .press("Tab");
-  await page.reload({ waitUntil: "load" });
-  assert.equal(
-    await page
-      .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
-      .inputValue(),
-    "0",
-  );
-  for (let month = 3; month <= 11; month += 1) {
-    const wage = page.getByLabel(
-      `${String(month)}月の雇用保険対象賃金（賞与除く）`,
-      { exact: true },
-    );
-    await wage.fill("500000");
-    await wage.press("Tab");
-  }
-  assert.equal(
-    await page
-      .getByLabel("12月の雇用保険対象賃金（賞与除く）", { exact: true })
-      .inputValue(),
-    "",
-  );
-  await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
-  await page
-    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
-    .fill("500000");
-  await page
-    .getByLabel("2月の雇用保険対象賃金（賞与除く）", { exact: true })
-    .press("Tab");
-  await page
-    .getByLabel("12月の雇用保険対象賃金（賞与除く）", { exact: true })
-    .fill("500000");
-  await page
-    .getByLabel("12月の雇用保険対象賃金（賞与除く）", { exact: true })
-    .press("Tab");
-  await page.getByLabel("住民税年額を入力する").check();
-  await page.getByLabel("住民税年額", { exact: true }).fill("0");
-  await page.getByLabel("住民税年額", { exact: true }).press("Tab");
-  await page.getByLabel("住民税0円を確認").check();
+
+  const employerPrefecture = page.getByLabel("事業所都道府県（計算に必要）");
+  await employerPrefecture.selectOption("JP-13");
   await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  const automaticTakeHomeMonthly = await page
-    .locator(".take-home-result dt", { hasText: "平均月間手取り" })
-    .locator("xpath=following-sibling::dd[1]")
-    .textContent();
-  assert.match(automaticTakeHomeMonthly ?? "", /^[\d,]+円$/u);
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  assert.equal(
-    await page.getByLabel("本人手取りの連携方法").inputValue(),
-    "auto-take-home",
+  await assertContains(
+    page.locator("main"),
+    "勤務先都道府県（健康保険用）: 東京都（今回の入力・保存前）",
   );
   await assertContains(
-    page.getByTestId("household-income"),
-    automaticTakeHomeMonthly,
-  );
-  const automaticRemaining = (
-    (await page.getByTestId("household-remaining").textContent()) ?? ""
-  ).match(/[\d,]+円/u)?.[0];
-  assert.ok(automaticRemaining);
-  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
-  await assertContains(page.locator(".funding-context"), automaticRemaining);
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByLabel("給与情報の入力元").selectOption("");
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  await assertContains(page.locator(".take-home-result"), "年間手取り");
-  await assertContains(
-    page.locator(".take-home-result"),
-    "適用ルールと公式根拠",
+    page.locator("main"),
+    "平均月間手取りは年間手取りを12分割した平均です",
   );
   await assertContains(
-    page.locator(".take-home-result"),
-    "事業所都道府県: 東京都 (JP-13)",
+    page.locator("main"),
+    "配偶者・扶養控除はモデル化していません",
   );
-  await assertContains(
-    page.locator(".take-home-result"),
-    "健康保険標準報酬月額: 300,000円",
-  );
-  await assertContains(
-    page.locator(".take-home-result"),
-    "jp-kyokai-health-rate-2026",
-  );
-  await assertContains(page.locator(".take-home-result"), "確認日 2026-08-12");
-  for (const requiredResultLabel of [
-    "その他法定控除",
-    "法定控除合計",
-    "控除率",
-    "iDeCo控除なし基準所得税",
-    "iDeCo控除なし復興特別所得税",
-    "iDeCo控除なし所得税等（100円未満切捨て前）",
-    "iDeCo控除なし所得税等総額",
-    "iDeCo控除あり所得税等総額",
-    "iDeCoによる所得税等差額",
+  for (const testId of [
+    "take-home-result-average-monthly",
+    "take-home-result-annual",
+    "take-home-result-tax-insurance-total",
   ]) {
-    await assertContains(
-      page.locator(".take-home-result"),
-      requiredResultLabel,
-    );
+    const value = await page
+      .getByTestId(testId)
+      .locator("strong")
+      .textContent();
+    assert.match(value ?? "", /^[\d,]+円$/u);
   }
-  await page.getByTestId("take-home-ideco-mode").selectOption("linked");
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  await assertContains(
-    page.locator(".take-home-result"),
-    "iDeCoによる所得税等差額",
-  );
-  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
-  await page.getByRole("button", { name: "iDeCo計画を無効化" }).click();
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("heading", { name: "概算結果: incomplete" }).waitFor();
-  const inactiveSelector = page.getByTestId("take-home-linked-ideco-plan");
-  assert.equal(await inactiveSelector.locator("option").count(), 1);
-  assert.equal(await inactiveSelector.inputValue(), "");
-  const inactiveLinkedState = await page.evaluate((key) => {
-    const bytes = globalThis.localStorage.getItem(key);
-    if (!bytes) throw new Error("state is missing");
-    return JSON.parse(bytes);
-  }, storageKey);
-  assert.equal(inactiveLinkedState.idecoPlans[0].active, false);
-  assert.equal(
-    inactiveLinkedState.takeHomePlans[0].deductions.linkedIdecoPlanId,
-    inactiveLinkedState.idecoPlans[0].id,
-  );
-  assert.equal(
-    inactiveLinkedState.takeHomePlans[0].deductions.annualIdecoContributionYen,
-    0,
-  );
-  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
-  await page.getByRole("button", { name: "iDeCo計画を有効化" }).click();
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  assert.equal(
-    await page
-      .getByTestId("take-home-linked-ideco-plan")
-      .locator("option")
-      .count(),
-    2,
-  );
-  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
-  await page
-    .locator(".ideco-card")
-    .getByTestId("ideco-plus")
-    .selectOption("true");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await page.getByRole("link", { name: "NISA + iDeCo" }).click();
-  await page
-    .locator(".ideco-card")
-    .getByTestId("ideco-plus")
-    .selectOption("false");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  await page.getByTestId("take-home-ideco-mode").selectOption("manual");
-  assert.equal(
-    await page.getByLabel("年間iDeCo掛金（手入力）").inputValue(),
-    "0",
-  );
   await page.setViewportSize({ width: 360, height: 800 });
   assert.equal(
     await page.evaluate(
@@ -1572,130 +1462,104 @@ try {
     ),
     true,
   );
-  await page.getByLabel("その他法定控除年額").fill("12345");
-  await page.getByLabel("その他法定控除年額").press("Tab");
-  await page.getByLabel("社会保険計算方法").selectOption("manual");
-  await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  const savePreview = page.getByRole("button", {
+    name: "この給与連携を保存",
+  });
+  const dismissedConfirmation = new Promise((resolve) => {
+    page.once("dialog", async (dialog) => {
+      await dialog.dismiss();
+      resolve();
+    });
+  });
+  await savePreview.click();
+  await dismissedConfirmation;
+  const stateAfterDismissal = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return {
+      plans: state.takeHomePlans,
+      bindings: state.takeHomeCompensationBindings,
+    };
+  }, storageKey);
+  assert.deepEqual(stateAfterDismissal, { plans: [], bindings: [] });
+
+  const acceptedConfirmation = new Promise((resolve) => {
+    page.once("dialog", async (dialog) => {
+      await dialog.accept();
+      resolve();
+    });
+  });
+  await savePreview.click();
+  await acceptedConfirmation;
+  await page
+    .getByText("詳細計算設定（保存済みの値・例外設定）", { exact: true })
+    .waitFor();
+  const persistedTakeHomeState = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return {
+      plans: state.takeHomePlans,
+      bindings: state.takeHomeCompensationBindings,
+      policies: state.budgetIncomePolicies,
+    };
+  }, storageKey);
+  assert.equal(persistedTakeHomeState.plans.length, 1);
+  assert.equal(persistedTakeHomeState.bindings.length, 1);
   assert.equal(
-    await page.getByLabel("その他法定控除年額").inputValue(),
-    "12345",
+    persistedTakeHomeState.bindings[0].takeHomePlanId,
+    persistedTakeHomeState.plans[0].id,
   );
-  await assertContains(page.locator(".take-home-result"), "12,345円");
+  assert.equal(
+    persistedTakeHomeState.bindings[0].payrollPlanId,
+    savedPayroll.id,
+  );
+  assert.equal(
+    persistedTakeHomeState.plans[0].employment.employmentInsuranceCategory,
+    "general",
+  );
+  assert.equal(
+    persistedTakeHomeState.plans[0].socialInsurance.employerPrefecture,
+    "JP-13",
+  );
+  assert.deepEqual(persistedTakeHomeState.policies, [
+    { targetId: "budget-income-self", mode: "auto-take-home" },
+    { targetId: "budget-income-partner", mode: "auto-take-home" },
+  ]);
+  const advanced = page.locator("details.take-home-details");
+  assert.equal(await advanced.getAttribute("open"), null);
+  await advanced.locator("summary").click();
+  const payrollBinding = page.getByLabel("給与情報の入力元");
+  assert.equal(await payrollBinding.inputValue(), savedPayroll.id);
+  const persistedAverageMonthly = await page
+    .getByTestId("take-home-result-average-monthly")
+    .locator("strong")
+    .textContent();
+  assert.match(persistedAverageMonthly ?? "", /^[\d,]+円$/u);
   await page.reload({ waitUntil: "load" });
-  assert.equal(
-    await page.getByLabel("その他法定控除年額").inputValue(),
-    "12345",
-  );
-  await assertContains(page.locator(".take-home-result"), "12,345円");
-  await page.getByLabel("その他法定控除年額").fill("0");
-  await page.getByLabel("その他法定控除年額").press("Tab");
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  const stateAfterPersistenceReload = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return {
+      planCount: state.takeHomePlans.length,
+      bindingCount: state.takeHomeCompensationBindings.length,
+    };
+  }, storageKey);
+  assert.deepEqual(stateAfterPersistenceReload, {
+    planCount: 1,
+    bindingCount: 1,
+  });
+
   await page.getByRole("link", { name: "家計簿", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("本人手取りの連携方法").inputValue(),
+    "auto-take-home",
+  );
+  await assertContains(
+    page.getByTestId("household-income"),
+    persistedAverageMonthly,
+  );
   await page.getByLabel("本人手取りの連携方法").selectOption("legacy");
   await page.getByLabel("相手手取りの連携方法").selectOption("legacy");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  await assertContains(page.getByTestId("household-income"), "439,597円");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page
-    .getByLabel("社会保険計算方法")
-    .selectOption("unsupported-uncomputed");
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await assertContains(page.locator(".take-home-result"), "未対応条件");
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  await assertContains(page.getByTestId("household-income"), "未計算");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  await page.getByRole("button", { name: "家計連携を解除" }).click();
-  await page.getByLabel("計算プランの生年月日").fill("1956-01-02");
-  await page.getByLabel("計算プランの生年月日").press("Tab");
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await assertContains(
-    page.locator(".take-home-result"),
-    "介護保険第1号被保険者の保険料は自動計算対象外",
-  );
-  await assertContains(
-    page.locator(".take-home-result"),
-    "第1号介護保険料を0円として扱っていません",
-  );
-  await assertContains(
-    page.locator(".take-home-result"),
-    "社会保険計算方法を年額手入力へ切り替え",
-  );
-  assert.equal(
-    await page.getByRole("button", { name: "家計の月間手取りへ連携" }).count(),
-    0,
-  );
-  await page.getByLabel("社会保険計算方法").selectOption("manual");
-  for (const [label, value] of [
-    ["健康保険年額", "240000"],
-    ["介護保険年額", "120000"],
-    ["子ども・子育て支援金年額", "1000"],
-    ["厚生年金年額", "1"],
-    ["雇用保険年額", "30000"],
-  ]) {
-    await page.getByLabel(label).fill(value);
-    await page.getByLabel(label).press("Tab");
-  }
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  await assertContains(page.locator(".take-home-result"), "120,000円");
-  await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  assert.ok(
-    !(await page.getByTestId("household-income").textContent())?.includes(
-      "未計算",
-    ),
-  );
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByLabel("社会保険計算方法").selectOption("kyokai-auto");
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  await assertContains(page.getByTestId("household-income"), "未計算");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.reload({ waitUntil: "load" });
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await assertContains(
-    page.locator(".take-home-result"),
-    "介護保険第1号被保険者",
-  );
-  await page.getByLabel("計算プランの生年月日").fill("1961-06-02");
-  await page.getByLabel("計算プランの生年月日").press("Tab");
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await assertContains(page.locator(".take-home-result"), "第1号介護保険料");
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  await assertContains(page.getByTestId("household-income"), "未計算");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.reload({ waitUntil: "load" });
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await page.getByLabel("計算プランの生年月日").fill("1951-06-02");
-  await page.getByLabel("計算プランの生年月日").press("Tab");
-  await page.getByRole("heading", { name: "概算結果: unsupported" }).waitFor();
-  await assertContains(
-    page.locator(".take-home-result"),
-    "後期高齢者医療保険料",
-  );
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  await assertContains(page.getByTestId("household-income"), "未計算");
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByLabel("計算プランの生年月日").fill("1990-01-01");
-  await page.getByLabel("計算プランの生年月日").press("Tab");
-  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
-  await page.getByLabel("年間課税給与（賞与を含む）").fill("6100000");
-  await page.getByLabel("年間課税給与（賞与を含む）").press("Tab");
-  await page.getByRole("button", { name: "賞与を追加" }).click();
-  assert.equal(await page.getByLabel("賞与支給日").inputValue(), "2026-06-30");
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
-  await page.waitForURL(`${standaloneUrl}#/budget`);
-  const linkedIncomeAfterEdit = await page
-    .getByTestId("household-income")
-    .textContent();
-  assert.ok(!linkedIncomeAfterEdit?.includes("439,597円"));
-  await page.getByRole("link", { name: "手取り計算" }).click();
-  await page.getByRole("button", { name: "家計連携を解除" }).click();
-  await page.getByRole("link", { name: "家計簿", exact: true }).click();
 
   await page.getByLabel("本人の月間手取り").fill("300000");
   await page.getByLabel("同棲モード").check();
@@ -2543,7 +2407,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK018-car-commute-daily-v10-plus-TASK017-and-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, payrollResultRestingView=compact, payrollResultDetails=label-hover-focus-enter-space-click-touch-escape, payrollFuel=7200, payrollCarDefault=off-daily800, payrollCarToggle=off-retains-reon-restores, payrollLegacy=mixed-preserved-explicit-adoption, payrollTaxHelp=keyboard-touch-disclosure, payrollBonusPreservation=passed, payrollBonusCancelAtomic=passed, payrollBonusConfirmedFlatten=passed, payrollHelp=keyboard-and-viewport, payrollViewport=320px-and-375px, compactChoices=${String(compactChoiceCount)}, v9ToV10Migration=bytes-preserved, v8ToV10Migration=bytes-preserved, supportedYear2027=passed, unsupportedBindingImport=blocked, grossOnly2027=visible, downstream2027=unavailable, automaticPayrollBinding=passed, automaticBudgetPolicy=passed, automaticInvestmentFunding=passed, userOverride=passed, legacyLifePlanRoute=overview, lifePlan=embedded-crud-persistence-negative-warning, lifePlanAssets=table-five-columns-not-net-worth, lifePlanV6Migration=bytes-preserved-to-v10, lifePlanViewport=360px, overviewBlankStates=visible, overviewIntegratedSummary=passed, overviewReadOnly=passed, overviewHouseholdNisaIdeco=separate, overviewIdecoPeriodMatrix=passed, overviewSafeText=passed, overviewNegativeRemainder=visible, overviewRuleEvidence=https-only, overviewViewport=360px, budgetScenario=passed, takeHomeScenario=passed, nisaPlan=passed, nisaLegalAgeJan2=adult, nisaBlankMoney=null, nisaExplicitZero=valid, nisaAnnualExact=passed, nisaAnnualRemaining=visible, nisaLifetimeReach=visible, nisaRuleOwnedLabels=passed, nisaOneYenOver=invalid, nisaScenarioSwitch=passed, nisaAdditionalCrud=passed, idecoPlan=passed, idecoCurrentScheduledBoundary=passed, idecoNullZero=passed, idecoExactAndOneYenOver=passed, idecoPlus=unsupported, idecoAnnualUnit=unsupported, idecoScenarioSwitch=passed, idecoReferenceDate=explicit, inactiveIdecoLink=incomplete-preserved-reactivated, idecoTakeHomeLink=live, linkedValueLiveUpdate=passed, unresolvedLink=passed, age65To74Auto=unsupported, manualFirstCategoryCare=complete, newUnsupportedLink=blocked, ageTransition65=unsupported, ageTransition75=unsupported, monthlyWageMissing=preserved, monthlyWageZero=preserved, requiredResults=visible, manualAutoOtherDeduction=preserved, sequentialJapaneseSearch=passed, legacyNames=lossless-explicit-edit, overflowState=uncomputed, viewport=360px, keyboardFocus=passed, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK019-transient-no-write-confirm-cancel-atomic-persist-reload-plus-TASK018-TASK017-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, task019CurrentContext=passed, task019AutomaticPayrollBinding=passed, task019BudgetAndOverviewDownstream=passed, task019Viewport=360px, unsupportedYear2027=zero-write, unsupportedBindingImport=blocked, userOverride=passed, compactChoices=${String(compactChoiceCount)}, legacyNames=lossless-explicit-edit, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();

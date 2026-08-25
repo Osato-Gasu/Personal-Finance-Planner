@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Store } from "../src/app/store";
 import { createInitialState, type AppState } from "../src/domain/state";
+import { resolveIncomeTarget } from "../src/domain/linked-value";
+import { selectOverview } from "../src/domain/overview";
 import { createCalculatedTakeHomePlan } from "../src/domain/take-home-plan";
 import {
   createTakeHomePreviewPersistenceAction,
@@ -228,6 +230,18 @@ describe("TASK-019 current Take-home domain", () => {
         active: true,
       },
     ]);
+    expect(
+      resolveIncomeTarget(store.getState(), "budget-income-self", "2026-08-25"),
+    ).toMatchObject({
+      status: "selected",
+      sourceId: preview.plan.id,
+      valueYen: preview.result.averageMonthlyTakeHomeYen,
+    });
+    expect(
+      selectOverview(store.getState(), "2026-08-25").members.find(
+        (member) => member.role === "self",
+      )?.takeHomeMonthlyYen,
+    ).toBe(preview.result.averageMonthlyTakeHomeYen);
   });
 
   it("applies only a matching resident-tax manual year and preserves false conditions", () => {
