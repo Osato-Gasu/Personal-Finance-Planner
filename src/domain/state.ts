@@ -7,7 +7,7 @@ import {
   type TakeHomePlan,
 } from "./take-home-plan";
 import { calculateTakeHome } from "./take-home-calculator";
-import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
+import { resolveTakeHomeForIncomeLink } from "./linked-value";
 import {
   calculateNisaPlan,
   parseInvestmentScenario,
@@ -2470,12 +2470,12 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
       );
       if (
         !member ||
-        calculateTakeHomeFromState(
+        resolveTakeHomeForIncomeLink(
           state,
           source,
           member,
           action.referenceDate ?? null,
-        ).status !== "complete"
+        )?.status !== "complete"
       )
         throw new Error("only a complete take-home result can be linked");
       if (!action.link.active) throw new Error("added link must be active");
@@ -2501,13 +2501,14 @@ function assertActionApplicable(state: AppState, action: AppAction): void {
           (candidate) => candidate.id === source.memberId,
         );
         if (!member) throw new Error("active link member is missing");
-        const result = calculateTakeHomeFromState(
+        const result = resolveTakeHomeForIncomeLink(
           state,
           source,
           member,
           action.referenceDate ?? null,
         );
         if (
+          result === null ||
           result.averageMonthlyTakeHomeYen === null ||
           action.manualYen !== result.averageMonthlyTakeHomeYen
         ) {

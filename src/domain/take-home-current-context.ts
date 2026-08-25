@@ -7,13 +7,11 @@ import type {
 import { createCalculatedTakeHomePlan } from "./take-home-plan";
 import type { PrefectureCode } from "../rules/jp/take-home/social-insurance/rules-2026";
 import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
-import {
-  createUnavailableTakeHomeResult,
-  salaryIncomeYen2026,
-} from "./take-home-calculator";
+import { createUnavailableTakeHomeResult } from "./take-home-calculator";
 import { calculateIdecoPlan } from "./ideco";
 import { calculatePayroll } from "./payroll";
 import { isTakeHomeSupportedYear } from "./take-home-support";
+import { salaryIncomeYen2025ForResidentTax } from "../rules/jp/take-home/resident-tax-salary-income-2025";
 
 /**
  * Provenance for the values used by the current Take-home context.  The
@@ -135,7 +133,7 @@ export function estimateCurrentYearResidentTaxYen(options: {
 }
 
 function salaryIncomeForResidentTax(annualTaxableSalaryYen: number): number {
-  return salaryIncomeYen2026(annualTaxableSalaryYen);
+  return salaryIncomeYen2025ForResidentTax(annualTaxableSalaryYen);
 }
 
 function linkedIdecoContribution(

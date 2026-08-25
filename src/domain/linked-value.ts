@@ -1,11 +1,46 @@
-import type { AppState } from "./state";
+import type { AppState, HouseholdMember } from "./state";
 import { resolveCurrentTakeHomeContext } from "./take-home-current-context";
 import { calculateTakeHomeFromState } from "./take-home-linked-calculator";
+import type { TakeHomePlan, TakeHomeResult } from "./take-home-plan";
 
 export type LinkedValueResult =
   | { status: "selected"; valueYen: number; sourceId: string }
   | { status: "manual"; valueYen: number }
   | { status: "broken-link"; warning: string; sourceId: string };
+
+function referenceYear(referenceDate: string | null): number | null {
+  const match = referenceDate?.match(/^(\d{4})-\d{2}-\d{2}$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  return Number.isSafeInteger(year) ? year : null;
+}
+
+/**
+ * Resolve a Take-home source for an income link.  For self/current-year
+ * calculated sources this is deliberately the same read-only context result
+ * used by the Take-home screen; strict legacy/partner/out-of-year paths keep
+ * their existing calculator behavior.
+ */
+export function resolveTakeHomeForIncomeLink(
+  state: Readonly<AppState>,
+  source: Readonly<TakeHomePlan>,
+  member: Readonly<HouseholdMember>,
+  referenceDate: string | null,
+): TakeHomeResult | null {
+  const year = referenceYear(referenceDate);
+  if (
+    member.role === "self" &&
+    source.mode === "calculated" &&
+    year !== null &&
+    source.targetYear === year
+  ) {
+    const context = resolveCurrentTakeHomeContext(state, referenceDate);
+    if (context.status !== "persisted" || context.plan.id !== source.id)
+      return null;
+    return context.result;
+  }
+  return calculateTakeHomeFromState(state, source, member, referenceDate);
+}
 
 export function resolveIncomeTarget(
   state: Readonly<AppState>,
@@ -71,10 +106,18 @@ export function resolveIncomeTarget(
         warning: `auto-take-home-current-context:${currentContext.status}:${source.id}`,
         sourceId: source.id,
       };
-    const result =
-      currentContext?.status === "persisted"
-        ? currentContext.result
-        : calculateTakeHomeFromState(state, source, member, referenceDate);
+    const result = resolveTakeHomeForIncomeLink(
+      state,
+      source,
+      member,
+      referenceDate,
+    );
+    if (!result)
+      return {
+        status: "broken-link",
+        warning: `auto-take-home-current-context:${currentContext?.status ?? "unavailable"}:${source.id}`,
+        sourceId: source.id,
+      };
     if (
       result.status !== "complete" ||
       result.averageMonthlyTakeHomeYen === null
@@ -107,16 +150,16 @@ export function resolveIncomeTarget(
       sourceId: link.sourceId,
     };
   }
-  const result = calculateTakeHomeFromState(
+  const result = resolveTakeHomeForIncomeLink(
     state,
     source,
     member,
     referenceDate,
   );
-  if (result.averageMonthlyTakeHomeYen === null) {
+  if (!result || result.averageMonthlyTakeHomeYen === null) {
     return {
       status: "broken-link",
-      warning: `uncomputed-link:${result.status}:${source.id}`,
+      warning: `uncomputed-link:${result?.status ?? "unavailable"}:${source.id}`,
       sourceId: source.id,
     };
   }

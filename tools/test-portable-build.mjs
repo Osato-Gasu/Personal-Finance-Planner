@@ -1561,6 +1561,68 @@ try {
   await page.getByLabel("本人手取りの連携方法").selectOption("legacy");
   await page.getByLabel("相手手取りの連携方法").selectOption("legacy");
 
+  // TASK-019 IR-01: exercise the real explicit-link route.  The persisted
+  // plan intentionally keeps resident tax unsupported-uncomputed; the
+  // current context estimate must still be linkable, survive a temporary
+  // manual-tax edit, and be safely unlinkable after manual mode is turned off.
+  await page.getByRole("link", { name: "手取り計算" }).click();
+  await page.waitForURL(`${standaloneUrl}#/take-home`);
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await page.locator("details.take-home-details summary").click();
+  await page.getByRole("button", { name: "家計の月間手取りへ連携" }).click();
+  const explicitLinkState = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return {
+      sourceId: state.links.find(
+        (candidate) =>
+          candidate.targetId === "budget-income-self" && candidate.active,
+      )?.sourceId,
+      planId: state.takeHomePlans[0]?.id,
+    };
+  }, storageKey);
+  assert.equal(explicitLinkState.sourceId, explicitLinkState.planId);
+
+  await page.locator("details.take-home-details summary").click();
+  await page.getByLabel("住民税年額を入力する").check();
+  await page.locator("details.take-home-details summary").click();
+  assert.equal(await page.getByLabel("住民税の年度").inputValue(), "2026");
+  await page.getByLabel("住民税年額", { exact: true }).fill("1");
+  await page.getByLabel("住民税年額", { exact: true }).press("Tab");
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await page.locator("details.take-home-details summary").click();
+  await page.getByLabel("住民税年額を入力する").uncheck();
+  await page.getByRole("heading", { name: "概算結果: complete" }).waitFor();
+  await assertContains(page.locator("main"), "住民税: 2026年支払額を自動概算");
+  await page.locator("details.take-home-details summary").click();
+  await page.getByRole("button", { name: "家計連携を解除" }).click();
+  const explicitUnlinkState = await page.evaluate((key) => {
+    const state = JSON.parse(globalThis.localStorage.getItem(key));
+    return {
+      activeLinkCount: state.links.filter(
+        (candidate) =>
+          candidate.targetId === "budget-income-self" && candidate.active,
+      ).length,
+      manualYen: state.incomeTargets.find(
+        (candidate) => candidate.id === "budget-income-self",
+      )?.manualYen,
+    };
+  }, storageKey);
+  assert.equal(explicitUnlinkState.activeLinkCount, 0);
+  assert.equal(
+    `${Number(explicitUnlinkState.manualYen).toLocaleString("ja-JP")}円`,
+    persistedAverageMonthly,
+  );
+
+  await page.getByRole("link", { name: "家計簿", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("本人手取りの連携方法").inputValue(),
+    "legacy",
+  );
+  assert.equal(
+    await page.getByLabel("本人の月間手取り").inputValue(),
+    String(explicitUnlinkState.manualYen),
+  );
+
   await page.getByLabel("本人の月間手取り").fill("300000");
   await page.getByLabel("同棲モード").check();
   await page.getByLabel("相手の月間手取り").fill("200000");
@@ -2407,7 +2469,7 @@ try {
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(unexpectedRequests, []);
   console.log(
-    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK019-transient-no-write-confirm-cancel-atomic-persist-reload-plus-TASK018-TASK017-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, task019CurrentContext=passed, task019AutomaticPayrollBinding=passed, task019BudgetAndOverviewDownstream=passed, task019Viewport=360px, unsupportedYear2027=zero-write, unsupportedBindingImport=blocked, userOverride=passed, compactChoices=${String(compactChoiceCount)}, legacyNames=lossless-explicit-edit, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
+    `Portable file:// browser test passed: channel=${launched.channel}, checks=TASK019-transient-no-write-confirm-cancel-atomic-persist-reload-explicit-link-manual-off-safe-unlink-plus-TASK018-TASK017-TASK016-regressions, routes=${routes.length}, payrollContext=self-current-year, payrollPrimaryResults=3, task019CurrentContext=passed, task019AutomaticPayrollBinding=passed, task019ExplicitLink=passed, task019BudgetAndOverviewDownstream=passed, task019Viewport=360px, unsupportedYear2027=zero-write, unsupportedBindingImport=blocked, userOverride=passed, compactChoices=${String(compactChoiceCount)}, legacyNames=lossless-explicit-edit, localStorage=preserved, runtimeRequests=0, consoleErrors=0, pageErrors=0.`,
   );
 } finally {
   await browser?.close();
