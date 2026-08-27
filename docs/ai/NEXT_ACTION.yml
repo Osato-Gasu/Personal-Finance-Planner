@@ -1,14 +1,14 @@
 schema_version: 1
 task_id: TASK-019
 feature: 手取り計算UI簡素化・給与自動連携・概算フォールバック
-phase: implementation
-status: ready
+phase: release
+status: approved
 next_actor: Codex
 next_role: IMPLEMENTER
 model: 5.6 Sol
 effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-019/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-019/RELEASE_HANDOFF.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
@@ -25,7 +25,7 @@ review_status: not_requested
 request_review_status: none
 review_model: none
 review_effort: none
-reviewed_candidate: none
+reviewed_candidate: ab694bbf2a236b38fc8b52b09b3f9f368ba93f8c
 reviewed_spec_revision: none
 review_request_id: none
 review_started_at: none

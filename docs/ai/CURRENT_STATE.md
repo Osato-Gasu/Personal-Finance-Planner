@@ -2,7 +2,7 @@
 updated_at: 2026-08-24
 active_tasks:
   - TASK-019
-next_action: Codex implements REQUIREMENTS_DEFINED relay for TASK-019
+next_action: Codex processes APPROVED relay for TASK-019
 ---
 
 # Current state

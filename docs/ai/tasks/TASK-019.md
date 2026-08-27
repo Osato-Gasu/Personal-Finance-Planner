@@ -1,19 +1,19 @@
 ---
 task_id: TASK-019
 title: 手取り計算UI簡素化・給与自動連携・概算フォールバック
-status: ready
+status: approved
 route: TWO_SESSION_FAST
 priority: high
 spec_revision: 2
 spec_status: accepted
-current_phase: implementation
+current_phase: release
 current_role_id: IMPLEMENTER
 next_actor: Codex
 next_role: IMPLEMENTER
 assigned_model: 5.6 Sol
 assigned_effort: high
 session_mode: new
-handoff_file: docs/ai/handoffs/TASK-019/CODEX_HANDOFF.md
+handoff_file: docs/ai/handoffs/TASK-019/RELEASE_HANDOFF.md
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
@@ -31,6 +31,10 @@ accepted_product_identity_reference: docs/ai/PRODUCT_IDENTITIES.yml#requirements
 accepted_product_sha256: 26DA89C8BEDFEAE97F6DB1BCA9192ADDA68FF6EA30F4D53E5DABFB3431BBEDB9
 implementation_candidate: ab694bbf2a236b38fc8b52b09b3f9f368ba93f8c
 
+reviewed_candidate: ab694bbf2a236b38fc8b52b09b3f9f368ba93f8c
+shared_candidate: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
+changes_requested_cycles: 0
+review_stage: implementation
 updated_at: 2026-08-25
 ---
 
