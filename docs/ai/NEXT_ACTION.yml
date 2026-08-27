@@ -1,21 +1,25 @@
 schema_version: 1
-task_id: TASK-019
-feature: 手取り計算UI簡素化・給与自動連携・概算フォールバック
-phase: release
-status: approved
-next_actor: Codex
-next_role: IMPLEMENTER
-model: 5.6 Sol
-effort: high
-session_mode: new
-handoff_file: docs/ai/handoffs/TASK-019/RELEASE_HANDOFF.md
+task_id: none
+feature: none
+phase: requirements
+status: ready
+next_actor: ChatGPT
+next_role: ORCHESTRATOR_AND_REVIEWER
+model: 5.6 Sol-Pro
+effort: Pro
+session_mode: existing_or_new
+handoff_file: docs/ai/handoffs/PROJECT_REQUIREMENTS.md
 rules_version: 0.12.20
 rules_commit: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 preferred_executor: Claude
 allowed_executors: Claude, ChatGPT
 executor_policy: preferred_fallback
-return_to: ChatGPT
-actual_executor: Codex
+return_to: user
+write_bridge: required_for_state_transition
+write_probe: required_for_chatgpt
+relay_status: none
+updated_at: 2026-08-27
+actual_executor: ChatGPT
 provider_substitution: none
 review_kind: none
 review_role: none
@@ -25,7 +29,7 @@ review_status: not_requested
 request_review_status: none
 review_model: none
 review_effort: none
-reviewed_candidate: ab694bbf2a236b38fc8b52b09b3f9f368ba93f8c
+reviewed_candidate: none
 reviewed_spec_revision: none
 review_request_id: none
 review_started_at: none
@@ -33,7 +37,3 @@ review_completed_at: none
 review_result: none
 review_findings_count: 0
 review_finding_ids: none
-write_bridge: required_for_state_transition
-write_probe: required_for_chatgpt
-relay_status: none
-updated_at: 2026-08-24
