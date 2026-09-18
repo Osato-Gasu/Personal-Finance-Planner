@@ -9,9 +9,9 @@ next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_FINALIZATION_APPROVAL_SHARED_2.0.8.md
 transition_event_id: E0061
 claim:
-  actor: NONE
-  run_id: null
-  task_id: null
-  started_at: null
-  task_commit: null
-  transition_event_id: null
+  actor: CODEX_MAIN
+  run_id: codex-task020-finalize208-20260918-9268
+  task_id: TASK-020
+  started_at: 2026-09-18T12:11:45.5129301Z
+  task_commit: c41b41a8916512effb3e8e20e3dedd3826bc48cb
+  transition_event_id: E0061
