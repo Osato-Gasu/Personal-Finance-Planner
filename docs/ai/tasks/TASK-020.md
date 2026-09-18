@@ -1,49 +1,49 @@
 ---
 task_id: TASK-020
-summary: Shared 2.0.6 governance migration and automatic SharedSync enrollment
-status: BLOCKED
-phase: RCFreeze
+summary: Shared 2.0.7 governance migration and automatic SharedSync enrollment
+status: ACTIVE
+phase: BuildVerifyFix
 risk: high
 definition_state: DESIGNED
-implementation_state: IMPLEMENTED
-static_verification_state: PASS
+implementation_state: IMPLEMENTING
+static_verification_state: NOT_RUN
 runtime_verification_state: NOT_REQUIRED
-hold_state: HOLD
-hold_reason: Shared completed-CI payload conflicts with universal orchestration event envelope; GPT owner disposition required
-progress: Implementation and separated exact VERIFY PASS; formal exact-SHA CI SUCCESS including both-shell completion and portable gates; Shared CI-history schema disposition remains pending
-next_action: GPT reconciles Shared CI-event owner and parser contracts, preserves observed runs, and issues explicit final integration and Completion instructions to the same Main
-next_actor: GPT_ORCHESTRATOR
-handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_SPEC_CHANGE_REQUIRED_RETURN.md
-verify_state: PASS
-current_candidate: e019f737f52e8e499126478ae46dba4e7cf82166
+hold_state: NONE
+hold_reason: null
+progress: Shared 2.0.7 released and SPEC conflict resolved; prior 2.0.7 candidate e019f7 local/VERIFY/formal CI PASS preserved as historical evidence; bounded 2.0.7 lock rebase and affected revalidation authorized
+next_action: Same Codex Main updates only the Shared lock target to released 2.0.7, reruns affected checks, freezes a new candidate, runs separated Luna Max VERIFY and required exact extended CI, then returns to GPT
+next_actor: CODEX_MAIN
+handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.7.md
+verify_state: NOT_RUN
+current_candidate: null
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: PASS
-formal_ci_subject_sha: e019f737f52e8e499126478ae46dba4e7cf82166
-frozen_remote_ref: no-ci/task-020-rc-e019f737f52e
+formal_ci_state: NOT_RUN
+formal_ci_subject_sha: null
+frozen_remote_ref: null
 formal_ci_workflow: .github/workflows/ci.yml
-formal_ci_run_id: 35314250383
-target_shared_version: 2.0.6
-target_shared_sha: e384d21a43fcda1195556d4ef6fa382bede48da8
+formal_ci_run_id: null
+target_shared_version: 2.0.7
+target_shared_sha: ba478e518e895e89aaa56156d5d713f5ebb11fe6
 baseline_main_sha: e7de34d7b36b7f6ec514d321a0b66381cc810fa2
 legacy_shared_version: 0.12.20
 legacy_shared_sha: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 ---
 
-# TASK-020 — Personal-Finance-Planner Shared 2.0.6移行・自動同期登録
+# TASK-020 — Personal-Finance-Planner Shared 2.0.7移行・自動同期登録
 
 ## Goal
 
 Personal-Finance-Plannerをlegacy Shared 0.12.20 / lock schema 1 / adapter schema 1から
-現行Shared 2.0.6へ安全に移行し、恒久的なSharedSync自動同期へ登録する。
+現行Shared 2.0.7へ安全に移行し、恒久的なSharedSync自動同期へ登録する。
 
 このTASKはgovernance migrationのみ。金融計算・rule package・AppState・product UI・保存データ・
 product docs・過去TASKの承認状態を変更しない。
 
 Target Shared:
 - repository: `Osato-Gasu/shared`
-- version: `2.0.6`
-- commit: `e384d21a43fcda1195556d4ef6fa382bede48da8`
+- version: `2.0.7`
+- commit: `ba478e518e895e89aaa56156d5d713f5ebb11fe6`
 
 ## Requirements
 
@@ -51,7 +51,7 @@ Target Shared:
 2. legacy governance owner群を先にinventoryする。
    `PROJECT_RULES.md`, `WORKFLOW.md`, `CURRENT_STATE.md`, `PROJECT_ADAPTER.psd1`,
    `BACKLOG.md`, `PRODUCT_IDENTITIES.yml`, `PROJECT_REQUIREMENTS.md`, existing validators/tools/CIを確認する。
-3. 明示的にShared 2.0.6へ置換するlegacy routing/snapshot/relay/review-attempt機構以外の
+3. 明示的にShared 2.0.7へ置換するlegacy routing/snapshot/relay/review-attempt機構以外の
    Project固有契約を失わない。
 4. 特に以下はnon-relaxableとして恒久Project ownerへ保持する。
    - monetary calculations
@@ -61,10 +61,10 @@ Target Shared:
    - product requirements / required acceptance criteria
    - security / baseline-candidate identity
 5. 旧「implementation review最大3回・第3回のみ限定緩和・4回目禁止」はlegacy orchestrationとして
-   Shared 2.0.6のMain→BUILD→VERIFY自律修正ループに置換する。
+   Shared 2.0.7のMain→BUILD→VERIFY自律修正ループに置換する。
    ただし上記financial non-relaxable categoriesは一切弱めない。
-6. `docs/ai/SHARED_RULES.lock.yml`をschema 2のexact Shared 2.0.6 identityへ更新する。
-7. root `AGENTS.md`をShared 2.0.6のsmall Project bootstrapへ移行する。
+6. `docs/ai/SHARED_RULES.lock.yml`をschema 2のexact Shared 2.0.7 identityへ更新する。
+7. root `AGENTS.md`をShared 2.0.7のsmall Project bootstrapへ移行する。
 8. `docs/ai/PROJECT.md`を新設し、Personal-Finance-Planner固有恒久ルールのsole human-readable ownerとする。
    `docs/product/**`をproduct source of truthとして維持する。
 9. `PRODUCT_IDENTITIES.yml`はproduct-document integrityとして有用なら維持可能。
@@ -90,7 +90,7 @@ Target Shared:
     typecheck/lint/format/test、rules/NISA/iDeCo/overview/build/portable/completion checksを弱めない。
     exact candidate formal run用のworkflow_dispatch + candidate_sha fail-closed guardを最小追加してよい。
 16. legacy generated Shared snapshot、main上の旧NEXT_ACTION、snapshot sync/progress/relay系toolは
-    Shared 2.0.6と重複するものだけ退役可能。削除前にProject固有情報が別ownerへ保存済みか証明する。
+    Shared 2.0.7と重複するものだけ退役可能。削除前にProject固有情報が別ownerへ保存済みか証明する。
 17. `CURRENT_STATE.md`のcurrent routing二重ownerは解消するが、以下の現役固有情報を失わない:
     - TASK-019 accepted product candidate/tree
     - TASK-004/TASK-005 historical unapproved/terminated status
@@ -99,7 +99,7 @@ Target Shared:
     - no tag/release/deployment facts
 18. `BACKLOG.md`の「計画済み製品TASK 0件」とhistorical carry-forward/retirement意味を保持し、
     migrationを理由に製品TASKを自動着手しない。
-19. legacy `git_only` completion policyはfuture Shared 2.0.6 TASK trackingと競合するため、
+19. legacy `git_only` completion policyはfuture Shared 2.0.7 TASK trackingと競合するため、
     TASK-020以降はcanonical TASK fileをcurrent treeに保持する方式へ置換する。
     過去TASK-001〜019の欠落fileを復元・捏造しない。
 20. `docs/ai/TASKS.html`はTASK-001〜020を人間向けに表示する。
@@ -118,7 +118,7 @@ Target Shared:
 27. Actionsに既知billing/spending/quota障害があり復旧証拠がなければpoll目的でretryしない。
     local PASS + VERIFY PASS後はexact debtを保持して`PENDING_REMOTE_CI`でGPT統括へ返せる。
 28. main統合はGPT統括の明示承認後のみ。同じMainがlive guardsを再確認し通常fast-forwardで実施する。
-29. approved integration後、released Shared 2.0.6 real downstream Planで
+29. approved integration後、released Shared 2.0.7 real downstream Planで
     `CURRENT / Enrolled=true / Lock VALID / Adapter VALID`を確認する。
     repository setting mismatchがあれば勝手に変更せずsafe failureを返す。
 30. ルール改修回帰は変更周辺の必要十分な範囲で行う。
@@ -167,11 +167,11 @@ Target Shared:
 
 ## Acceptance Criteria
 
-1. lock schema2 = Shared 2.0.6 exact identity。
-2. AGENTSがShared 2.0.6 small bootstrap。
+1. lock schema2 = Shared 2.0.7 exact identity。
+2. AGENTSがShared 2.0.7 small bootstrap。
 3. PROJECT.mdがfinance固有恒久rule owner。
 4. monetary/rule-period/double-count/data-preservation等non-relaxable safety保持。
-5. legacy 3-attempt review routingはShared 2.0.6 loopへ置換され、financial safetyは弱まらない。
+5. legacy 3-attempt review routingはShared 2.0.7 loopへ置換され、financial safetyは弱まらない。
 6. adapter schema2 parse PASS、必要paths/commands保持。
 7. TaskHtml contract PASS。
 8. SharedSync exact contract PASS、AllowedPathsはlockのみ。
@@ -195,9 +195,17 @@ Target Shared:
 26. integration後real downstream Plan CURRENT/Enrolled=true/VALID、またはsafe concrete failure。
 27. GitHub-native returnとTASK/EVENTS/TASKS.html/pointer整合PASS。
 
+## Spec Change Resolution — Shared 2.0.7
+
+- Shared TASK-183 resolved the formal-CI minimal record / orchestration envelope contradiction and released Shared 2.0.7 at `ba478e518e895e89aaa56156d5d713f5ebb11fe6`.
+- Prior candidate `e019f737f52e8e499126478ae46dba4e7cf82166` remains historical evidence only. Its local checks, separated VERIFY and formal CI SUCCESS are preserved but do not satisfy the new 2.0.7 lock candidate.
+- The only required product-side spec delta is the Shared target identity from 2.0.6 to 2.0.7. All finance/product preservation requirements and Acceptance Criteria otherwise remain unchanged.
+- Same Codex Main resumes with a bounded lock rebase, affected validation, new candidate, separated VERIFY and exact CI.
+- main integration still requires a new explicit GPT approval for the new candidate.
+
 ## Current State
 
-- Open blocking finding: Shared minimal completed-CI event versus orchestration event envelope requires GPT disposition before final closure.
-- Hosted PS5.1 fixture encoding failure fixed; replacement exact candidate separated VERIFY PASS; formal CI run 35314250383 completed SUCCESS on the exact candidate.
-- Normative completed-CI history emission awaits Shared-owner clarification; actual platform result is retained. Acceptance/main/Release/Completion/local sync/cleanup are not executed or approved for this new candidate.
-- Next actor: GPT_ORCHESTRATOR.
+- Open blocking findings: none.
+- SPEC_CHANGE_REQUIRED is resolved by released Shared 2.0.7.
+- Implementation is re-entered only for the bounded 2.0.7 target update and affected revalidation.
+- Next actor: CODEX_MAIN.
