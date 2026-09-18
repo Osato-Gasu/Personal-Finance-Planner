@@ -4,7 +4,7 @@ schema_version: 1
 repository: Osato-Gasu/Personal-Finance-Planner
 task_id: TASK-020
 task_branch: no-ci/task-020-shared-2.0.6-migration
-task_commit: 4366a01d7c07f73c513e8a3f6dd636b7550f4298
+task_commit: 8d9045470eac05d6c2f33ead54f82ef35c5f0680
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.7.md
 transition_event_id: E0040
