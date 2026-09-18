@@ -63,7 +63,10 @@ Separated read-only Luna Max VERIFY I12: PASS on the exact new candidate;
 both-shell affected checks and reader compatibility passed, isolated clone was
 clean and precisely removed, and no Main/source/ref/CI/pointer writes occurred.
 See [I12 result](../evidence/TASK-020/artifacts/VERIFY_RESULT_I12.md).
-Formal exact-candidate extended CI: NOT_RUN, awaiting dispatch.
+Formal exact-candidate extended CI: RUNNING,
+[run35341533054](https://github.com/Osato-Gasu/Personal-Finance-Planner/actions/runs/35341533054),
+workflow `.github/workflows/ci.yml`, extended, workflow_dispatch, frozen ref
+`no-ci/task-020-rc-2853db2763d8`, subject `2853db2763d8f339d606a3c9664f350cafd878cc`.
 No pending CI is claimed PASS. The candidate workflow runs all original
 required product/financial/build/launcher/portable/completion checks unchanged.
 

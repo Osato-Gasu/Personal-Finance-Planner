@@ -10,19 +10,19 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Exact Shared 2.0.8 candidate frozen and pushed; separated Luna Max VERIFY PASS in both shells; ready for new exact extended formal CI
-next_action: Run extended formal CI for the frozen new candidate; on success request GPT final Acceptance and integration approval
+progress: Exact Shared 2.0.8 candidate separated VERIFY PASS; new exact-SHA extended formal CI run accepted and running
+next_action: Observe the accepted formal CI run; repair any real failure in the same Main; on success request GPT final Acceptance and integration approval
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.8.md
 verify_state: PASS
 current_candidate: 2853db2763d8f339d606a3c9664f350cafd878cc
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: NOT_RUN
+formal_ci_state: RUNNING
 formal_ci_subject_sha: 2853db2763d8f339d606a3c9664f350cafd878cc
 frozen_remote_ref: no-ci/task-020-rc-2853db2763d8
 formal_ci_workflow: .github/workflows/ci.yml
-formal_ci_run_id: null
+formal_ci_run_id: 35341533054
 target_shared_version: 2.0.8
 target_shared_sha: a306ba59f33b156c1e801618bdfa892c411ce7d0
 baseline_main_sha: e7de34d7b36b7f6ec514d321a0b66381cc810fa2
