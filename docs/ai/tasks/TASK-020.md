@@ -10,8 +10,8 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: GPT accepted exact Shared 2.0.8 candidate after local/VERIFY/formal CI PASS and authorized same-Main finalization through guarded main integration and Completion gates
-next_action: Same Codex Main executes guarded exact candidate main integration, real downstream Plan, required final-main CI, local-main/launcher/portable/completion gates, then completes and returns to GPT if all gates pass
+progress: Approved implementation frozen; live main baseline, candidate ref/tree, released Shared, exact candidate CI and effective rules readback PASS; same Main claimed finalization
+next_action: Fast-forward Release metadata with approved implementation to main, observe exact main push CI, run released Shared real Plan and local completion gates
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_FINALIZATION_APPROVAL_SHARED_2.0.8.md
 authority_condition: GPT_APPROVED_FINALIZATION
@@ -218,6 +218,8 @@ Target Shared:
 - Open blocking findings: none.
 - The Shared 2.0.7 reader blocker is resolved by released Shared 2.0.8.
 - Bounded 2.0.8 lock update and affected checks PASS; exact candidate 2853db2763d8f339d606a3c9664f350cafd878cc separated I12 VERIFY PASS and formal CI 35341533054 SUCCESS.
-- Open implementation findings: none. GPT final Acceptance and integration approval are pending; this is an authority phase, not a USER decision or TASK Completion.
-- main/Release/Completion commits, main CI, real post-integration downstream Plan, canonical local-main sync and TASK cleanup remain NOT_RUN.
-- Next actor: GPT_ORCHESTRATOR.
+- GPT final Acceptance and conditional Completion authority: approved by E0058/E0061 for exact candidate 2853db2763d8f339d606a3c9664f350cafd878cc.
+- Release finalization is running under the same Main. Implementation bytes remain frozen; main CI, real Plan, Completion, canonical local-main gates and cleanup are not yet claimed PASS.
+- Cleanup scope: remove the clean, integrated TASK worktree and its local development branch non-forced after exact final-main CI and launcher/portable gates. Preserve the remote TASK transport branch while NEXT_ACTION/handoff need it, all immutable candidate refs, the original 9fbd3e candidate/ref and the unrelated TASK-015 worktree. Remote transport deletion would lose the required current coordination reference and is therefore not safe under approval item 12.
+- Final exact-main CI/local synchronization/cleanup facts will be published as metadata-only GitHub-native return on the retained remote TASK transport; they do not create another product/main integration cycle.
+- Next actor: CODEX_MAIN.
