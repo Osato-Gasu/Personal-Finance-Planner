@@ -1,17 +1,17 @@
 ---
 task_id: TASK-020
 summary: Shared 2.0.8 governance migration and automatic SharedSync enrollment
-status: ACTIVE
-phase: Release
+status: COMPLETED
+phase: Completion
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
 static_verification_state: PASS
-runtime_verification_state: NOT_REQUIRED
+runtime_verification_state: PASS
 hold_state: NONE
 hold_reason: null
-progress: Approved implementation frozen; live main baseline, candidate ref/tree, released Shared, exact candidate CI and effective rules readback PASS; same Main claimed finalization
-next_action: Fast-forward Release metadata with approved implementation to main, observe exact main push CI, run released Shared real Plan and local completion gates
+progress: Approved Release main integrated with exact push CI PASS; real Shared2.0.8 Plan CURRENT and local launcher/portable/37-case safety gates PASS; canonical main FF synchronized to Release subject; approved Completion metadata formed
+next_action: Publish this metadata-only Completion commit to main by guarded FF, verify its exact push CI, then final canonical-main FF and non-force cleanup; final results go to retained GitHub-native transport before terminal return
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_FINALIZATION_APPROVAL_SHARED_2.0.8.md
 authority_condition: GPT_APPROVED_FINALIZATION
@@ -27,6 +27,11 @@ formal_ci_run_id: 35341533054
 target_shared_version: 2.0.8
 target_shared_sha: a306ba59f33b156c1e801618bdfa892c411ce7d0
 baseline_main_sha: e7de34d7b36b7f6ec514d321a0b66381cc810fa2
+release_commit: 92ac0fed7246d460cdeb6e7676c75731e474bda1
+release_main_ci_state: PASS
+release_main_ci_run_id: 35343524375
+downstream_plan_state: CURRENT
+local_completion_preflight_state: PASS
 legacy_shared_version: 0.12.20
 legacy_shared_sha: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 ---
@@ -219,7 +224,11 @@ Target Shared:
 - The Shared 2.0.7 reader blocker is resolved by released Shared 2.0.8.
 - Bounded 2.0.8 lock update and affected checks PASS; exact candidate 2853db2763d8f339d606a3c9664f350cafd878cc separated I12 VERIFY PASS and formal CI 35341533054 SUCCESS.
 - GPT final Acceptance and conditional Completion authority: approved by E0058/E0061 for exact candidate 2853db2763d8f339d606a3c9664f350cafd878cc.
-- Release finalization is running under the same Main. Implementation bytes remain frozen; main CI, real Plan, Completion, canonical local-main gates and cleanup are not yet claimed PASS.
+- Release commit/main: 92ac0fed7246d460cdeb6e7676c75731e474bda1; exact Governance CI main push run 35343524375 completed/success.
+- Real released Shared2.0.8 downstream Plan on that main: CURRENT / Enrolled=true / Lock VALID / Adapter VALID, no downstream writes.
+- Real local completion preflight on that exact main: launcher freshness PASS (316608 bytes), portable file:// Edge PASS (6 routes; storage preserved; runtimeRequests/consoleErrors/pageErrors=0), isolated gate clone clean/removed. WhatIf performed neither synchronization nor cleanup. Completion safety regression37 passed in both shells.
+- Canonical clean local main was separately synchronized by fetch plus FF-only to Release main; user-owned changes were not erased.
+- GPT-approved Completion metadata is now formed from satisfied Release acceptance/local gates. Its final main push CI, final canonical-main synchronization and actual cleanup are post-publication execution steps and are not claimed executed here; terminal COMPLETED return waits for their actual success.
 - Cleanup scope: remove the clean, integrated TASK worktree and its local development branch non-forced after exact final-main CI and launcher/portable gates. Preserve the remote TASK transport branch while NEXT_ACTION/handoff need it, all immutable candidate refs, the original 9fbd3e candidate/ref and the unrelated TASK-015 worktree. Remote transport deletion would lose the required current coordination reference and is therefore not safe under approval item 12.
 - Final exact-main CI/local synchronization/cleanup facts will be published as metadata-only GitHub-native return on the retained remote TASK transport; they do not create another product/main integration cycle.
 - Next actor: CODEX_MAIN.
