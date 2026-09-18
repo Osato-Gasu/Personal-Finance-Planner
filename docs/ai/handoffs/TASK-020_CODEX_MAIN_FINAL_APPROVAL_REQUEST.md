@@ -3,7 +3,7 @@ task_id: TASK-020
 repository: Osato-Gasu/Personal-Finance-Planner
 from_actor: CODEX_MAIN
 next_actor: GPT_ORCHESTRATOR
-formal_state: DRAFT
+formal_state: ACTIVE
 authority_condition: GPT_APPROVAL_PENDING
 decision: FINAL_APPROVAL_REQUEST
 main_integration_authorized: false
@@ -11,8 +11,8 @@ main_integration_authorized: false
 
 # TASK-020 — Shared 2.0.8最終承認依頼
 
-Draft only: separated VERIFY/formal CI must finish and this artifact must be
-finalized before pointer publication. No approval or TASK completion is claimed.
+Implementation, separated VERIFY and new exact-candidate formal CI PASS.
+GPT final approval is pending; no approval or TASK completion is claimed.
 TASK is the current-state owner; EVENTS owns history; this request is a projection.
 
 ## Exact identities / bounded scope
@@ -63,12 +63,18 @@ Separated read-only Luna Max VERIFY I12: PASS on the exact new candidate;
 both-shell affected checks and reader compatibility passed, isolated clone was
 clean and precisely removed, and no Main/source/ref/CI/pointer writes occurred.
 See [I12 result](../evidence/TASK-020/artifacts/VERIFY_RESULT_I12.md).
-Formal exact-candidate extended CI: RUNNING,
+Formal exact-candidate extended CI: PASS,
 [run35341533054](https://github.com/Osato-Gasu/Personal-Finance-Planner/actions/runs/35341533054),
 workflow `.github/workflows/ci.yml`, extended, workflow_dispatch, frozen ref
 `no-ci/task-020-rc-2853db2763d8`, subject `2853db2763d8f339d606a3c9664f350cafd878cc`.
-No pending CI is claimed PASS. The candidate workflow runs all original
-required product/financial/build/launcher/portable/completion checks unchanged.
+Final authenticated readback: completed/success and head_sha exactly equals
+candidate_sha. Windows GitHub-hosted job105588312785 succeeded on runner
+GitHub Actions1000002330. All required governance/contract gates, typecheck,
+lint/format, product tests, fixed2026/NISA/iDeCo/overview gates, build, launcher
+freshness, both-shell completion automation and portable checks succeeded;
+only the inapplicable historical TASK001 step was skipped. The exact minimal
+completed-run record is appended to EVENTS without event_id/type.
+See [raw platform result](../evidence/TASK-020/artifacts/CI_PLATFORM_RESULT_208.md).
 
 The released2.0.8 reader accepts E0011 as ordinary history and the prior minimal
 CI record as historical-only, and uniquely resolves E0045. Both previous Shared
@@ -82,7 +88,7 @@ main CI, local-main synchronization, real post-integration downstream Plan or
 TASK worktree/branch removal is claimed. Runtime is NOT_REQUIRED for the current
 governance-only source preparation, not proof of future local completion gates.
 
-After exact VERIFY/CI PASS, GPT統括 should make the explicit final decision and
+Exact VERIFY/CI are now PASS. GPT統括 should make the explicit final decision and
 issue a GitHub-native finalization handoff to the same Main. Preserve candidate
 implementation bytes and exact main baseline, and specify Release/main and
 Completion/final-main tracking commits and required exact main CI; after approved
@@ -90,7 +96,12 @@ integration check released-Shared real downstream Plan CURRENT/Enrolled=true/
 Lock VALID/Adapter VALID, then canonical local main fast-forward-only sync,
 launcher/portable gates and non-forced clean/reachable TASK worktree/branch cleanup.
 No new Main is needed. Approval pending is an authority phase, not USER_DECISION_REQUIRED,
-an implementation blocker or COMPLETED. No authority is inferred from successful CI.
+an implementation blocker or COMPLETED. This request follows the specific
+nonblocking authority-phase rule in the exact Shared
+[EXECUTION Authority routing](https://github.com/Osato-Gasu/shared/blob/a306ba59f33b156c1e801618bdfa892c411ce7d0/core/EXECUTION.md#authority-routing).
+It does not fabricate a BLOCKED implementation, SPEC change, USER decision or
+COMPLETED return merely to request mandatory GPT approval. No authority is
+inferred from successful CI.
 
 ## Complete invocation ledger (EVENTS projection)
 
@@ -104,11 +115,12 @@ an implementation blocker or COMPLETED. No authority is inferred from successful
 08 | BUILD | req=Luna/Low | actual=未確認/未確認 | result=PASS | locale-safe test fixture
 09 | VERIFY | req=Luna/Max | actual=未確認/未確認 | result=PASS | exact e019f7 readonly verification
 10 | Main | req=existing USER-selected session/未指定 | actual=未確認/未確認 | result=BLOCKED | Shared2.0.7 rejected historical E0011; zero remote writes
-11 | Main | req=existing USER-selected session/未指定 | actual=未確認/未確認 | result=RUNNING | same Main bounded2.0.8 retarget and new exact gates
+11 | Main | req=existing USER-selected session/未指定 | actual=未確認/未確認 | result=GPT_APPROVAL_PENDING | same Main bounded2.0.8 retarget and new exact gates
 12 | VERIFY | req=Luna/Max | actual=未確認/未確認 | result=PASS | exact 2853db2 separated readonly verification
 
-## Phase entries (EVENTS projection; draft snapshot)
+## Phase entries (EVENTS projection)
 
 Discovery1 / Requirements1 / Design1 / IndependentReview0 (skipped) / SpecGate2 /
-Implementation1 / BuildVerifyFix3 / RCFreeze3 (current) / Acceptance0 / GoNoGo0 /
-Release0 / Completion0. Final publication must use the finalized event projection.
+Implementation1 / BuildVerifyFix3 / RCFreeze3 / Acceptance1 (current, decision
+pending) / GoNoGo0 / Release0 / Completion0. No same-phase command was counted
+as another phase entry and pending Acceptance is not approved Acceptance.

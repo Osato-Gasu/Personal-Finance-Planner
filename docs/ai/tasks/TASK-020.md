@@ -2,7 +2,7 @@
 task_id: TASK-020
 summary: Shared 2.0.8 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: RCFreeze
+phase: Acceptance
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
@@ -10,15 +10,16 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Exact Shared 2.0.8 candidate separated VERIFY PASS; new exact-SHA extended formal CI run accepted and running
-next_action: Observe the accepted formal CI run; repair any real failure in the same Main; on success request GPT final Acceptance and integration approval
-next_actor: CODEX_MAIN
-handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.8.md
+progress: Exact Shared 2.0.8 implementation, local checks, separated Luna Max VERIFY and new extended formal CI PASS; awaiting GPT final Acceptance and integration approval
+next_action: GPT makes the final decision for exact candidate 2853db2 and issues finalization authority to the same Main; main integration and Completion are not yet executed
+next_actor: GPT_ORCHESTRATOR
+handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_FINAL_APPROVAL_REQUEST.md
+authority_condition: GPT_APPROVAL_PENDING
 verify_state: PASS
 current_candidate: 2853db2763d8f339d606a3c9664f350cafd878cc
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: RUNNING
+formal_ci_state: PASS
 formal_ci_subject_sha: 2853db2763d8f339d606a3c9664f350cafd878cc
 frozen_remote_ref: no-ci/task-020-rc-2853db2763d8
 formal_ci_workflow: .github/workflows/ci.yml
@@ -216,5 +217,7 @@ Target Shared:
 
 - Open blocking findings: none.
 - The Shared 2.0.7 reader blocker is resolved by released Shared 2.0.8.
-- Implementation remains in BuildVerifyFix only for the bounded 2.0.8 target update and affected revalidation.
-- Next actor: CODEX_MAIN.
+- Bounded 2.0.8 lock update and affected checks PASS; exact candidate 2853db2763d8f339d606a3c9664f350cafd878cc separated I12 VERIFY PASS and formal CI 35341533054 SUCCESS.
+- Open implementation findings: none. GPT final Acceptance and integration approval are pending; this is an authority phase, not a USER decision or TASK Completion.
+- main/Release/Completion commits, main CI, real post-integration downstream Plan, canonical local-main sync and TASK cleanup remain NOT_RUN.
+- Next actor: GPT_ORCHESTRATOR.
