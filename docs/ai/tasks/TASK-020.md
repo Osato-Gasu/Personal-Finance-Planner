@@ -10,19 +10,19 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Replacement exact candidate separated VERIFY PASS; locale-independent ASCII fixture passes 28 HTML checks in both shells; ready for formal CI
-next_action: Dispatch formal CI for the frozen exact candidate; preserve real results and return the reproduced Shared event-schema conflict for GPT disposition
+progress: Replacement exact candidate separated VERIFY PASS; formal exact-SHA CI accepted and running
+next_action: Observe the accepted formal CI run; repair any real source failure locally; then return the reproduced Shared event-schema conflict for GPT disposition
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
 verify_state: PASS
 current_candidate: e019f737f52e8e499126478ae46dba4e7cf82166
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: NOT_RUN
+formal_ci_state: RUNNING
 formal_ci_subject_sha: e019f737f52e8e499126478ae46dba4e7cf82166
 frozen_remote_ref: no-ci/task-020-rc-e019f737f52e
 formal_ci_workflow: .github/workflows/ci.yml
-formal_ci_run_id: null
+formal_ci_run_id: 35314250383
 target_shared_version: 2.0.6
 target_shared_sha: e384d21a43fcda1195556d4ef6fa382bede48da8
 baseline_main_sha: e7de34d7b36b7f6ec514d321a0b66381cc810fa2
@@ -198,5 +198,5 @@ Target Shared:
 ## Current State
 
 - Open blocking finding: Shared minimal completed-CI event versus orchestration event envelope requires GPT disposition before final closure.
-- Hosted PS5.1 fixture encoding failure fixed; replacement exact candidate separated VERIFY PASS; formal CI not yet dispatched.
+- Hosted PS5.1 fixture encoding failure fixed; replacement exact candidate separated VERIFY PASS; formal CI run 35314250383 accepted and RUNNING, not PASS.
 - Next actor: CODEX_MAIN.
