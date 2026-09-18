@@ -1,4 +1,11 @@
-# Governance decisions
+# Historical governance decisions (retired operational snapshot)
+
+This file preserves legacy decisions and exact historical identities. It is not
+a rule, approval or current routing owner. GOV-001 through GOV-004 describe
+superseded Shared 0.12.20 operation; use the exact Shared lock and `PROJECT.md`
+instead. Historical review termination, unapproved candidates and retirement
+decisions are not retroactively changed. Historical `git_only` cleanup applies
+only to the old packets, never TASK-020 or later canonical TASKs.
 
 ## GOV-001 Shared governance pin
 

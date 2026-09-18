@@ -1,10 +1,10 @@
----
-updated_at: 2026-08-27
-active_tasks: []
-next_action: ChatGPT waits for the user's next explicit feature or maintenance request; no planned product TASK remains
----
+# Historical product baseline (2026-08-27)
 
-# Current state
+This retained snapshot is not a current TASK or routing owner. Current TASK state
+belongs to `docs/ai/tasks/TASK-*.md`; cross-session routing uses the generated
+pointer on `no-ci/orchestration`. Permanent Project rules belong to `PROJECT.md`.
+The legacy `git_only` statements below describe historical cleanup only and do
+not authorize deletion of TASK-020 or later canonical TASK files.
 
 TASK-019 Revision 2「手取り計算UI簡素化・給与自動連携・概算フォールバック」は完了済みです。approved product candidateは `ab694bbf2a236b38fc8b52b09b3f9f368ba93f8c`、product treeは `c4d12f999f1ea1f8cd31b048b707df69881f0754` です。exact candidateはseparated high-risk VERIFY PASS、Governance CI run `32842694638` SUCCESSを取得しました。
 
@@ -12,6 +12,6 @@ TASK-019 Revision 2「手取り計算UI簡素化・給与自動連携・概算�
 
 TASK-018以前の完了状態も維持します。TASK-004/TASK-005は歴史上の打ち切り・未承認状態、TASK-009は個人利用で配布不要という明示的決定によるretired状態を維持します。TASK-013/shared recoveryには変更していません。
 
-BACKLOGは計画済み製品TASK 0件です。新しい明示的なfeature/maintenance requestを受けてChatGPTが新TASKを定義するまで、製品実装を開始しません。
+このbaseline時点のBACKLOGは計画済み製品TASK 0件でした。現在の候補一覧は`BACKLOG.md`を参照します。
 
 No tag, GitHub Release, Distribution, Pages, or deployment occurred.

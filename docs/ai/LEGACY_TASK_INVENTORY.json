@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "purpose": "Finite display-only inventory for TASK files removed by the historical git_only policy. It is not a state owner.",
+  "tasks": [
+    { "task_id": "TASK-001", "source": "docs/ai/DECISIONS.md and Git history; no canonical TASK file", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-002", "source": "docs/ai/DECISIONS.md and Git history; no canonical TASK file", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-003", "source": "docs/ai/DECISIONS.md GOV-006 and Git history; no canonical TASK file", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-004", "source": "docs/ai/BACKLOG.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "未承認・打ち切り" },
+    { "task_id": "TASK-005", "source": "docs/ai/BACKLOG.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "未承認・打ち切り" },
+    { "task_id": "TASK-006", "source": "docs/ai/DECISIONS.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-007", "source": "docs/ai/DECISIONS.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-008", "source": "docs/ai/DECISIONS.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-009", "source": "docs/ai/BACKLOG.md and docs/ai/DECISIONS.md", "summary": "配布", "status": "retired" },
+    { "task_id": "TASK-010", "source": "docs/ai/DECISIONS.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-011", "source": "docs/ai/DECISIONS.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-012", "source": "docs/ai/DECISIONS.md and docs/ai/handoffs/PROJECT_REQUIREMENTS.md", "summary": "未記録", "status": "完了済み" },
+    { "task_id": "TASK-013", "source": "docs/ai/DECISIONS.md and Git history; no canonical TASK file", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-014", "source": "Git history only; no reliable current summary", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-015", "source": "Git history only; no reliable current summary", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-016", "source": "Git history only; no reliable current summary", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-017", "source": "Git history only; no reliable current summary", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-018", "source": "Git history only; no reliable current summary", "summary": "未記録", "status": "未記録" },
+    { "task_id": "TASK-019", "source": "docs/ai/CURRENT_STATE.md", "summary": "手取り計算UI簡素化・給与自動連携・概算フォールバック", "status": "完了済み", "phase": "Completion", "formal_ci_state": "PASS" },
+    { "task_id": "TASK-020", "source": "docs/ai/tasks/TASK-020.md", "summary": "Shared 2.0.6 governance migration and automatic SharedSync enrollment", "status": "ACTIVE" }
+  ]
+}

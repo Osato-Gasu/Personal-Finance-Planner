@@ -56,7 +56,9 @@ $repository = (Resolve-Path -LiteralPath $RepositoryPath).Path
 $task = (Resolve-Path -LiteralPath $TaskWorktree).Path
 $expectedBranchRef = "refs/heads/$ExpectedTaskBranch"
 $taskPrefix = "codex/$($TaskId.ToLowerInvariant())-"
-if (-not $ExpectedTaskBranch.StartsWith($taskPrefix, [StringComparison]::Ordinal)) {
+$developmentTaskPrefix = "no-ci/$($TaskId.ToLowerInvariant())-"
+if (-not $ExpectedTaskBranch.StartsWith($taskPrefix, [StringComparison]::Ordinal) -and
+    -not $ExpectedTaskBranch.StartsWith($developmentTaskPrefix, [StringComparison]::Ordinal)) {
     throw 'expected TASK branch does not match TaskId'
 }
 

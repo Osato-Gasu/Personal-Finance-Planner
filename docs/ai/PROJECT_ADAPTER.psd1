@@ -1,102 +1,73 @@
 @{
-    SchemaVersion = 1
-    ProjectName = 'Personal Finance Planner'
-    PermanentRequirementsHandoff = 'docs/ai/handoffs/PROJECT_REQUIREMENTS.md'
-    ProjectOverlayValidator = 'tools/validate-project-overlay.ps1'
-    StartupContextLimitBytes = 65536
-    ActiveTaskLimitBytes = 32768
-    ZeroActive = @{ Model='5.6 Sol-Pro'; Effort='Pro' }
-    TaskHistory = @{
-        CompletedTaskFilePolicy = 'git_only'
-        RetainedTaskStates = @()
+    SchemaVersion = 2
+
+    Paths = @{
+        Source             = 'src'
+        Tests              = 'tests'
+        ProductDocs        = 'docs/product'
+        RootLauncher       = 'Personal-Finance-Planner.html'
+        TaskHtml           = 'docs/ai/TASKS.html'
+        CanonicalLocalMain = 'C:\Users\satoshi-sugaya.dh\Development\personal\Personal-Finance-Planner'
+        CompletionTool     = 'tools/complete-task-local.ps1'
     }
-    Backlog = @{ Columns = @(
-        @{ Key='id'; Header='ID'; SourceHeader='ID'; Type='id' }
-        @{ Key='priority'; Header='優先度'; SourceHeader='優先度'; Type='map'; Labels=@{ high='高'; normal='中'; low='低' } }
-        @{ Key='status'; Header='状態'; SourceHeader='状態'; Type='map'; Labels=@{ ready='準備完了'; queued='待機'; blocked='停止'; completed='完了' } }
-        @{ Key='risk'; Header='リスク'; SourceHeader='リスク'; Type='map'; Labels=@{ high='高'; medium='中'; low='低' } }
-        @{ Key='phase'; Header='フェーズ'; SourceHeader='フェーズ'; Type='map'; Labels=@{ requirements='要件定義'; design='設計'; design_review='設計レビュー'; implementation='実装'; implementation_review='実装レビュー'; browser_evidence='実ブラウザ証拠'; release='リリース'; completion_sync='完了同期'; user_decision='ユーザー判断'; blocked='停止'; completed='完了' } }
-        @{ Key='title'; Header='タイトル'; SourceHeader='タイトル'; Type='text' }
-        @{ Key='dependency'; Header='依存'; SourceHeader='依存'; Type='text' }
-        @{ Key='next_step'; Header='次の作業'; SourceHeader='次の作業'; Type='text' }
-    ) }
-    PhaseLabels = @{
-        requirements='要件定義'; design='設計'; design_review='設計レビュー'; implementation='実装'
-        implementation_review='実装レビュー'; browser_evidence='実ブラウザ証拠'; release='リリース'
-        completion_sync='完了同期'; user_decision='ユーザー判断'; blocked='停止'; completed='完了'
+
+    Commands = @{
+        Install          = 'npm ci'
+        Typecheck        = 'npm run typecheck'
+        Lint             = 'npm run lint'
+        FormatCheck      = 'npm run format:check'
+        Test             = 'npm run test'
+        TestRules        = 'npm run test:rules'
+        TestNisa         = 'npm run test:nisa'
+        TestIdeco        = 'npm run test:ideco'
+        TestOverview     = 'npm run test:overview'
+        Build            = 'npm run build'
+        VerifyLauncher   = 'npm run verify:launcher'
+        Portable         = 'npm run test:portable'
+        CompletionTest   = 'npm run test:completion'
+        Governance       = 'pwsh -NoProfile -File tools/validate-ai-governance.ps1'
+        SharedSyncSmoke  = 'pwsh -NoProfile -File tools/test-shared2-bootstrap-smoke.ps1'
+        SharedSyncTest   = 'pwsh -NoProfile -File tools/test-shared-sync-contract.ps1'
+        TaskHtmlUpdate   = 'pwsh -NoProfile -File tools/update-task-html.ps1'
+        TaskHtmlCheck    = 'pwsh -NoProfile -File tools/update-task-html.ps1 -Check'
+        TaskStartSmoke   = 'pwsh -NoProfile -File tools/test-shared2-bootstrap-smoke.ps1'
+        Release          = ''
     }
-    DefaultLabelLocale = 'ja-JP'
-    RoleLabels = @{ ORCHESTRATOR_AND_REVIEWER='ChatGPT・統括・レビュー担当'; IMPLEMENTER='Codex・実装担当'; INDEPENDENT_REVIEWER='独立レビュー担当'; USER='ユーザー'; NONE='なし' }
-    DisplayLabels = @{ Effort=@{ medium='中'; high='高'; xhigh='最高'; Ultra='超高'; Pro='Pro' } }
-    ModelRouting = @{
-        CoreRoutes = @('Spark-high','Spark-xhigh','Terra-high','Terra-xhigh','Sol-medium','Sol-high','Sol-xhigh','Sol-Ultra')
-        ReviewRoutes = @('Luna-high','Luna-xhigh','Terra-high','Terra-xhigh','Sol-medium','Sol-high','Sol-xhigh','Sol-Ultra')
-        DeprecatedRoutes = @()
-        DocumentDefault = 'Luna-high'
-        CodeDefault = 'Spark-high'
-        NewWorkSelection = 'lowest_adequate'
-        LunaToSolCostRatio = '1/25'
-        TerraToSolCostRatio = '1/2.5'
-        UltraRequiresUserApproval = $true
-    }
-    ProductIdentity = @{ Mode='none'; Display=$false }
-    ImplementationReview = @{
-        MaxAttempts = 3
-        RelaxationAfterFailures = 2
-        RelaxableOnlyOnAttempt = 3
-        RelaxableCategories = @('non_required_ui','wording','optional_optimization')
-        NonRelaxableCategories = @('money_calculation','rule_period','double_counting','data_preservation')
-        FailureAfterFinalAttempt = 'NEEDS_USER_DECISION'
-    }
-    Relay = @{
-        Repository = 'Osato-Gasu/Personal-Finance-Planner'
-        CandidateIdentity = @{
-            Decisions = @{
-                APPROVED=@{design='design_candidate';implementation='implementation_candidate'}
-                CHANGES_REQUESTED=@{design='design_candidate';implementation='implementation_candidate'}
-                BLOCKED=@{design='design_candidate';implementation='implementation_candidate'}
-                NEEDS_USER_DECISION=@{design='design_candidate';implementation='implementation_candidate'}
-            }
-            IndependentReviewKinds = @{ design='design_candidate'; implementation='implementation_candidate' }
-        }
-        OverlayFailurePattern = '(?m)^.*governance error:\s*(.+)$'
-        Assignments = @(
-            'Codex|IMPLEMENTER|5.6 Sol|medium'
-            'Codex|IMPLEMENTER|5.6 Sol|high'
-            'ChatGPT|ORCHESTRATOR_AND_REVIEWER|5.6 Sol-Pro|Pro'
-            'ChatGPT|INDEPENDENT_REVIEWER|5.6 Sol-Pro|Pro'
-            'USER|USER|none|none'
+
+    CI = @{
+        Workflow                  = '.github/workflows/ci.yml'
+        FormalTrigger             = 'workflow_dispatch'
+        CandidateShaInput         = 'candidate_sha'
+        DevelopmentBranchPrefix   = 'no-ci/'
+        ReleasedMainGate          = 'identity_only'
+        SelfHostedFallbackAllowed = $false
+        NonePathGlobs             = @('docs/ai/SHARED_RULES.lock.yml')
+        ExtendedPathGlobs         = @(
+            'AGENTS.md'
+            'docs/ai/PROJECT.md'
+            'docs/ai/PROJECT_ADAPTER.psd1'
+            'docs/ai/CURRENT_STATE.md'
+            'docs/ai/BACKLOG.md'
+            'docs/ai/PRODUCT_IDENTITIES.yml'
+            'docs/ai/AUDIT_IDENTITIES.json'
+            'docs/ai/DECISIONS.md'
+            'docs/ai/LEGACY_TASK_INVENTORY.json'
+            'docs/ai/TASKS.html'
+            'docs/ai/tasks/**'
+            'docs/ai/evidence/**'
+            'docs/ai/handoffs/**'
+            '.github/workflows/**'
+            'tools/**'
         )
-        NextActionTemplates = @{
-            APPROVED = 'Codex processes APPROVED relay for {task_id}'
-            CHANGES_REQUESTED = 'Codex processes CHANGES_REQUESTED relay for {task_id}'
-            BLOCKED = '{actor} resolves BLOCKED relay for {task_id}'
-            NEEDS_USER_DECISION = 'USER decides NEEDS_USER_DECISION relay for {task_id}'
-            REQUIREMENTS_DEFINED = 'Codex implements REQUIREMENTS_DEFINED relay for {task_id}'
-            INDEPENDENT_REVIEW_REQUESTED = '{actor} performs independent review for {task_id}'
-            INDEPENDENT_REVIEW_COMPLETED = 'ChatGPT evaluates completed independent review for {task_id}'
-        }
-        IndependentReview = @{
-            PreferredExecutor = 'Claude'
-            FallbackExecutor = 'ChatGPT'
-            AllowedKinds = @('design','implementation')
-            FallbackAssignments = @('ChatGPT|INDEPENDENT_REVIEWER|5.6 Sol-Pro|Pro')
-        }
-        Requirements = @{
-            Priorities = @('low','normal','high')
-            RequireProductIdentityReference = $true
-            ProductIdentityReferences = @(
-                'docs/ai/PRODUCT_IDENTITIES.yml#requirements_*'
-                'docs/ai/PRODUCT_IDENTITIES.yml#architecture_*'
-                'docs/ai/PRODUCT_IDENTITIES.yml#data_model_*'
-                'docs/ai/PRODUCT_IDENTITIES.yml#calculations_*'
-                'docs/ai/PRODUCT_IDENTITIES.yml#rule_governance_*'
-                'docs/ai/PRODUCT_IDENTITIES.yml#review_policy_*'
-                'docs/ai/PRODUCT_IDENTITIES.yml#delivery_plan_*'
-            )
-            Executors = @('Claude','ChatGPT')
-            BaseCommitPolicy = 'exact_head'
-            TaskMetadata = @()
-        }
+    }
+
+    SharedSync = @{
+        Enabled          = $true
+        LockPath         = 'docs/ai/SHARED_RULES.lock.yml'
+        ApplyScript      = 'tools/update-shared-reference.ps1'
+        SmokeScripts     = @('tools/test-shared2-bootstrap-smoke.ps1')
+        AllowedPaths     = @('docs/ai/SHARED_RULES.lock.yml')
+        AutoIntegrate    = $true
+        SharedSyncCiMode = 'none'
     }
 }

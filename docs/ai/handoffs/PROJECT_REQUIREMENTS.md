@@ -1,5 +1,12 @@
 # PROJECT REQUIREMENTS HANDOFF
 
+> RETIRED HISTORICAL SNAPSHOT: the legacy routing, relay, review-attempt and
+> git_only instructions below are not executable authority under Shared 2.
+> This file is retained for exact past requirements/decisions/identities only.
+> Current permanent Project contracts belong to `docs/ai/PROJECT.md`, product
+> requirements to `docs/product/`, and current work to the explicitly assigned
+> canonical TASK and its authorized handoff. It must not start or revive any TASK.
+
 - actor: ChatGPT
 - role: ORCHESTRATOR_AND_REVIEWER
 - source: `docs/ai/CURRENT_STATE.md`, `docs/ai/BACKLOG.md`, `docs/product/`, user request

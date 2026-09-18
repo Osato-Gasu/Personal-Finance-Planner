@@ -42,7 +42,7 @@ exit /b 0
 }
 
 function New-Fixture {
-    param([string]$MainName = 'Personal-Finance-Planner')
+    param([string]$MainName = 'Personal-Finance-Planner', [string]$TaskBranch = 'codex/task-008-fixture')
     $root = Join-Path ([IO.Path]::GetTempPath()) ("pfp-completion-" + [guid]::NewGuid().ToString('N'))
     $main = Join-Path $root $MainName
     $remote = Join-Path $root 'remote.git'
@@ -57,7 +57,7 @@ function New-Fixture {
     Invoke-External git @('-C', $main, 'commit', '-m', 'initial') | Out-Null
     Invoke-External git @('-C', $main, 'remote', 'add', 'origin', $remote) | Out-Null
     Invoke-External git @('-C', $main, 'push', '-u', 'origin', 'main') | Out-Null
-    Invoke-External git @('-C', $main, 'worktree', 'add', '-b', 'codex/task-008-fixture', $task) | Out-Null
+    Invoke-External git @('-C', $main, 'worktree', 'add', '-b', $TaskBranch, $task) | Out-Null
     Write-Utf8NoBom (Join-Path $task 'tracked.txt') 'complete'
     Invoke-External git @('-C', $task, 'add', 'tracked.txt') | Out-Null
     Invoke-External git @('-C', $task, 'commit', '-m', 'complete') | Out-Null
@@ -69,7 +69,7 @@ function New-Fixture {
     $env:PFP_TEST_CI_EVENT = 'push'
     $env:PFP_TEST_CI_NAME = 'Governance CI'
     $env:PFP_TEST_NPM_FAIL_ON = ''
-    return [pscustomobject]@{ Root = $root; Main = $main; Remote = $remote; Task = $task; Commit = $commit; Branch = 'codex/task-008-fixture'; UserOwnedPaths = @() }
+    return [pscustomobject]@{ Root = $root; Main = $main; Remote = $remote; Task = $task; Commit = $commit; Branch = $TaskBranch; UserOwnedPaths = @() }
 }
 
 function Add-IgnoredUserOwnedFiles {
@@ -200,7 +200,11 @@ function Remove-Fixture {
     $env:PFP_TEST_CI_EVENT = $null
     $env:PFP_TEST_CI_NAME = $null
     $env:PFP_TEST_NPM_FAIL_ON = $null
-    if (Test-Path -LiteralPath $Fixture.Root) { Remove-Item -LiteralPath $Fixture.Root -Recurse -Force }
+    $fixtureRoot = [IO.Path]::GetFullPath($Fixture.Root)
+    $tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if (-not $fixtureRoot.StartsWith($tempParent, [StringComparison]::OrdinalIgnoreCase) -or
+        (Split-Path -Leaf $fixtureRoot) -notmatch '^pfp-completion-[0-9a-f]{32}$') { throw 'fixture cleanup target is unsafe' }
+    if (Test-Path -LiteralPath $fixtureRoot) { Remove-Item -LiteralPath $fixtureRoot -Recurse -Force }
 }
 
 $command = Get-Command $tool
@@ -365,6 +369,18 @@ try {
     $caseNames.Add('worktree prune result')
 } finally { Remove-Fixture $fixture }
 
+$fixture = New-Fixture -TaskBranch 'no-ci/task-008-fixture'
+try {
+    Publish-Completion $fixture
+    Invoke-Completion $fixture | Out-Null
+    if (Test-Path -LiteralPath $fixture.Task) { throw 'no-ci TASK branch completion did not safely remove worktree' }
+    $caseNames.Add('no-ci exact TASK branch completion')
+} finally { Remove-Fixture $fixture }
+$fixture = New-Fixture -TaskBranch 'no-ci/task-009-fixture'
+try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture } 'no-ci wrong TASK identity rejected' } finally { Remove-Fixture $fixture }
+$fixture = New-Fixture -TaskBranch 'other/task-008-fixture'
+try { Publish-Completion $fixture; Expect-Failure $fixture { Invoke-Completion $fixture } 'unknown TASK branch namespace rejected' } finally { Remove-Fixture $fixture }
+
 $expectedCases = @(
     'production mandatory gates have no public bypass', 'unique main worktree', 'wrong main folder', 'wrong-case main folder',
     'missing main branch worktree', 'wrong-case main branch ref', 'multiple main branch worktrees',
@@ -377,7 +393,8 @@ $expectedCases = @(
     'exact CI wrong SHA', 'exact CI unsuccessful conclusion', 'exact CI wrong branch',
     'exact CI wrong event', 'exact CI wrong workflow', 'exact main push Governance CI success', 'launcher freshness failure',
     'launcher portable failure', 'ff-only synchronization success', 'safe TASK worktree remove',
-    'worktree prune result'
+    'worktree prune result', 'no-ci exact TASK branch completion',
+    'no-ci wrong TASK identity rejected', 'unknown TASK branch namespace rejected'
 )
 if (($caseNames -join '|') -cne ($expectedCases -join '|')) { throw "completion case mapping mismatch: $($caseNames -join ', ')" }
 Write-Output "completion tool simulation: PASS checks=$($caseNames.Count) cases=$($caseNames -join ',')"

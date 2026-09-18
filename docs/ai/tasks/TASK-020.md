@@ -2,16 +2,16 @@
 task_id: TASK-020
 summary: Shared 2.0.6 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: Implementation
+phase: BuildVerifyFix
 risk: high
 definition_state: DESIGNED
-implementation_state: NOT_IMPLEMENTED
-static_verification_state: NOT_RUN
+implementation_state: IMPLEMENTED
+static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: GPT統括 applied a BOM-only pre-bootstrap compatibility repair to the legacy adapter; migration implementation remains authorized and not yet started
-next_action: Same Codex Main re-runs the canonical Shared 2.0.6 bootstrap, acquires the claim only after PASS, then executes the already-authorized bounded migration
+progress: Focused local governance migration checks PASS in PowerShell 7 and 5.1; exact candidate is ready for separated VERIFY
+next_action: Obtain separated read-only Luna Max VERIFY for the committed candidate, then dispatch its exact formal CI
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
 verify_state: NOT_RUN
@@ -195,5 +195,5 @@ Target Shared:
 ## Current State
 
 - Open blocking findings: none.
-- Implementation authorized.
+- Authorized migration implementation integrated; exact candidate VERIFY and formal candidate CI remain.
 - Next actor: CODEX_MAIN.
