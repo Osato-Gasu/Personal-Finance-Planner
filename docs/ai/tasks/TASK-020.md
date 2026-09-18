@@ -1,24 +1,24 @@
 ---
 task_id: TASK-020
 summary: Shared 2.0.6 governance migration and automatic SharedSync enrollment
-status: ACTIVE
+status: BLOCKED
 phase: RCFreeze
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
 static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
-hold_state: NONE
-hold_reason: null
-progress: Replacement exact candidate separated VERIFY PASS; formal exact-SHA CI accepted and running
-next_action: Observe the accepted formal CI run; repair any real source failure locally; then return the reproduced Shared event-schema conflict for GPT disposition
-next_actor: CODEX_MAIN
-handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
+hold_state: HOLD
+hold_reason: Shared completed-CI payload conflicts with universal orchestration event envelope; GPT owner disposition required
+progress: Implementation and separated exact VERIFY PASS; formal exact-SHA CI SUCCESS including both-shell completion and portable gates; Shared CI-history schema disposition remains pending
+next_action: GPT reconciles Shared CI-event owner and parser contracts, preserves observed runs, and issues explicit final integration and Completion instructions to the same Main
+next_actor: GPT_ORCHESTRATOR
+handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_SPEC_CHANGE_REQUIRED_RETURN.md
 verify_state: PASS
 current_candidate: e019f737f52e8e499126478ae46dba4e7cf82166
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: RUNNING
+formal_ci_state: PASS
 formal_ci_subject_sha: e019f737f52e8e499126478ae46dba4e7cf82166
 frozen_remote_ref: no-ci/task-020-rc-e019f737f52e
 formal_ci_workflow: .github/workflows/ci.yml
@@ -198,5 +198,6 @@ Target Shared:
 ## Current State
 
 - Open blocking finding: Shared minimal completed-CI event versus orchestration event envelope requires GPT disposition before final closure.
-- Hosted PS5.1 fixture encoding failure fixed; replacement exact candidate separated VERIFY PASS; formal CI run 35314250383 accepted and RUNNING, not PASS.
-- Next actor: CODEX_MAIN.
+- Hosted PS5.1 fixture encoding failure fixed; replacement exact candidate separated VERIFY PASS; formal CI run 35314250383 completed SUCCESS on the exact candidate.
+- Normative completed-CI history emission awaits Shared-owner clarification; actual platform result is retained. Acceptance/main/Release/Completion/local sync/cleanup are not executed or approved for this new candidate.
+- Next actor: GPT_ORCHESTRATOR.
