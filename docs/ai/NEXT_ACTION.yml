@@ -9,9 +9,9 @@ next_actor: GPT_ORCHESTRATOR
 handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_FINAL_APPROVAL_REQUEST.md
 transition_event_id: E0057
 claim:
-  actor: NONE
-  run_id: null
-  task_id: null
-  started_at: null
-  task_commit: null
-  transition_event_id: null
+  actor: GPT_ORCHESTRATOR
+  run_id: gpt-task020-finalization-approval-20260918
+  task_id: TASK-020
+  started_at: 2026-09-18T21:03:00+09:00
+  task_commit: d68472b35e6b1d8f86160dd6b8aedee4ee87167d
+  transition_event_id: E0057
