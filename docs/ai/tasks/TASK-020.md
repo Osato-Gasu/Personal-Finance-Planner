@@ -2,7 +2,7 @@
 task_id: TASK-020
 summary: Shared 2.0.6 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: BuildVerifyFix
+phase: RCFreeze
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
@@ -10,17 +10,17 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Hosted PS5.1 fixture failure repaired with locale-independent ASCII source; 28 HTML checks PASS in both shells; replacement candidate is ready for separated VERIFY
-next_action: Verify and formally test the new exact candidate; preserve CI results and return the reproduced Shared event-schema conflict for GPT disposition
+progress: Replacement exact candidate separated VERIFY PASS; locale-independent ASCII fixture passes 28 HTML checks in both shells; ready for formal CI
+next_action: Dispatch formal CI for the frozen exact candidate; preserve real results and return the reproduced Shared event-schema conflict for GPT disposition
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
-verify_state: NOT_RUN
-current_candidate: null
+verify_state: PASS
+current_candidate: e019f737f52e8e499126478ae46dba4e7cf82166
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
 formal_ci_state: NOT_RUN
-formal_ci_subject_sha: null
-frozen_remote_ref: null
+formal_ci_subject_sha: e019f737f52e8e499126478ae46dba4e7cf82166
+frozen_remote_ref: no-ci/task-020-rc-e019f737f52e
 formal_ci_workflow: .github/workflows/ci.yml
 formal_ci_run_id: null
 target_shared_version: 2.0.6
@@ -198,5 +198,5 @@ Target Shared:
 ## Current State
 
 - Open blocking finding: Shared minimal completed-CI event versus orchestration event envelope requires GPT disposition before final closure.
-- Hosted PS5.1 fixture encoding failure fixed; prior candidate VERIFY/failed CI retained as history; replacement candidate VERIFY/formal CI not yet run.
+- Hosted PS5.1 fixture encoding failure fixed; replacement exact candidate separated VERIFY PASS; formal CI not yet dispatched.
 - Next actor: CODEX_MAIN.
