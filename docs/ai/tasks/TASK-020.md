@@ -11,9 +11,9 @@ runtime_verification_state: PASS
 hold_state: NONE
 hold_reason: null
 progress: Release and Completion main FF complete; both exact main push CIs PASS; final real Plan CURRENT; final launcher/portable PASS; canonical local main clean and synchronized; TASK worktree registration/local branch removed non-force; empty path residue retained because Windows reports another process using it
-next_action: GPT confirms the new COMPLETED return; retain current remote transport/candidate refs; empty unregistered directory may be removed non-force only after its external process lock is released
-next_actor: GPT_ORCHESTRATOR
-handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_COMPLETED_RETURN.md
+next_action: NONE; TASK complete. Retain required remote transport/candidate refs; empty unregistered directory may be removed non-force only after its external process lock is released
+next_actor: NONE
+handoff_ref: docs/ai/handoffs/TASK-020_GPT_COMPLETION_ACCEPTED.md
 authority_condition: GPT_APPROVED_FINALIZATION
 verify_state: PASS
 current_candidate: 2853db2763d8f339d606a3c9664f350cafd878cc
