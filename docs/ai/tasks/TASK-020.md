@@ -1,19 +1,19 @@
 ---
 task_id: TASK-020
 summary: Shared 2.0.7 governance migration and automatic SharedSync enrollment
-status: ACTIVE
+status: BLOCKED
 phase: BuildVerifyFix
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTING
 static_verification_state: NOT_RUN
 runtime_verification_state: NOT_REQUIRED
-hold_state: NONE
-hold_reason: null
-progress: Shared 2.0.7 released and SPEC conflict resolved; prior 2.0.6 candidate e019f7 local/VERIFY/formal CI PASS preserved as historical evidence; bounded 2.0.7 lock rebase and affected revalidation authorized
-next_action: Same Codex Main updates only the Shared lock target to released 2.0.7, reruns affected checks, freezes a new candidate, runs separated Luna Max VERIFY and required exact extended CI, then returns to GPT
-next_actor: CODEX_MAIN
-handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.7.md
+hold_state: HOLD
+hold_reason: Shared 2.0.7 reader rejects valid ordinary historical Actions event E0011 before claim; Shared compatibility hotfix required
+progress: Same Main resume failed closed before claim because Shared 2.0.7 misclassified ordinary historical E0011 as a minimal formal-CI record; remote writes 0, lock/candidate/main unchanged
+next_action: Wait for Shared reader-compatibility hotfix release; GPT then reissues an exact resume handoff to this same Main
+next_actor: NONE
+handoff_ref: docs/ai/handoffs/TASK-020_GPT_BLOCKED_ON_SHARED_2.0.7_READER.md
 verify_state: NOT_RUN
 current_candidate: null
 ci_mode: extended
