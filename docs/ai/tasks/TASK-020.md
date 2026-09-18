@@ -10,10 +10,10 @@ static_verification_state: PASS
 runtime_verification_state: PASS
 hold_state: NONE
 hold_reason: null
-progress: Approved Release main integrated with exact push CI PASS; real Shared2.0.8 Plan CURRENT and local launcher/portable/37-case safety gates PASS; canonical main FF synchronized to Release subject; approved Completion metadata formed
-next_action: Publish this metadata-only Completion commit to main by guarded FF, verify its exact push CI, then final canonical-main FF and non-force cleanup; final results go to retained GitHub-native transport before terminal return
-next_actor: CODEX_MAIN
-handoff_ref: docs/ai/handoffs/TASK-020_GPT_FINALIZATION_APPROVAL_SHARED_2.0.8.md
+progress: Release and Completion main FF complete; both exact main push CIs PASS; final real Plan CURRENT; final launcher/portable PASS; canonical local main clean and synchronized; TASK worktree registration/local branch removed non-force; empty path residue retained because Windows reports another process using it
+next_action: GPT confirms the new COMPLETED return; retain current remote transport/candidate refs; empty unregistered directory may be removed non-force only after its external process lock is released
+next_actor: GPT_ORCHESTRATOR
+handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_COMPLETED_RETURN.md
 authority_condition: GPT_APPROVED_FINALIZATION
 verify_state: PASS
 current_candidate: 2853db2763d8f339d606a3c9664f350cafd878cc
@@ -32,6 +32,15 @@ release_main_ci_state: PASS
 release_main_ci_run_id: 35343524375
 downstream_plan_state: CURRENT
 local_completion_preflight_state: PASS
+completion_commit: 2f2f011689be893b0168e732dcd2c5358211e23f
+final_main_sha: 2f2f011689be893b0168e732dcd2c5358211e23f
+final_main_ci_state: PASS
+final_main_ci_run_id: 35344212726
+canonical_local_main_sync_state: PASS
+task_worktree_registration_state: REMOVED
+task_local_branch_state: DELETED
+task_directory_cleanup_state: EMPTY_PATH_RETAINED_PROCESS_LOCK
+task_remote_branch_cleanup_state: RETAINED_REQUIRED_COORDINATION_REFERENCE
 legacy_shared_version: 0.12.20
 legacy_shared_sha: 10cd1466b10f814f1bd2aab2c5f6ba6465c5899e
 ---
@@ -228,7 +237,11 @@ Target Shared:
 - Real released Shared2.0.8 downstream Plan on that main: CURRENT / Enrolled=true / Lock VALID / Adapter VALID, no downstream writes.
 - Real local completion preflight on that exact main: launcher freshness PASS (316608 bytes), portable file:// Edge PASS (6 routes; storage preserved; runtimeRequests/consoleErrors/pageErrors=0), isolated gate clone clean/removed. WhatIf performed neither synchronization nor cleanup. Completion safety regression37 passed in both shells.
 - Canonical clean local main was separately synchronized by fetch plus FF-only to Release main; user-owned changes were not erased.
-- GPT-approved Completion metadata is now formed from satisfied Release acceptance/local gates. Its final main push CI, final canonical-main synchronization and actual cleanup are post-publication execution steps and are not claimed executed here; terminal COMPLETED return waits for their actual success.
+- Completion commit/final main: 2f2f011689be893b0168e732dcd2c5358211e23f; exact Governance CI main push run35344212726 completed/success, all required steps passed. Redundant automatically generated run35344212596 was cancelled, not treated as PASS.
+- Final-main production released Shared2.0.8 Plan: CURRENT / Enrolled=true / Lock VALID / Adapter VALID, no writes.
+- Final local launcher freshness and portable file:// msedge gates PASS on exact final main. The first portable attempt read stale payroll content immediately after a route click and failed; a single bounded full unmodified-tool rerun passed all assertions. Failure is retained in EVENTS/raw evidence, not reclassified as infrastructure or erased. No source changes or waived gates.
+- Production tool then synchronized canonical main by fetch/FF-only: clean main HEAD==origin/main==2f2f011689be893b0168e732dcd2c5358211e23f. It removed TASK files and Git worktree registration but returned Permission denied deleting the last empty root directory. Independent non-recursive non-force removal confirmed another process uses that path. Worktree prune and local branch deletion by git branch -d succeeded. Empty unregistered path residue is the exact safe-cleanup exception allowed by approval item12/completion conditions; no force/process termination/user-diff deletion.
 - Cleanup scope: remove the clean, integrated TASK worktree and its local development branch non-forced after exact final-main CI and launcher/portable gates. Preserve the remote TASK transport branch while NEXT_ACTION/handoff need it, all immutable candidate refs, the original 9fbd3e candidate/ref and the unrelated TASK-015 worktree. Remote transport deletion would lose the required current coordination reference and is therefore not safe under approval item 12.
 - Final exact-main CI/local synchronization/cleanup facts will be published as metadata-only GitHub-native return on the retained remote TASK transport; they do not create another product/main integration cycle.
-- Next actor: CODEX_MAIN.
+- Original9fbd3e/ref, all historical/current immutable candidate refs and unrelated TASK015 worktree remain unchanged. No tag/GitHub Release/deployment/settings/data operations. Required source/product/main gates have no outstanding debt; only the disclosed empty-directory residue and required remote coordination reference remain.
+- Next actor: GPT_ORCHESTRATOR.
