@@ -2,7 +2,7 @@
 task_id: TASK-020
 summary: Shared 2.0.6 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: BuildVerifyFix
+phase: RCFreeze
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
@@ -10,16 +10,19 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Focused local governance migration checks PASS in PowerShell 7 and 5.1; exact candidate is ready for separated VERIFY
-next_action: Obtain separated read-only Luna Max VERIFY for the committed candidate, then dispatch its exact formal CI
+progress: Exact migration candidate frozen and pushed; separated Luna Max VERIFY PASS; formal exact-candidate CI accepted and running
+next_action: Inspect the single accepted formal CI run; repair real failures or retain confirmed infrastructure debt; return GitHub-native to GPT
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
-verify_state: NOT_RUN
-current_candidate: null
+verify_state: PASS
+current_candidate: 5f5252db3eb99357638400de3706bd267a43aa60
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: NOT_RUN
-formal_ci_subject_sha: null
+formal_ci_state: RUNNING
+formal_ci_subject_sha: 5f5252db3eb99357638400de3706bd267a43aa60
+frozen_remote_ref: refs/heads/no-ci/task-020-rc-5f5252db3eb9
+formal_ci_workflow: .github/workflows/ci.yml
+formal_ci_run_id: 35313195554
 target_shared_version: 2.0.6
 target_shared_sha: e384d21a43fcda1195556d4ef6fa382bede48da8
 baseline_main_sha: e7de34d7b36b7f6ec514d321a0b66381cc810fa2
@@ -195,5 +198,5 @@ Target Shared:
 ## Current State
 
 - Open blocking findings: none.
-- Authorized migration implementation integrated; exact candidate VERIFY and formal candidate CI remain.
+- Authorized migration implementation integrated; exact candidate VERIFY PASS; formal candidate CI running.
 - Next actor: CODEX_MAIN.
