@@ -2,7 +2,7 @@
 task_id: TASK-020
 summary: Shared 2.0.8 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: Acceptance
+phase: Release
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
@@ -10,11 +10,11 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Exact Shared 2.0.8 implementation, local checks, separated Luna Max VERIFY and new extended formal CI PASS; awaiting GPT final Acceptance and integration approval
-next_action: GPT makes the final decision for exact candidate 2853db2 and issues finalization authority to the same Main; main integration and Completion are not yet executed
-next_actor: GPT_ORCHESTRATOR
-handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_FINAL_APPROVAL_REQUEST.md
-authority_condition: GPT_APPROVAL_PENDING
+progress: GPT accepted exact Shared 2.0.8 candidate after local/VERIFY/formal CI PASS and authorized same-Main finalization through guarded main integration and Completion gates
+next_action: Same Codex Main executes guarded exact candidate main integration, real downstream Plan, required final-main CI, local-main/launcher/portable/completion gates, then completes and returns to GPT if all gates pass
+next_actor: CODEX_MAIN
+handoff_ref: docs/ai/handoffs/TASK-020_GPT_FINALIZATION_APPROVAL_SHARED_2.0.8.md
+authority_condition: GPT_APPROVED_FINALIZATION
 verify_state: PASS
 current_candidate: 2853db2763d8f339d606a3c9664f350cafd878cc
 ci_mode: extended
