@@ -1,4 +1,4 @@
-﻿@{
+@{
     SchemaVersion = 1
     ProjectName = 'Personal Finance Planner'
     PermanentRequirementsHandoff = 'docs/ai/handoffs/PROJECT_REQUIREMENTS.md'

@@ -10,10 +10,10 @@ static_verification_state: NOT_RUN
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: GPT統括 fixed the bounded legacy-governance migration scope and authorized implementation
-next_action: Codex Main inventories legacy finance-specific contracts, migrates governance to Shared 2.0.6, preserves product rules/history, tests regression, freezes one exact candidate and obtains separated Luna Max VERIFY
+progress: GPT統括 applied a BOM-only pre-bootstrap compatibility repair to the legacy adapter; migration implementation remains authorized and not yet started
+next_action: Same Codex Main re-runs the canonical Shared 2.0.6 bootstrap, acquires the claim only after PASS, then executes the already-authorized bounded migration
 next_actor: CODEX_MAIN
-handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_SHARED_2.0.6_MIGRATION.md
+handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
 verify_state: NOT_RUN
 current_candidate: null
 ci_mode: extended
