@@ -9,9 +9,9 @@ next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.8.md
 transition_event_id: E0045
 claim:
-  actor: NONE
-  run_id: null
-  task_id: null
-  started_at: null
-  task_commit: null
-  transition_event_id: null
+  actor: CODEX_MAIN
+  run_id: codex-task020-shared208-20260918-9268-resume1
+  task_id: TASK-020
+  started_at: 2026-09-18T11:31:50.0851779Z
+  task_commit: 32c87c6be0fff233d84b8ce05aaed9ae0ae61736
+  transition_event_id: E0045
