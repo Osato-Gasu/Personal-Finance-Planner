@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $tool = Join-Path $root 'tools/update-task-html.ps1'
 $utf8 = New-Object Text.UTF8Encoding($false)
+$unrecorded = ([char]0x672A) + ([char]0x8A18) + ([char]0x9332)
 $fixture = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ('pfp-task-html-' + [guid]::NewGuid().ToString('N'))))
 $checks = 0
 function Assert-True([bool]$Condition, [string]$Message) { if (-not $Condition) { throw "FAIL: $Message" }; $script:checks++ }
@@ -33,7 +34,10 @@ function Assert-GeneratorFails([string]$FixturePath, [switch]$Check, [string]$Me
 try {
     [IO.Directory]::CreateDirectory((Join-Path $fixture 'docs/ai/tasks')) | Out-Null
     Write-Utf8 'docs/ai/PROJECT_ADAPTER.psd1' "@{ SchemaVersion = 2; Paths = @{ TaskHtml = 'docs/ai/TASKS.html' } }`n"
-    Write-Utf8 'docs/ai/LEGACY_TASK_INVENTORY.json' '{"schema_version":1,"tasks":[{"task_id":"TASK-001","summary":"未記録","status":"未記録","source":"fixture"}]}'
+    $legacyJson = '{"schema_version":1,"tasks":[{"task_id":"TASK-001","summary":"\u672a\u8a18\u9332","status":"\u672a\u8a18\u9332","source":"fixture"}]}'
+    Write-Utf8 'docs/ai/LEGACY_TASK_INVENTORY.json' $legacyJson
+    $legacyBytes = [IO.File]::ReadAllBytes((Join-Path $fixture 'docs/ai/LEGACY_TASK_INVENTORY.json'))
+    Assert-True (-not ($legacyBytes | Where-Object { $_ -gt 127 })) 'fixture source is ASCII and locale-independent'
     Write-Utf8 'docs/ai/tasks/TASK-020.md' @'
 ---
 task_id: TASK-020
@@ -57,7 +61,7 @@ formal_ci_state: NOT_RUN
     Assert-True (Test-Path -LiteralPath $htmlPath -PathType Leaf) 'generator writes default adapter path'
     $html = [IO.File]::ReadAllText($htmlPath, $utf8)
     foreach ($id in 1..20) { Assert-True $html.Contains(('TASK-{0:D3}' -f $id)) "HTML contains TASK-{0:D3}" -f $id }
-    Assert-True $html.Contains('未記録') 'legacy and unknown tracking are explicit'
+    Assert-True $html.Contains($unrecorded) 'legacy and unknown tracking are explicit'
     Assert-True $html.Contains('Contract fixture') 'canonical TASK summary is rendered'
     $first = [Convert]::ToBase64String([IO.File]::ReadAllBytes($htmlPath))
     # deterministic check immediately after generation

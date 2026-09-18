@@ -2,7 +2,7 @@
 task_id: TASK-020
 summary: Shared 2.0.6 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: RCFreeze
+phase: BuildVerifyFix
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
@@ -10,19 +10,19 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Exact migration candidate frozen and pushed; separated Luna Max VERIFY PASS; formal exact-candidate CI accepted and running
-next_action: Inspect the single accepted formal CI run; repair real failures or retain confirmed infrastructure debt; return GitHub-native to GPT
+progress: Hosted PS5.1 fixture failure repaired with locale-independent ASCII source; 28 HTML checks PASS in both shells; replacement candidate is ready for separated VERIFY
+next_action: Verify and formally test the new exact candidate; preserve CI results and return the reproduced Shared event-schema conflict for GPT disposition
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
-verify_state: PASS
-current_candidate: 5f5252db3eb99357638400de3706bd267a43aa60
+verify_state: NOT_RUN
+current_candidate: null
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
-formal_ci_state: RUNNING
-formal_ci_subject_sha: 5f5252db3eb99357638400de3706bd267a43aa60
-frozen_remote_ref: refs/heads/no-ci/task-020-rc-5f5252db3eb9
+formal_ci_state: NOT_RUN
+formal_ci_subject_sha: null
+frozen_remote_ref: null
 formal_ci_workflow: .github/workflows/ci.yml
-formal_ci_run_id: 35313195554
+formal_ci_run_id: null
 target_shared_version: 2.0.6
 target_shared_sha: e384d21a43fcda1195556d4ef6fa382bede48da8
 baseline_main_sha: e7de34d7b36b7f6ec514d321a0b66381cc810fa2
@@ -197,6 +197,6 @@ Target Shared:
 
 ## Current State
 
-- Open blocking findings: none.
-- Authorized migration implementation integrated; exact candidate VERIFY PASS; formal candidate CI running.
+- Open blocking finding: Shared minimal completed-CI event versus orchestration event envelope requires GPT disposition before final closure.
+- Hosted PS5.1 fixture encoding failure fixed; prior candidate VERIFY/failed CI retained as history; replacement candidate VERIFY/formal CI not yet run.
 - Next actor: CODEX_MAIN.
