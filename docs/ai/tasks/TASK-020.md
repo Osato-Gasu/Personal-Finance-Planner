@@ -5,13 +5,13 @@ status: ACTIVE
 phase: BuildVerifyFix
 risk: high
 definition_state: DESIGNED
-implementation_state: IMPLEMENTING
-static_verification_state: NOT_RUN
+implementation_state: IMPLEMENTED
+static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Shared 2.0.8 released and exact TASK-020 E0011/full-history regression PASS; prior zero-write 2.0.7 bootstrap blocker resolved, bounded 2.0.8 lock update and affected revalidation authorized
-next_action: Same Codex Main updates only the Shared lock target to released 2.0.8, reruns affected checks, freezes a new candidate, runs separated Luna Max VERIFY and required exact extended CI, then returns to GPT
+progress: Two-line Shared 2.0.8 lock update and all affected local checks PASS in both shells; implementation bytes otherwise unchanged; candidate ready for separated VERIFY
+next_action: Freeze and push the new exact candidate, run separated Luna Max VERIFY and required exact extended CI, then request GPT final approval
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.8.md
 verify_state: NOT_RUN
