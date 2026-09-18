@@ -2,7 +2,7 @@
 task_id: TASK-020
 summary: Shared 2.0.8 governance migration and automatic SharedSync enrollment
 status: ACTIVE
-phase: BuildVerifyFix
+phase: RCFreeze
 risk: high
 definition_state: DESIGNED
 implementation_state: IMPLEMENTED
@@ -10,17 +10,17 @@ static_verification_state: PASS
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Two-line Shared 2.0.8 lock update and all affected local checks PASS in both shells; implementation bytes otherwise unchanged; candidate ready for separated VERIFY
-next_action: Freeze and push the new exact candidate, run separated Luna Max VERIFY and required exact extended CI, then request GPT final approval
+progress: Exact Shared 2.0.8 candidate frozen and pushed; separated Luna Max VERIFY PASS in both shells; ready for new exact extended formal CI
+next_action: Run extended formal CI for the frozen new candidate; on success request GPT final Acceptance and integration approval
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.8.md
-verify_state: NOT_RUN
-current_candidate: null
+verify_state: PASS
+current_candidate: 2853db2763d8f339d606a3c9664f350cafd878cc
 ci_mode: extended
 ci_mode_reason: legacy_shared_schema1_to_shared2_governance_migration_sharedsync_enrollment_ci_trust_boundary
 formal_ci_state: NOT_RUN
-formal_ci_subject_sha: null
-frozen_remote_ref: null
+formal_ci_subject_sha: 2853db2763d8f339d606a3c9664f350cafd878cc
+frozen_remote_ref: no-ci/task-020-rc-2853db2763d8
 formal_ci_workflow: .github/workflows/ci.yml
 formal_ci_run_id: null
 target_shared_version: 2.0.8
