@@ -10,7 +10,7 @@ static_verification_state: NOT_RUN
 runtime_verification_state: NOT_REQUIRED
 hold_state: NONE
 hold_reason: null
-progress: Shared 2.0.7 released and SPEC conflict resolved; prior 2.0.7 candidate e019f7 local/VERIFY/formal CI PASS preserved as historical evidence; bounded 2.0.7 lock rebase and affected revalidation authorized
+progress: Shared 2.0.7 released and SPEC conflict resolved; prior 2.0.6 candidate e019f7 local/VERIFY/formal CI PASS preserved as historical evidence; bounded 2.0.7 lock rebase and affected revalidation authorized
 next_action: Same Codex Main updates only the Shared lock target to released 2.0.7, reruns affected checks, freezes a new candidate, runs separated Luna Max VERIFY and required exact extended CI, then returns to GPT
 next_actor: CODEX_MAIN
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_HANDOFF_RESUME_SHARED_2.0.7.md
