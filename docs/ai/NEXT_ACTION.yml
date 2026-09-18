@@ -4,14 +4,14 @@ schema_version: 1
 repository: Osato-Gasu/Personal-Finance-Planner
 task_id: TASK-020
 task_branch: no-ci/task-020-shared-2.0.6-migration
-task_commit: d69d61744c4e3d54dab974c9f3fe1bd19f67b326
-next_actor: CODEX_MAIN
-handoff_ref: docs/ai/handoffs/TASK-020_GPT_BOOTSTRAP_REPAIR_APPLIED.md
-transition_event_id: E0004
+task_commit: b89973ff32e5d73e72c0aaf1743af31b52248db3
+next_actor: GPT_ORCHESTRATOR
+handoff_ref: docs/ai/handoffs/TASK-020_CODEX_MAIN_SPEC_CHANGE_REQUIRED_RETURN.md
+transition_event_id: E0036
 claim:
-  actor: CODEX_MAIN
-  run_id: codex-task020-shared206-20260918-9268-resume1
-  task_id: TASK-020
-  started_at: 2026-09-18T05:13:53.0880290Z
-  task_commit: d69d61744c4e3d54dab974c9f3fe1bd19f67b326
-  transition_event_id: E0004
+  actor: NONE
+  run_id: null
+  task_id: null
+  started_at: null
+  task_commit: null
+  transition_event_id: null
