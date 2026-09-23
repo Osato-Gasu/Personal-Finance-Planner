@@ -9,16 +9,16 @@ next_actor: NONE
 handoff_ref: docs/ai/handoffs/TASK-020_GPT_COMPLETION_ACCEPTED.md
 transition_event_id: E0075
 cross_project_reservation:
-  state: HELD
-  generation: 1
-  owner_repository: Osato-Gasu/shared
-  task_id: TASK-194
-  task_branch: no-ci/task-194-shared-project-sync-operation-v2
-  task_commit: a652c6615611f31773e788aa8e778dac1009e4e0
-  event_id: E0130
-  run_id: task194-stage2-resume-main-20260923
-  operation_id: task194-stage2-resume-personal-finance-planner-20260923-01
-  acquired_at: 2026-09-23T09:32:19.1418261Z
+  state: NONE
+  generation: 2
+  owner_repository: null
+  task_id: null
+  task_branch: null
+  task_commit: null
+  event_id: null
+  run_id: null
+  operation_id: null
+  acquired_at: null
 claim:
   actor: NONE
   run_id: null
