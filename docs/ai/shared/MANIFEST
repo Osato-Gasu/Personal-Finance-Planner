@@ -1,4 +1,4 @@
-commit: 21737e6524f7d2e18636635ce437f7a5ae6fb6b6
+commit: 7873fdb5aaf62ac0f404905f69faaa55718ff959
 de9d420aec8d6d2c26185ebfaeb7353c549e9c4e5939f2b94e006a94d4e60ad2  .claude/skills/ci/SKILL.md
 2b2a6b1dc335695b8638380892d1c4c6738d9539a6b6340894b39f5b670c279e  .claude/skills/independent-review/SKILL.md
 5622b6a6b9e9a35adcae6835b0abdc686921d90d58ad8662ac3dd26f8ec0caf0  .claude/skills/orchestrate/SKILL.md
@@ -6,8 +6,8 @@ de9d420aec8d6d2c26185ebfaeb7353c549e9c4e5939f2b94e006a94d4e60ad2  .claude/skills
 75e596f8d5686a29ea2066377bb3bc4fd4922f2cf324d6941909bba78f5c1d4a  .claude/skills/shared-maintenance/SKILL.md
 392d03e6f24c9885b1f308d651f3caf7c7eb69272d68dcfa19df03d87105cef7  .claude/skills/task-authoring/SKILL.md
 7c53bb859d4d1236e68c6802cd5aeeb21ffd662a36337034930b61919919883d  .claude/skills/verify/SKILL.md
-b3c1cea7b4a29526340aa0a0fb663a29e70807968e6158eef1868dc83c12eac7  docs/ai/shared/ROLES.md
-9828662c175d142fd97f34b627bf229ca5e48925dbe4db9ff7f6df8009c0bf56  docs/ai/shared/RULES.md
+d630b97253baf2a22b455450dffd654c30aafc8693c7f2a63cc849f8b274ddf2  docs/ai/shared/ROLES.md
+079b7bd3651c75d1aed4acd10f0077c15b5ec1579d62db356296a9b04832f394  docs/ai/shared/RULES.md
 7a4dfce084241a95bb6866f284fc11183fad9aa2232fd293cff373434b3a54c9  docs/ai/shared/templates/AGENTS.md
 15bb1b9091e958f89ca0ff8c486b30d83573ad0b783cbf0d295929464a1a384f  docs/ai/shared/templates/CHATGPT_INSTRUCTIONS.md
 9ee12e8e9cd7def3da48488f4958bb64c170e0f594ec82a377015b813cbfe882  docs/ai/shared/templates/claude-settings.local.example.json
