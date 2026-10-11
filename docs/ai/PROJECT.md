@@ -8,7 +8,7 @@ ci_workflow: ".github/workflows/ci.yml"
 risk_paths: ["src/domain/**", "src/rules/**", "src/data/**", "docs/product/**", "Personal-Finance-Planner.html", "package.json", "package-lock.json", ".github/**"]
 strict_when: ["計算式・端数処理・制度ルール（適用期間と出典）を変える", "保存形式・移行・インポート／エクスポートを変える", "配布・公開（Pages等）を扱う"]
 verify_capabilities: {"cloud": ["npm ci / typecheck / lint / format:check / test / test:rules / test:nisa / test:ideco / test:overview", "npm run verify:launcher（root launcherの鮮度）", "git diff --check"], "local": ["npm run test:portable（Edge/Chromeでfile://を実行。Windows）"], "user_only": ["ブラウザでの画面操作・見た目の確認", "JSONバックアップの保存と復元の実操作"]}
-roles: {"orchestrator": {"agent": "Codex デスクトップ", "model": "6.1 Sol", "effort": "medium"}, "implement": {"agent": "Codex サブエージェント", "model": "6.0 Luna", "effort": "xhigh"}, "verify": {"agent": "Codex サブエージェント", "model": "6.0 Luna"}, "review": {"agent": "Codex サブエージェント", "model": "6.1 Sol", "effort": "medium"}}
+roles: {"orchestrator": {"agent": "Codex Cloud", "model": "6.1 Sol", "effort": "medium"}, "implement": {"agent": "Codex Cloud（別の実行）", "model": "6.0 Luna", "effort": "xhigh"}, "verify": {"agent": "Codex Cloud（別の実行）", "model": "6.0 Luna"}, "review": {"agent": "Codex Cloud（別の実行）", "model": "6.1 Sol", "effort": "medium"}, "claude_implements_when": ["UI/UX刷新のTASK", "Sharedの改修に付随する規則整合性の確認"]}
 profiles: {"saving": {"roles": {}, "loop_on": ""}, "normal": {"roles": {}, "loop_on": ""}, "rich": {"roles": {}, "loop_on": ""}}
 ---
 # PROJECT — 暮らしと資産プランナー
@@ -41,9 +41,19 @@ profiles: {"saving": {"roles": {}, "loop_on": ""}, "normal": {"roles": {}, "loop
 ## 実機確認が必要な範囲（USER）
 - ブラウザでの画面操作・見た目、JSONバックアップの保存と復元。`npm run test:portable` はWindows＋Edge/Chromeが要る（クラウドでは「未検証」）。
 
+## 返却メッセージの形
+- **返却メッセージの形**: オーケストレーターがユーザーに見せる最終メッセージ（チャット）に、次を含める。結論（1〜3行）、対象コミットSHA、サブの表（`役割｜モデル｜負荷｜対象(SHA)｜状態｜結果`。報告ファイルへの記載だけにしない）、確認した検証コマンドと結果、未実施・未確認の事項、最終行の`ユーザー操作：`（不要なら`ユーザー対応不要`）。簡単な確認（はい／いいえ、推奨つきの選択）は、ユーザーがそのセッションにいるとき直接聞いてよい（Shared RULES §8）。回答はTASKの決定欄に日付つきで記録する。
+
+## Codex Cloud の注意
+2026-10-11 に観測した事実。
+1. Cloudの既定のローカルブランチ名は `work` で、`task start` 後に作る `work/TASK-NNN` と衝突する。先に `git branch -m work cloud-work-saved` で改名する（削除しない）。
+2. `pwsh` はPATHに無い。ポータブルのPowerShell 7を、起動するプロセスのPATHにだけ足して使う。
+3. 環境のホストはallowlistで制限されている。GitHubのfetchと `work/*` のpushは通る。
+4. リポジトリの外への書込みは拒否される。出力はリポジトリ内とGitHubの作業ブランチに置く。
+
 ## 決定（日付つき）
 - 2026-10-11: Shared 4.0 で再始動した（`AGENTS.md`・`CLAUDE.md`・この文書・`docs/ai/shared/`・`.claude/skills/`）。
-- 2026-10-11 開発の経路: クラウドのClaudeセッション（頭脳）がユーザーとの窓口、ローカルのCodexデスクトップ版が実装の責任者（Shared RULES §8）。
+- 2026-10-11 開発の経路と実行環境（ユーザー決定）: クラウドのClaudeセッション（頭脳）が窓口で、必要に応じてChatGPT（Pro）の設計レビューを使う（ユーザーが運ぶ）。Codex（Cloud）がオーケストレーター・実装・検証・独立レビューの4役を別の実行で担い、ユーザーが動作確認できる状態になるまで自律で進める。Claudeが実装を担当するのは、UI/UXの刷新TASKと、Sharedの改修に付随する規則整合性の確認に限る。ゲーム等の実機が要らないため、CodexはCloudを使う。ただしWindows／Edge／Chromeが要る確認（`verify:launcher`、`test:portable`）はCodex Cloudでは行えず、「ユーザー確認待ち」として残す。Codex Cloudの具体的な使い方（TASKの渡し方、ネットワーク、sandbox）は、最初のTASKで確認して、ここへ反映する。
 - 2026-10-11 棚卸し（旧PROJECT.mdを振り分けた）:
   - 削除（Sharedに同じ内容）: 破棄・履歴書換え・強制削除をしない等の安全操作（RULES §2）、BLOCKED扱い、worktree掃除の条件の細則、TASK-xxxの正本の扱い。
   - 退役（Shared 2.xの語彙・仕組み）: `next_actor`・`GPT_ORCHESTRATOR`・authority・pointer／claim、`TASKS.html`生成、SharedSync自動登録（`DOWNSTREAMS`）、`PROJECT_ADAPTER.psd1` のShared2向け項目、REVIEW_POLICYの「同一TASK最大3回レビュー」と役割・routingの仕組み（Shared 4.0のモードとRULES §14が代わる。REVIEW_POLICYの必須条件は残る）。
