@@ -4,7 +4,7 @@ id: TASK-022
 title: TASK一覧HTML（docs/ai/TASKS.html）の退役（参照を先に外してから消す）
 kind: chore
 status: READY
-mode: standard
+mode: strict
 risk: normal
 owner:
 branch:
@@ -95,3 +95,4 @@ shared:
 ## 履歴
 
 - 2026-10-11 Claude（頭脳の補助）が作成。status READY。
+- 2026-10-11 ユーザー決定（推奨を採用）: 依存ツール群の削除は決定表の推奨どおり実施。`.github/**` を含むためモードを strict（独立レビュー付き）に変更。公開リポジトリの個人パス（adapter内）は adapter 退役TASKで扱う。
