@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(codex.cmd exec --sandbox read-only:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git push origin work/*)",
+      "Bash(git push -u origin work/*)",
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Bash(git reset --hard:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin HEAD:main:*)",
+      "Bash(codex.cmd exec --dangerously-bypass-approvals-and-sandbox:*)",
+      "Bash(rm -rf:*)",
+      "Bash(Remove-Item:*)"
+    ],
+    "additionalDirectories": [
+      "<読み取り専用で参照したいディレクトリ>"
+    ]
+  }
+}

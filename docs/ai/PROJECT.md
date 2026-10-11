@@ -1,92 +1,53 @@
-# PROJECT
+---
+schema: 1
+commands: {"install": "npm ci", "build": "npm run build", "test": "npm test", "lint": "npm run lint", "typecheck": "npm run typecheck", "format_check": "npm run format:check", "verify_launcher": "npm run verify:launcher", "portable": "npm run test:portable"}
+merge_check: ["npm run typecheck", "npm run lint", "npm run format:check", "npm test", "npm run verify:launcher", "git diff --check"]
+ci_recommend_paths: ["src/**", "tests/**", "index.html", "Personal-Finance-Planner.html", "package.json", "package-lock.json", "vite.config.ts", "tsconfig.json", "eslint.config.js", "tools/**", ".github/workflows/**"]
+ci_skip_paths: ["docs/**", "README.md", "AGENTS.md", "CLAUDE.md", ".claude/**"]
+ci_workflow: ".github/workflows/ci.yml"
+risk_paths: ["src/domain/**", "src/rules/**", "src/data/**", "docs/product/**", "Personal-Finance-Planner.html", "package.json", "package-lock.json", ".github/**"]
+strict_when: ["計算式・端数処理・制度ルール（適用期間と出典）を変える", "保存形式・移行・インポート／エクスポートを変える", "配布・公開（Pages等）を扱う"]
+verify_capabilities: {"cloud": ["npm ci / typecheck / lint / format:check / test / test:rules / test:nisa / test:ideco / test:overview", "npm run verify:launcher（root launcherの鮮度）", "git diff --check"], "local": ["npm run test:portable（Edge/Chromeでfile://を実行。Windows）"], "user_only": ["ブラウザでの画面操作・見た目の確認", "JSONバックアップの保存と復元の実操作"]}
+roles: {"orchestrator": {"agent": "Codex デスクトップ", "model": "6.1 Sol", "effort": "medium"}, "implement": {"agent": "Codex サブエージェント", "model": "6.0 Luna", "effort": "xhigh"}, "verify": {"agent": "Codex サブエージェント", "model": "6.0 Luna"}, "review": {"agent": "Codex サブエージェント", "model": "6.1 Sol", "effort": "medium"}}
+profiles: {"saving": {"roles": {}, "loop_on": ""}, "normal": {"roles": {}, "loop_on": ""}, "rich": {"roles": {}, "loop_on": ""}}
+---
+# PROJECT — 暮らしと資産プランナー
 
-Canonical owner for Personal Finance Planner repository-specific permanent
-human-readable rules. Shared rules and TASK state are not copied here.
+`Osato-Gasu/Personal-Finance-Planner` 固有の恒久条件の正本（前半の front matter が値）。共通の規則・役割・手順は Shared の `docs/ai/shared/RULES.md`・`ROLES.md`・`.claude/skills/`（`docs/ai/SHARED_RULES.lock.yml` が版を固定）で、ここに繰り返さない。このrepositoryは公開なので、個人情報・実データ・ローカルの絶対パスを書かない。
 
-## Product and repository identity
+## 目的
+- 個人利用の資金計画（給与・手取り・家計・NISA・iDeCo・将来資産）をブラウザ内で試算するローカルファーストWebアプリ。バックエンドなし。
+- 要件・設計・計算・制度ルールデータの正本は `docs/product/**`（`REQUIREMENTS`・`ARCHITECTURE`・`DATA_MODEL`・`CALCULATIONS`・`RULE_GOVERNANCE`・`REVIEW_POLICY` など）。ここへ写さない。
 
-- Product: Personal Finance Planner
-- Repository: `Osato-Gasu/Personal-Finance-Planner`
-- Purpose: personal-use financial planning for payroll, take-home pay,
-  household budget, NISA/iDeCo and future-asset planning.
-- Product requirements, design, calculations, and rule data are owned by
-  `docs/product/**`, which remains the product source of truth.
+## 技術構成
+- Vite / TypeScript / Vanilla DOM / Vitest / ESLint / Prettier。Node.js 24（`.nvmrc`）。
+- 配布物はrootの単一HTML `Personal-Finance-Planner.html`（`npm run build` が生成・同期。HTTP server・Node・外部通信なしで動く）。
+- 位置づけ: `src/domain`（計算）・`src/rules`（制度ルール）・`src/data`（保存・インポート）・`src/modules`（画面）・`src/app`。
 
-## Permanent financial safety
+## 製品不変条件（どのTASKでも緩めない）
+1. 金額計算と端数処理の意味を変えない。
+2. 制度ルールの適用期間と出典（source identity）を保つ。
+3. 二重計上を防ぐ。連動値の正本は一つ。
+4. データ保全: 移行・インポート・エクスポートは無損失。検証失敗や取消で既存データを変えない。ユーザー保有データを守る。
+5. 古い値（stale）を表示しない。合計の整合を保つ。未対応の条件は黙らず明示する。
+6. XSS等の基本的なセキュリティ。
+7. 製品の要件・必須受入条件は `docs/product/REVIEW_POLICY.md` が正本で、その必須項目はそのまま有効。製品の意味・制度ルール・パッケージ版・保存形式の変更は、governanceの作業に混ぜない。変更時は該当の個別suite（`test:rules`・`test:nisa`・`test:ideco`・`test:overview`）と全体suiteを通す。
 
-The following requirements are non-relaxable for every TASK, including
-governance-only migration:
+## 完了と公開
+- 個人利用の製品。配布・Pages公開・releaseは通常の完了操作ではない。必要になったら、ユーザーの新しい依頼とTASKで行う（RELEASE.md が要る時に作る）。
+- root launcher `Personal-Finance-Planner.html` はsrc変更と一致していること（`npm run verify:launcher`）。launcherを守る。
+- ローカル完了の補助: `tools/complete-task-local.ps1`（Windows、PowerShell 7／5.1互換）。
 
-- monetary calculations and rounding semantics;
-- effective rule periods and their source identity;
-- prevention of double counting;
-- data preservation and lossless migration/import/export behavior;
-- product requirements and required acceptance criteria;
-- baseline/candidate identity, security, and preservation of user-owned data.
+## 実機確認が必要な範囲（USER）
+- ブラウザでの画面操作・見た目、JSONバックアップの保存と復元。`npm run test:portable` はWindows＋Edge/Chromeが要る（クラウドでは「未検証」）。
 
-The protected product source `docs/product/REVIEW_POLICY.md` remains
-authoritative for product safety. For TASK-020 and later, only its legacy
-same-TASK implementation-review attempt limit and associated role/routing
-mechanism are superseded by the exact Shared 2 Main -> BUILD -> VERIFY loop.
-This changes orchestration only: every mandatory condition in that policy
-remains required, including unsupported-condition disclosure, rounding and
-total consistency, canonical linked-value ownership, stale-data prevention,
-double-count prevention, storage/migration/import preservation, XSS/basic
-security, build/test/lint, required acceptance criteria, user-owned changes,
-and branch/baseline/candidate identity. No historical TASK is retroactively
-approved and no fourth review is created for a historical TASK.
-
-Do not change product semantics, financial rules, package versions, storage,
-or user data as part of governance synchronization. Product source changes
-require the relevant focused financial suites and the full repository suite.
-
-## Product and completion safety
-
-- This is a personal-use product. Distribution, deployment, Pages publication,
-  and release are not normal completion actions; a future need requires a new
-  explicit user request and TASK.
-- Final local completion requires the canonical local main worktree to be
-  uniquely identified by the name `Personal-Finance-Planner`, clean on
-  `main`, and at `HEAD == origin/main` after fetch plus fast-forward-only
-  synchronization.
-- Exact main CI success, root launcher freshness, and portable `file://` smoke
-  are required before local completion or worktree cleanup.
-- A TASK worktree may be removed only after it is clean, has no untracked user
-  files or unfinished Git operation, its completion commit is reachable from
-  `origin/main`, and all launcher/CI gates pass. Removal and worktree prune
-  are non-forced operations; dirty or ambiguous worktrees, non-fast-forward
-  state, unreachable commits, and failed CI or launcher gates are BLOCKED and
-  must never be handled with reset, stash, clean, restore, history rewrite,
-  or forced deletion.
-- Preserve the root launcher `Personal-Finance-Planner.html` and the
-  local-main completion safety contract.
-
-## Historical and tracking safety
-
-- Historical Shared/pre-2.0 evidence remains under the identity and Git
-  history that created it. Do not rewrite or backfill it for schema symmetry.
-- `docs/ai/CURRENT_STATE.md`, `docs/ai/BACKLOG.md`,
-  `docs/ai/PRODUCT_IDENTITIES.yml`, and historical decision/evidence files
-  retain their documented historical meaning; generated views are not TASK
-  state owners.
-- The canonical current TASK owner is the assigned
-  `docs/ai/tasks/TASK-xxx.md`. Do not infer current state from HTML or board
-  views, and do not automatically revive retired or blocked historical TASKs.
-- TASK-020 and later retain their canonical TASK files in the current tree;
-  the legacy `git_only` deletion policy is not used for new TASK tracking.
-  Missing TASK-001 through TASK-019 files are historical and must not be
-  recreated or guessed. Runtime `PENDING` for a USER/local environment and
-  formal remote-CI `PENDING_REMOTE_CI` are separate states; neither is a PASS.
-
-## Runtime and environment
-
-- Node.js 24 is the repository runtime baseline.
-- Primary local completion is Windows; PowerShell hooks and focused tests must
-  remain compatible with PowerShell 7 and Windows PowerShell 5.1.
-- Exact Project paths and commands are owned by
-  `docs/ai/PROJECT_ADAPTER.psd1`.
-
-The Shared downstream orchestrator authenticates the released Shared
-repository/version/commit before invoking this Project's offline sync hooks.
-The hooks validate their untrusted identity inputs and never perform a private
-fetch or require credentials.
+## 決定（日付つき）
+- 2026-10-11: Shared 4.0 で再始動した（`AGENTS.md`・`CLAUDE.md`・この文書・`docs/ai/shared/`・`.claude/skills/`）。
+- 2026-10-11 開発の経路: クラウドのClaudeセッション（頭脳）がユーザーとの窓口、ローカルのCodexデスクトップ版が実装の責任者（Shared RULES §8）。
+- 2026-10-11 棚卸し（旧PROJECT.mdを振り分けた）:
+  - 削除（Sharedに同じ内容）: 破棄・履歴書換え・強制削除をしない等の安全操作（RULES §2）、BLOCKED扱い、worktree掃除の条件の細則、TASK-xxxの正本の扱い。
+  - 退役（Shared 2.xの語彙・仕組み）: `next_actor`・`GPT_ORCHESTRATOR`・authority・pointer／claim、`TASKS.html`生成、SharedSync自動登録（`DOWNSTREAMS`）、`PROJECT_ADAPTER.psd1` のShared2向け項目、REVIEW_POLICYの「同一TASK最大3回レビュー」と役割・routingの仕組み（Shared 4.0のモードとRULES §14が代わる。REVIEW_POLICYの必須条件は残る）。
+  - 履歴へ: TASK-020、`CURRENT_STATE.md`・`BACKLOG.md`・`DECISIONS.md`・`PRODUCT_IDENTITIES.yml`・evidence・handoffs は変更せず履歴として残す。
+  - 値へ移動: コマンド・CI・リスクパス・検証範囲・モデル割当は front matter。
+  - 本文に残した: 製品不変条件、公開と配布の扱い、launcher。
+  - Sharedへの昇格提案: なし。
