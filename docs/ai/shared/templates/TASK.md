@@ -10,7 +10,7 @@ owner:
 branch:
 touches_paths: []
 verification: NOT_RUN    # NOT_RUN/PASS/FAIL/INCONCLUSIVE/SELF_ONLY(直行の自己確認のみ)/NOT_REQUIRED
-runtime: PENDING         # NOT_REQUIRED/PENDING(ユーザーの起動確認待ち)/PASS/FAIL
+runtime: PENDING         # NOT_REQUIRED/PENDING(実機・E2E確認待ち。AIが行う分とユーザーの最終判断はTASK・PROJECT.mdが決める)/PASS/FAIL
 ci: NOT_NEEDED           # NOT_NEEDED/NOT_REQUESTED/PASS/FAIL/PENDING_REMOTE_CI
 next_action:
 shared:
@@ -21,11 +21,22 @@ shared:
 
 ## Acceptance
 
-(観測できる確認。実機確認はUSER確認として明記する。)
+(観測できる確認。AIが確かめるものと、ユーザーの最終判断に残すものを分けて書く。RULES §5の13の2。)
 
 ## 対象外
 
-## 確認手順（ユーザーが起動して確かめる）
+## AIによるE2E・ローカル確認
+(ローカルCodexが自律して行う確認と、残す証跡。RULES §5の13の2。)
+
+## 実働への指示（定型）
+(Git経由で起動するとき、実働が従う定型。起動の一言には書き写さない。RULES §8の19の2。)
+- 独立レビューの基準（risk_paths に触れた、解釈を選んだ箇所がある等）に当たる場合は、ユーザーに聞かずに、別の実行で独立レビューを実施し、結果と採否を報告に含める。
+- CIは実行せず、推奨の判断だけを出す。
+- 完了・失敗・返却時に、報告を `docs/ai/reports/TASK-NNN/REPORT.md` としてこのbranchへpushする。最終メッセージは、Project／TASK／branch／対象SHA／結論／報告ファイルのパスだけの短い1ブロック。サブの表は、実装ループを回した場合だけブロックの外に置く。
+- 報告・TASKに、秘密・個人情報・個人パスを書かない。
+
+## ユーザーの最終判断（必要なときだけ）
+(AIの確認が済み、AIが起動した状態で、見た目・使い勝手の最終判断だけ。見る場所・見る点・合否の見方を書き、コマンドは書かない（RULES §5の13の4）。PROJECT.md・TASKでAIに委任済みなら「不要」。)
 
 1.
 

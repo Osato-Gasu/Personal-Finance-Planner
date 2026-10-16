@@ -37,9 +37,9 @@ credentialは環境変数/GitHub Appにだけ置く。リポジトリ・ログ�
 | 1 | FAIL（検査失敗・安全に再試行可） | 原因を直して再実行 |
 | 2 | BLOCKED（決定・権限・クリーンな作業ツリーが必要） | 決定を依頼し、他の作業を進める。回避しない |
 | 3 | UNKNOWN（書込み結果が不明） | **停止**。`recover` で読み戻し、確定後に再開 |
-| 4 | CONFLICT（remoteが動いた/claim済み/`recover` が競合を検出） | fetchして調停。上書きしない |
+| 4 | CONFLICT（remoteが動いた/claim済み/`recover` が競合を検出。`task start -Resume` の `CLAIM_INVALID`／`RESUME_SHA_MISMATCH`／`LOCAL_DIVERGED` も） | fetchして調停。上書きしない。claim済みのbranchを引き継ぐなら `task start -Id TASK-n -Resume` |
 
-CI赤・conflictは、Claudeが修復して再pushする（履歴は書き換えず追加commit）。同じ原因で3回直せないときだけUSERへ一行で報告する。
+CI赤・conflictは、Claudeが修復して再pushする（履歴は書き換えず追加commit）。同じ原因で3回直せないときだけUSERへ一行で報告する（Shared自身のCI修復の上限。TASKの修正ループはRULES §5の14）。
 
 ## 動作要件
 
