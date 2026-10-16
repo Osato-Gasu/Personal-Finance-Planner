@@ -80,7 +80,7 @@ function Find-IncompatibleConsumers {
             else { $found.Add("UNSCANNED_NOT_A_PLAIN_FILE: $f is not a plain file and was not read. Review it by hand before pinning.") }
             continue
         }
-        if ((Get-Item -LiteralPath $path).Length -gt $cap) { $unscanned++; $found.Add("UNSCANNED: $f is larger than 5 MB and was not read (review it by hand before pinning)"); continue }
+        if ((Get-Item -Force -LiteralPath $path).Length -gt $cap) { $unscanned++; $found.Add("UNSCANNED: $f is larger than 5 MB and was not read (review it by hand before pinning)"); continue }
         $bytes = [System.IO.File]::ReadAllBytes($path)
         $nul = [Array]::IndexOf($bytes, [byte]0)
         if ($nul -ge 0 -and $nul -lt 8192) {
