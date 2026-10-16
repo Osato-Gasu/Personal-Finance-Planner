@@ -132,6 +132,7 @@ function Test-SecretScan {
     param([string]$Root, $Eff, [string[]]$Files)
     $f = @()
     $rx = @($Eff.SecretPatterns | ForEach-Object { [regex]::new($_) })
+    $binary = [System.Collections.Generic.List[string]]::new()
     foreach ($p in $Files) {
         # No exemption for history: a credential or an unportable path added under a frozen directory could never be removed.
         $full = Join-Path $Root $p
@@ -150,10 +151,14 @@ function Test-SecretScan {
         if ([Array]::IndexOf($bytes, [byte]0) -ge 0) {
             # S1: a NUL byte is not proof of binary. UTF-16 text is decoded and scanned; a blob that does not decode as text is reported.
             $text = Get-Utf16Text -Bytes $bytes
-            if ($null -eq $text) { $f += New-Finding 'WARN' 'UNSCANNED_BINARY' "$p is binary (or UTF-16 that does not decode as text): its content was not pattern-scanned. Review it by hand."; continue }
+            if ($null -eq $text) { $binary.Add($p); continue }
         } else { $text = [System.Text.Encoding]::UTF8.GetString($bytes) }
         foreach ($r in $rx) { if ($r.IsMatch($text)) { $f += New-Finding 'FAIL' 'SECRET_PATTERN' "$p matches a credential pattern ($($r.ToString().Substring(0, [Math]::Min(18, $r.ToString().Length)))...). Remove it and rotate the credential (USER)." } }
     }
+    # S1: still reported, never silent. Many binaries (images in a frozen history) are one finding with the count and the first paths,
+    # so that a real warning is not buried; a few stay one finding each.
+    if ($binary.Count -le 3) { foreach ($p in $binary) { $f += New-Finding 'WARN' 'UNSCANNED_BINARY' "$p is binary (or UTF-16 that does not decode as text): its content was not pattern-scanned. Review it by hand." } }
+    elseif ($binary.Count -gt 0) { $f += New-Finding 'WARN' 'UNSCANNED_BINARY' "$($binary.Count) files are binary (or UTF-16 that does not decode as text): their content was not pattern-scanned. Review them by hand. First: $(($binary | Select-Object -First 5) -join ', ')" }
     return $f
 }
 
@@ -283,7 +288,7 @@ function Invoke-Check {
     if ($isShared) { $findings += Test-InvariantTraceability -Root $Root; $findings += Test-SkillFiles -Root $Root }
     if ($Base -ne '' -or $PreviousHead) {
         # A shallow checkout cannot prove history: refuse rather than compare what happens to be there.
-        if ((Invoke-Git -Dir $Root -GitArgs @('rev-parse', '--is-shallow-repository')).Trim() -ne 'false') { $findings += New-Finding 'FAIL' 'HISTORY_INCOMPLETE' 'The checkout is shallow: frozen history cannot be verified (use fetch-depth: 0).' }
+        if ((Invoke-Git -Dir $Root -GitArgs @('rev-parse', '--is-shallow-repository')).Trim() -ne 'false') { $findings += New-Finding 'FAIL' 'HISTORY_INCOMPLETE' 'The checkout is shallow: frozen history cannot be verified (fetch the full history first: ''fetch --unshallow'' on the remote, or fetch-depth: 0 in CI).' }
         if ($PreviousHead) { $pf = @(Test-PreviousHead -Root $Root -Base $Base); $findings += $pf; $compare = ($Base -ne '' -and $Base -cnotmatch '\A0{40}\z' -and @($pf | Where-Object Level -eq 'FAIL').Count -eq 0) }
         else {
             $compare = $true

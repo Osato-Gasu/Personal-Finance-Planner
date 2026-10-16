@@ -9,9 +9,9 @@ param(
     [Parameter(Position = 1)][string]$Sub = '',
     [string]$Root = '.',
     [string]$Id = '', [string]$Title = '', [string]$Kind = '', [string]$To = '', [string]$Type = '', [string]$Data = '{}',
-    [string]$Base = '', [string]$Repo = '', [int]$Pr = 0, [string]$Expect = '', [string]$Snapshot = '',
+    [string]$Base = '', [string]$Repo = '', [int]$Pr = 0, [string]$Expect = '', [string]$ExpectSha = '', [string]$Snapshot = '',
     [string]$Version = '', [string]$Sha = '', [string]$SharedRoot = '', [string]$Branch = '', [string]$Remote = 'origin',
-    [switch]$PostStatus, [switch]$IncludeGate, [switch]$PreviousHead, [switch]$All, [switch]$AcknowledgeMigration, [switch]$AcknowledgeConsumers, [switch]$Json
+    [switch]$Resume, [switch]$PostStatus, [switch]$IncludeGate, [switch]$PreviousHead, [switch]$All, [switch]$AcknowledgeMigration, [switch]$AcknowledgeConsumers, [switch]$Json
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -80,6 +80,12 @@ try {
         'task' {
             switch ($Sub) {
                 'start' {
+                    if ($Resume) {
+                        if ($Title -ne '' -or $Kind -ne '') { throw (New-SharedError -Reason 'USAGE' -Message 'task start -Resume takes the TASK from the branch: do not pass -Title or -Kind.' -Code 2) }
+                        $r = Resume-Task -Root $R -TaskId $Id -Base $(if ($Base) { $Base } else { 'main' }) -Remote $Remote -ExpectSha $ExpectSha
+                        Write-Result $r "RESULT: RESUMED $Id on work/$Id at $($r.Sha)"
+                        break
+                    }
                     # The TASK number band (frozen_task_max, task_id_min) protects the Shared repository's own 2.x numbers: only a repository with its own policy.json applies it.
                     $pf = if (Test-Path -LiteralPath (Join-Path $R 'policy.json')) { Join-Path $R 'policy.json' } else { '' }
                     $r = Start-Task -Root $R -TaskId $Id -Title $Title -Kind $Kind -Base $(if ($Base) { $Base } else { 'main' }) -Remote $Remote -Policy $(if ($pf) { Read-JsonFile $pf } else { $null })

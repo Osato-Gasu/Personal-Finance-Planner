@@ -1,0 +1,49 @@
+# CIの雛形（RULES §6）: 既定では走らせない。ユーザーが依頼したときだけ workflow_dispatch で、exactなコミットを検証する。
+# push / pull_request で自動起動しない。実際のProjectでは、最後の検証ステップをそのProjectのコマンドに置き換える。
+name: Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-character candidate commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest      # 既定はLinux。Windows固有の確認が要るときだけ windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate dispatch identity
+        shell: pwsh
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          if ($env:CANDIDATE_SHA -cnotmatch '\A[0-9a-fA-F]{40}\z' -or $env:DISPATCH_SHA -cnotmatch '\A[0-9a-fA-F]{40}\z') {
+            throw 'candidate_sha and github.sha must be exactly 40 hexadecimal characters.'
+          }
+          if ($env:CANDIDATE_SHA -cne $env:DISPATCH_SHA) { throw 'candidate_sha must exactly match github.sha.' }
+
+      - name: Checkout candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803   # 版はSHAで固定する（更新時は固定先を確認）
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+
+      - name: Verify checkout identity
+        shell: pwsh
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          $head = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $head -cne $env:CANDIDATE_SHA) { throw 'checked out HEAD must exactly match candidate_sha.' }
+          if (-not [string]::IsNullOrEmpty((git status --porcelain))) { throw 'checked out worktree must be clean.' }
+
+      # --- Project固有の検証（例） ---
+      # - name: Verify
+      #   run: npm ci && npm test

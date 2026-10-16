@@ -74,6 +74,8 @@ $script:GitAllowedFlags = @{
     'commit'     = @('--quiet', '--allow-empty', '-m')   # --allow-empty: the claim commit of a TASK file that already exists on the base changes no file
     'push'       = @('--quiet', '--porcelain')
     'merge-base' = @('--is-ancestor')
+    'rev-list'   = @('--first-parent', '--reverse')   # task start -Resume: find the claim commit of a branch (positionals are exact shas, optionally ^excluded)
+    'merge'      = @('--ff-only', '--quiet')           # task start -Resume: advance a local branch that is strictly behind the remote one
     'cat-file'   = @('-e')
     'show'       = @()
     'diff'       = @('--name-status', '-z', '-M')
@@ -160,6 +162,14 @@ function Assert-SafeGitPositionals {
             if ($Pos.Count -lt 1 -or $Pos.Count -gt 2) { & $deny 'ls-remote takes <remote> [<ref>].' }
             & $safeName $Pos[0] 'remote'
             if ($Pos.Count -eq 2 -and $Pos[1] -cnotmatch '\A(?:refs/[A-Za-z0-9._/\-]+|HEAD)\z') { & $deny "ref '$($Pos[1])' is not a refs/... name or HEAD." }
+        }
+        'rev-list' {
+            if ($Pos.Count -lt 1 -or $Pos.Count -gt 2) { & $deny 'rev-list takes [^<excluded sha>] <sha>.' }
+            foreach ($p in $Pos) { if ($p -cnotmatch '\A\^?[0-9a-f]{40}\z') { & $deny "'$p' is not a 40-hex commit id (optionally ^-prefixed)." } }
+        }
+        'merge' {
+            if ($Flags -cnotcontains '--ff-only') { & $deny 'merge is allowed only as --ff-only.' }
+            if ($Pos.Count -ne 1 -or $Pos[0] -cnotmatch '\A[0-9a-f]{40}\z') { & $deny 'merge --ff-only takes exactly one 40-hex commit id.' }
         }
         'checkout' {
             if ($Flags -contains '-b') { if ($Pos.Count -lt 1 -or $Pos.Count -gt 2) { & $deny 'checkout -b takes <new-branch> [<start>].' } }

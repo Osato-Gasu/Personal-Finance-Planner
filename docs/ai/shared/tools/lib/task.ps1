@@ -78,7 +78,7 @@ function Assert-TaskNumberAvailable {
     # 3.0 TASK numbers live above everything 2.x ever used or may still allocate: at most frozen_task_max is history
     # (a new file there would be frozen the moment it merges), and below task_id_min the 2.x line may still be handing out
     # numbers. A branch anywhere on the remote that mentions the number (codex/task-175-build-3, work/TASK-9 ...) is a collision.
-    param([string]$TaskId, $Policy, [string]$Dir, [string]$Remote)
+    param([string]$TaskId, $Policy, [string]$Dir, [string]$Remote, [string]$Base = 'main')
     Assert-RemoteIdentity -Dir $Dir -Remote $Remote   # M5 (m2): identity before the first ls-remote of this remote
     $n = [int]($TaskId -replace '\D', '')
     if ($null -ne $Policy) {
@@ -89,10 +89,17 @@ function Assert-TaskNumberAvailable {
     $r = Invoke-Git -Dir $Dir -GitArgs @('ls-remote', $Remote) -AllowFail
     if ($r.ExitCode -ne 0) { Stop-Shared -Reason 'REMOTE_UNREADABLE' -Message "ls-remote failed: $($r.Err.Trim())" -Code 3 }
     $pat = "(?i)(?<![0-9])task[-_ ]?0*$n(?![0-9])"
+    $fetched = $false
     foreach ($line in ($r.Out -split "`n")) {
-        if ($line -match '\A[0-9a-f]{40}\s+refs/heads/(\S+)\s*\z') {
-            $name = $Matches[1]   # a second -match would overwrite $Matches
-            if ($name -match $pat -and $name -cne "work/$TaskId") { Stop-Shared -Reason 'TASK_NUMBER_IN_USE' -Message "$TaskId collides with the existing branch '$name' on $Remote." -Code 4 }
+        if ($line -match '\A([0-9a-f]{40})\s+refs/heads/(\S+)\s*\z') {
+            $tip = $Matches[1]; $name = $Matches[2]   # a second -match would overwrite $Matches
+            if ($name -match $pat -and $name -cne "work/$TaskId") {
+                # A branch already merged into the base cannot be a second claim of the number (old branches cannot always be deleted).
+                # Unmerged, unknown or unreadable stays a collision: only a proven ancestor of the base is skipped.
+                if (-not $fetched) { $fetched = $true; Invoke-Git -Dir $Dir -GitArgs @('fetch', '--quiet', $Remote, "refs/heads/${Base}:refs/remotes/$Remote/$Base") -AllowFail | Out-Null }
+                if ((Test-CommitPresent -Dir $Dir -Sha $tip) -and (Test-IsAncestor -Dir $Dir -Ancestor $tip -Descendant "refs/remotes/$Remote/$Base")) { continue }
+                Stop-Shared -Reason 'TASK_NUMBER_IN_USE' -Message "$TaskId collides with the existing branch '$name' on $Remote." -Code 4
+            }
         }
     }
 }
@@ -110,7 +117,7 @@ function Start-Task {
     Assert-NoPendingWrites -Dir $Root
     $branch = "work/$TaskId"
     $ref = "refs/heads/$branch"
-    if ($null -eq (Get-RemoteRef -Dir $Root -Remote $Remote -Ref $ref)) { Assert-TaskNumberAvailable -TaskId $TaskId -Policy $Policy -Dir $Root -Remote $Remote }
+    if ($null -eq (Get-RemoteRef -Dir $Root -Remote $Remote -Ref $ref)) { Assert-TaskNumberAvailable -TaskId $TaskId -Policy $Policy -Dir $Root -Remote $Remote -Base $Base }
     if ($null -ne (Get-RemoteRef -Dir $Root -Remote $Remote -Ref $ref)) {
         Stop-Shared -Reason 'TASK_CLAIMED' -Message "$branch already exists on $Remote. Fetch it and continue there; to take it over append a 'takeover' event (evidence append). Never create a second claim." -Code 4
     }
@@ -154,6 +161,75 @@ function Start-Task {
         catch { [Console]::Error.WriteLine("WARNING: could not return to '$prev': $($_.Exception.Message)") }
         throw $err
     }
+}
+
+function Test-ClaimOnBranch {
+    # Read-only. Is the remote-tracking branch a claim made by `task start`? Returns '' when it is, otherwise one line saying why not.
+    # HONEST LIMIT: this is consistency evidence, not proof of exclusive creation (exclusivity comes from GitHub's branch-name
+    # uniqueness and push rights, as for the gate's Get-ClaimEvidence).
+    param([string]$Root, [string]$TaskId, [string]$Branch, [string]$BaseSha, [string]$Tip)
+    $shas = @((Invoke-Git -Dir $Root -GitArgs @('rev-list', '--first-parent', '--reverse', "^$BaseSha", $Tip) -AllowFail).Out -split "`n" | Where-Object { $_ -ne '' })
+    if ($shas.Count -eq 0) { return "$Branch has no commit beyond the base (not a claim, or already merged)." }
+    $msg = (Invoke-Git -Dir $Root -GitArgs @('cat-file', 'commit', $shas[0]) -AllowFail).Out
+    $msg = ConvertTo-Lf $msg
+    $body = if ($msg -match '(?s)\n\n(.*)\z') { $Matches[1] } else { '' }
+    if (($body -split "`n")[0] -cne "${TaskId}: claim") { return "the first commit on $Branch is not '${TaskId}: claim'." }
+    $cm = [regex]::Match($body, '(?m)^claim-id: ([0-9a-f]{32})\s*$')
+    if (-not $cm.Success) { return 'the claim commit has no claim-id trailer.' }
+    $claimId = $cm.Groups[1].Value
+    $rel = "docs/ai/tasks/$TaskId.md"
+    $tt = Invoke-Git -Dir $Root -GitArgs @('show', "${Tip}:$rel") -AllowFail
+    if ($tt.ExitCode -ne 0) { return "$rel is absent at the branch tip." }
+    try { $task = ConvertFrom-TaskText -Text (ConvertTo-Lf $tt.Out) } catch { return "$rel at the branch tip is not a valid TASK file." }
+    if ($task.Id -cne $TaskId) { return "$rel names '$($task.Id)', not $TaskId." }
+    if ($script:TaskStatuses -cnotcontains $task.Status) { return "$rel has an unknown status '$($task.Status)'." }
+    if ($script:TaskKinds -cnotcontains $task.Kind) { return "$rel has an unknown kind '$($task.Kind)'." }
+    if ($task.Status -in @('DONE', 'CANCELLED')) { return "$TaskId is $($task.Status); there is nothing to resume." }
+    if (Get-Command Test-EventChainLines -ErrorAction SilentlyContinue) {
+        $ev = Invoke-Git -Dir $Root -GitArgs @('show', "${Tip}:docs/ai/evidence/$TaskId/EVENTS.jsonl") -AllowFail
+        if ($ev.ExitCode -ne 0) { return 'the gate tools are loaded but the branch has no EVENTS.jsonl (no claim event).' }
+        $lines = @((ConvertTo-Lf $ev.Out) -split "`n" | Where-Object { $_.Length -gt 0 })
+        $c = Test-EventChainLines -Lines $lines
+        if ($c.Status -ne 'OK') { return "the evidence chain is $($c.Status): $($c.Reason)" }
+        $first = $lines[0] | ConvertFrom-Json
+        $d = Get-Prop $first 'data'
+        if ((Get-Prop $first 'type') -cne 'claim' -or [string](Get-Prop $d 'branch') -cne $Branch -or [string](Get-Prop $d 'claim_id') -cne $claimId) { return "the first event is not the claim of $Branch with claim-id $claimId." }
+    }
+    return ''
+}
+
+function Resume-Task {
+    # Take over a branch that a claimant already created with `task start` (typically the orchestrator, handing the TASK to a worker).
+    # Reads the remote and checks out the branch; it NEVER writes the remote, creates no claim and appends no event. A change of
+    # claimant stays a `takeover` event. Any stop leaves the working tree and HEAD where they were.
+    param([string]$Root, [string]$TaskId, [string]$Base = 'main', [string]$Remote = 'origin', [string]$ExpectSha = '')
+    Assert-SafeName $Remote 'remote'; Assert-SafeName $Base 'base branch'
+    $null = Get-TaskPath -Root $Root -TaskId $TaskId     # validates the id
+    if ($ExpectSha -ne '') { Assert-Sha40 $ExpectSha 'expected sha' }
+    Assert-CleanTree -Dir $Root
+    Assert-NoPendingWrites -Dir $Root
+    $branch = "work/$TaskId"
+    $ref = "refs/heads/$branch"
+    $tip = Get-RemoteRef -Dir $Root -Remote $Remote -Ref $ref
+    if ($null -eq $tip) { Stop-Shared -Reason 'TASK_NOT_CLAIMED' -Message "$branch does not exist on ${Remote}: there is no claim to resume. Start it without -Resume." -Code 2 }
+    if ($ExpectSha -ne '' -and $tip -cne $ExpectSha) { Stop-Shared -Reason 'RESUME_SHA_MISMATCH' -Message "$branch is at $tip on $Remote, not at the expected $ExpectSha. Fetch, look at the difference, ask the claimant." -Code 4 }
+    Invoke-Git -Dir $Root -GitArgs @('fetch', '--quiet', $Remote, "refs/heads/${Base}:refs/remotes/$Remote/$Base") | Out-Null
+    Invoke-Git -Dir $Root -GitArgs @('fetch', '--quiet', $Remote, "refs/heads/${branch}:refs/remotes/$Remote/$branch") | Out-Null
+    $fetched = Resolve-Commit -Dir $Root -Rev "refs/remotes/$Remote/$branch"
+    if ($fetched -cne $tip) { Stop-Shared -Reason 'REMOTE_MOVED' -Message "$branch moved on $Remote while it was fetched ($tip -> $fetched). Retry." -Code 4 }
+    $baseSha = Resolve-Commit -Dir $Root -Rev "refs/remotes/$Remote/$Base"
+    $why = Test-ClaimOnBranch -Root $Root -TaskId $TaskId -Branch $branch -BaseSha $baseSha -Tip $tip
+    if ($why -ne '') { Stop-Shared -Reason 'CLAIM_INVALID' -Message "$branch is not a claim that can be resumed: $why" -Code 4 }
+    $local = Invoke-Git -Dir $Root -GitArgs @('rev-parse', '--verify', '--quiet', "refs/heads/$branch^{commit}") -AllowFail
+    if ($local.ExitCode -ne 0) {
+        Invoke-Git -Dir $Root -GitArgs @('checkout', '--quiet', '-b', $branch, $tip) | Out-Null
+    } else {
+        $l = $local.Out.Trim()
+        if ($l -cne $tip -and -not (Test-IsAncestor -Dir $Root -Ancestor $l -Descendant $tip)) { Stop-Shared -Reason 'LOCAL_DIVERGED' -Message "Local $branch ($l) has commits that $Remote does not (or has diverged). Nothing was changed; push or set it aside first." -Code 4 }
+        Invoke-Git -Dir $Root -GitArgs @('checkout', '--quiet', $branch) | Out-Null
+        if ($l -cne $tip) { Invoke-Git -Dir $Root -GitArgs @('merge', '--ff-only', '--quiet', $tip) | Out-Null }
+    }
+    return [pscustomobject]@{ Result = 'RESUMED'; Ref = $ref; Sha = $tip }
 }
 
 function Get-AllTasks {
