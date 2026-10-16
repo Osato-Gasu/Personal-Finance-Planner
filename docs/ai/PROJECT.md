@@ -8,7 +8,7 @@ ci_workflow: ".github/workflows/ci.yml"
 risk_paths: ["src/domain/**", "src/rules/**", "src/data/**", "docs/product/**", "Personal-Finance-Planner.html", "package.json", "package-lock.json", ".github/**"]
 strict_when: ["計算式・端数処理・制度ルール（適用期間と出典）を変える", "保存形式・移行・インポート／エクスポートを変える", "配布・公開（Pages等）を扱う"]
 verify_capabilities: {"cloud": ["npm ci / typecheck / lint / format:check / test / test:rules / test:nisa / test:ideco / test:overview", "npm run verify:launcher（root launcherの鮮度）", "git diff --check"], "local": ["npm run test:portable（Edge/Chromeでfile://を実行。Windows）"], "user_only": ["ブラウザでの画面操作・見た目の確認", "JSONバックアップの保存と復元の実操作"]}
-roles: {"orchestrator": {"agent": "Codex Cloud", "model": "6.1 Sol", "effort": "medium"}, "implement": {"agent": "Codex Cloud（別の実行）", "model": "6.0 Luna", "effort": "xhigh"}, "verify": {"agent": "Codex Cloud（別の実行）", "model": "6.0 Luna"}, "review": {"agent": "Codex Cloud（別の実行）", "model": "6.1 Sol", "effort": "medium"}, "claude_implements_when": ["UI/UX刷新のTASK", "Sharedの改修に付随する規則整合性の確認"]}
+roles: {"orchestrator": {"agent": "Codex Cloud", "model": "6.1 Sol", "effort": "medium"}, "implement": {"agent": "Main（オーケストレーターが兼ねる）。量の多い定型作業だけサブ（別の実行）", "model": "6.1 Sol（サブは6.0 Luna）", "effort": "medium（サブはmedium〜high）"}, "verify": {"agent": "Codex Cloud（別の実行）", "model": "6.0 Luna", "effort": "内容で選ぶ（リスクhigh以上はhigh以上）"}, "review": {"agent": "Codex Cloud（別の実行）", "model": "6.1 Sol", "effort": "medium"}, "top": {"model": "Astra", "use_when": "Solの高負荷で検討しても残る、証拠のそろった難問の診断だけ。修正・検証・PASS判定には使わない", "effort": "medium（必要ならhigh）", "max_per_issue": "2"}, "claude_implements_when": ["UI/UX刷新のTASK", "Sharedの改修に付随する規則整合性の確認"]}
 profiles: {"saving": {"roles": {}, "loop_on": ""}, "normal": {"roles": {}, "loop_on": ""}, "rich": {"roles": {}, "loop_on": ""}}
 ---
 # PROJECT — 暮らしと資産プランナー
@@ -53,7 +53,7 @@ profiles: {"saving": {"roles": {}, "loop_on": ""}, "normal": {"roles": {}, "loop
 
 ## 決定（日付つき）
 - 2026-10-11: Shared 4.0 で再始動した（`AGENTS.md`・`CLAUDE.md`・この文書・`docs/ai/shared/`・`.claude/skills/`）。
-- 2026-10-11 開発の経路と実行環境（ユーザー決定）: クラウドのClaudeセッション（頭脳）が窓口で、必要に応じてChatGPT（Pro）の設計レビューを使う（ユーザーが運ぶ）。Codex（Cloud）がオーケストレーター・実装・検証・独立レビューの4役を別の実行で担い、ユーザーが動作確認できる状態になるまで自律で進める。Claudeが実装を担当するのは、UI/UXの刷新TASKと、Sharedの改修に付随する規則整合性の確認に限る。ゲーム等の実機が要らないため、CodexはCloudを使う。ただしWindows／Edge／Chromeが要る確認（`verify:launcher`、`test:portable`）はCodex Cloudでは行えず、「ユーザー確認待ち」として残す。Codex Cloudの具体的な使い方（TASKの渡し方、ネットワーク、sandbox）は、最初のTASKで確認して、ここへ反映する。
+- 2026-10-11 開発の経路と実行環境（ユーザー決定）: クラウドのClaudeセッション（頭脳）が窓口で、必要に応じてChatGPT（Pro）の設計レビューを使う（ユーザーが運ぶ）。Codex（Cloud）がオーケストレーター・実装・検証・独立レビューの4役を別の実行で担い（4役の分担は 2026-10-16 の決定で置換）、ユーザーが動作確認できる状態になるまで自律で進める。Claudeが実装を担当するのは、UI/UXの刷新TASKと、Sharedの改修に付随する規則整合性の確認に限る。ゲーム等の実機が要らないため、CodexはCloudを使う。ただしWindows／Edge／Chromeが要る確認（`verify:launcher`、`test:portable`）はCodex Cloudでは行えず、「ユーザー確認待ち」として残す。Codex Cloudの具体的な使い方（TASKの渡し方、ネットワーク、sandbox）は、最初のTASKで確認して、ここへ反映する。
 - 2026-10-11 棚卸し（旧PROJECT.mdを振り分けた）:
   - 削除（Sharedに同じ内容）: 破棄・履歴書換え・強制削除をしない等の安全操作（RULES §2）、BLOCKED扱い、worktree掃除の条件の細則、TASK-xxxの正本の扱い。
   - 退役（Shared 2.xの語彙・仕組み）: `next_actor`・`GPT_ORCHESTRATOR`・authority・pointer／claim、`TASKS.html`生成、SharedSync自動登録（`DOWNSTREAMS`）、`PROJECT_ADAPTER.psd1` のShared2向け項目、REVIEW_POLICYの「同一TASK最大3回レビュー」と役割・routingの仕組み（Shared 4.0のモードとRULES §14が代わる。REVIEW_POLICYの必須条件は残る）。
@@ -61,3 +61,4 @@ profiles: {"saving": {"roles": {}, "loop_on": ""}, "normal": {"roles": {}, "loop
   - 値へ移動: コマンド・CI・リスクパス・検証範囲・モデル割当は front matter。
   - 本文に残した: 製品不変条件、公開と配布の扱い、launcher。
   - Sharedへの昇格提案: なし。
+- 2026-10-16 担当の分け方（ユーザー決定。Shared 76a85b4 の RULES §4の9・§5の14・ROLES に合わせる）: オーケストレーター（Main）が実装・修正を兼ね、量の多い定型作業や切り出せる調査だけをサブ（別の実行）へ分ける。検証と独立レビューは実装に関わらない別の実行が行い、Mainは代行しない。検証の負荷は内容で選ぶ（リスクhigh以上は最低high）。同じ問題で5回失敗したら（その間は負荷・モデルを強めてよい）頭脳へ返す。最上位モデル（`roles.top`）は証拠のそろった難問の診断だけに使い、同じ問題に2回まで。これは 2026-10-11 の「4役を別の実行で」を置き換える。
