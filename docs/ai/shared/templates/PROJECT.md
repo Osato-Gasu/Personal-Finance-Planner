@@ -7,7 +7,7 @@ ci_workflow: ""
 risk_paths: []
 strict_when: []
 verify_capabilities: {"cloud": [], "local": [], "user_only": []}
-roles: {"brain": {"model": "", "effort": ""}, "orchestrator": {"model": "", "effort": ""}, "implement": {"model": "", "effort": ""}, "investigate": {"model": "", "effort": ""}, "verify": {"model": "", "effort": ""}, "review": {"model": "", "effort": ""}, "top": {"model": "", "use_when": "", "max_per_issue": ""}}
+roles: {"brain": {"model": "", "effort": ""}, "orchestrator": {"model": "", "effort": ""}, "implement": {"model": "", "effort": ""}, "investigate": {"model": "", "effort": ""}, "verify": {"model": "", "effort": ""}, "review": {"model": "", "effort": ""}, "top": {"model": "", "use_when": "", "max_per_issue": ""}, "claude_models": {"sol_equivalent": "", "luna_equivalent": ""}, "claude_implements_when": []}
 ---
 # PROJECT — 恒久条件
 
@@ -16,7 +16,7 @@ roles: {"brain": {"model": "", "effort": ""}, "orchestrator": {"model": "", "eff
 ## front matter の読み方
 - 1行に1項目、値は文字列か**1行のJSON**（道具・アプリ・人が同じ書き方で読める）。行末にコメントを付けない。
 - `ci_recommend_paths` に触れる変更は、完了時にCIを推奨（skill `ci`）。`ci_skip_paths` だけの変更は不要。`risk_paths` に触れたら標準モード以上、`strict_when` は厳格にする条件（RULES §4）。
-- `verify_capabilities` は環境ごとに検証できること／できないこと。`roles` は具体モデルと負荷の既定（検証の負荷は内容で選ぶ、ROLES。ここは既定値）。`brain` は頭脳（ユーザーが毎回選べる。ここは既定）、`implement` は大きな実装・修正を渡すサブ、`investigate` は調査のサブ。`top` は最上位モデルと、使う条件・同じ問題への上限回数（ROLES）。
+- `verify_capabilities` は環境ごとに検証できること／できないこと。`roles` は具体モデルと負荷の既定（検証の負荷は内容で選ぶ、ROLES。ここは既定値）。`brain` は頭脳（ユーザーが毎回選べる。ここは既定）、`claude_models` はClaudeで回すときのモデルの対応（上位の役／軽い役）、`claude_implements_when` はClaudeが実装する場面、`implement` は大きな実装・修正を渡すサブ、`investigate` は調査のサブ。`top` は最上位モデルと、使う条件・同じ問題への上限回数（ROLES）。
 
 ## 目的
 

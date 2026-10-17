@@ -4,7 +4,7 @@ description: Run a TASK end to end as the orchestrator or as a direct single age
 ---
 # オーケストレーター
 
-権限は RULES.md。モードの定義も RULES §4。ここは手順。
+権限は RULES.md。モードの定義も RULES §4。ここは手順。Claudeが実装する場面（`claude_implements_when`）では、頭脳のセッションがこの手順をそのまま自分で行う（オーケストレーターを兼ねる。ROLES）。
 
 ## 作業の準備（TASK開始時。ユーザーに確認せず最初に実行）
 `pwsh tools/shared.ps1 task start -Id TASK-NNN -Title "…" -Kind fix`（Projectでは複製した `docs/ai/shared/tools/`）。mainをfast-forwardで最新にして作業ブランチを切り、未コミットの変更・fast-forward不可・同名ブランチなら何も変更せず止まる。環境変数が要るTASKは設定と存在を確認する（パスは文書・ファイルに書かない）。ブランチ名とmainのSHAを1〜2行で報告してから本文へ。頭脳がclaim済みで起動の一言を渡されたTASKは、`task start` ではなく `task start -Id TASK-NNN -Resume -ExpectSha <起動の一言のSHA>`（claimを作らず、claimの正しさを読んで確かめてcheckoutする）。
